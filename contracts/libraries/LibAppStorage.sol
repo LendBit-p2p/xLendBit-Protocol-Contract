@@ -1,0 +1,56 @@
+// SPDX-License-Identifier: SEE LICENSE IN LICENSE
+pragma solidity ^0.8.9;
+import "../model/Protocol.sol";
+
+library LibAppStorage {
+
+
+
+
+
+struct Layout{
+
+     /// @dev maps collateral token to their price feed
+    mapping(address token => address priceFeed)  s_priceFeeds;
+
+    /// @dev maps address of a token to see if it is loanable
+    mapping(address token => bool isLoanable)  s_isLoanable;
+
+    /// @dev maps user to the value of balance he has collaterised
+    mapping(address => mapping(address token => uint128 balance))
+         s_addressToCollateralDeposited;
+
+    ///@dev mapping the address of a user to its Struct
+    mapping(address => User)  addressToUser;
+
+    ///@dev mapping of users to their address
+    mapping(uint96 requestId => Request) request;
+
+  ///@dev mapping of id to orders
+     mapping(uint96 orderId => Order) order;
+
+    /// @dev Collection of all colleteral Adresses
+    address[] s_collateralToken;
+
+    /// @dev all loanable assets
+    address[] s_loanableToken;
+
+    /// @dev Collection of all all the resquest;
+    Request[]  s_requests;
+
+    Order [] s_order;
+
+    /// @dev request id;
+    uint96  requestId;
+    
+    uint96  s_orderId;
+
+}
+
+
+
+
+
+
+    
+}
