@@ -39,3 +39,4 @@ error Protocol__LoanNotServiced();
 error Protocol__InvalidAmount();
 error Protocol__NotOwner();
 error Protocol__OwnerCreatedOrder();
+error Protocol__OrderNotServiced();
