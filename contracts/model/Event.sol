@@ -19,11 +19,11 @@ event RespondToLendingOffer(
     uint8 _status,
     uint8 _offerStatus
 );
-event ServiceRequestSuccessful(
-    address indexed sender,
+event RequestServiced(
+    uint96 indexed _requestId,
+    address indexed _lender,
     address indexed _borrower,
-    uint96 _requestId,
-    uint256 amount
+    uint256 _amount
 );
 event CollateralWithdrawn(
     address indexed sender,
@@ -53,5 +53,12 @@ event withdrawnAdsToken(
     address indexed sender,
     uint96 indexed _orderId,
     uint8 indexed orderStatus,
-    uint128 _amount
+    uint256 _amount
+);
+
+event LoanListingCreated(
+    uint96 indexed listingId,
+    address indexed sender,
+    address indexed tokenAddress,
+    uint256 amount
 );

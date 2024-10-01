@@ -8,7 +8,7 @@ library Utils {
     /// @param _percentage the percentage in basis points
     /// @return the percentage of the number
     function calculatePercentage(
-        uint128 _number,
+        uint256 _number,
         uint16 _percentage
     ) internal pure returns (uint256) {
         return (_number * _percentage) / 10000;

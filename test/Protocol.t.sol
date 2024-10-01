@@ -342,7 +342,7 @@ contract ProtocolTest is Test, IDiamondCut {
 
         IERC20(USDT_CONTRACT_ADDRESS).transfer(B, 1000000);
 
-        uint128 requestAmount = 1000;
+        uint256 requestAmount = 1000;
         uint16 interestRate = 500;
         uint256 returnDate = block.timestamp + 365 days;
 
@@ -492,6 +492,70 @@ contract ProtocolTest is Test, IDiamondCut {
         assertEq(_orderAfterRepay2.totalRepayment, 0);
     }
 
+    function testCreateLoanListing() public {
+        switchSigner(owner);
+        IERC20(DIA_CONTRACT_ADDRESS).approve(
+            address(protocolFacet),
+            type(uint256).max
+        );
+        uint256 _amount = 10E10;
+        uint16 _interestRate = 500;
+        uint256 _returnDate = 365 days;
+        uint256 _min_amount = 2E10;
+        uint256 _max_amount = 10E10;
+        protocolFacet.createLoanListing(
+            _amount,
+            _min_amount,
+            _max_amount,
+            _returnDate,
+            _interestRate,
+            DIA_CONTRACT_ADDRESS
+        );
+
+        LoanListing memory _listing = protocolFacet.getLoanListing(1);
+        assertEq(_listing.author, owner);
+        assertEq(_listing.tokenAddress, DIA_CONTRACT_ADDRESS);
+        assertEq(_listing.amount, _amount);
+        assertEq(_listing.interest, _interestRate);
+        assertEq(_listing.min_amount, _min_amount);
+        assertEq(_listing.max_amount, _max_amount);
+        assertEq(_listing.returnDate, _returnDate);
+        assertEq(uint8(_listing.listingStatus), uint8(ListingStatus.OPEN));
+    }
+
+    function testRequestLoanFromListing() public {
+        createLoanListing();
+        IERC20(LINK_CONTRACT_ADDRESS).transfer(B, 500000000000);
+        _depositCollateral(B, LINK_CONTRACT_ADDRESS, 500000000000);
+
+        protocolFacet.requestLoanFromListing(1, 5E10);
+
+        Request memory _request = protocolFacet.getRequest(1);
+        LoanListing memory _listing = protocolFacet.getLoanListing(1);
+
+        assertEq(_request.amount, 5E10);
+        assertEq(_request.interest, _listing.interest);
+        assertEq(_request.returnDate, _listing.returnDate + block.timestamp);
+        assertEq(uint8(_request.status), uint8(Status.SERVICED));
+        assertEq(_listing.amount, 5E10);
+    }
+
+    function createLoanListing() public {
+        switchSigner(owner);
+        IERC20(DIA_CONTRACT_ADDRESS).approve(
+            address(protocolFacet),
+            type(uint256).max
+        );
+        protocolFacet.createLoanListing(
+            10E10,
+            2E10,
+            10E10,
+            365 days,
+            500,
+            DIA_CONTRACT_ADDRESS
+        );
+    }
+
     function transferTokenToOwner() public {
         switchSigner(USDTHolders);
         IERC20(USDT_CONTRACT_ADDRESS).transfer(owner, 500000000000);
@@ -503,11 +567,11 @@ contract ProtocolTest is Test, IDiamondCut {
         IERC20(LINK_CONTRACT_ADDRESS).transfer(owner, 500000000000);
     }
 
-    function depositCollateral(
+    function _depositCollateral(
         address user,
         address token,
-        uint128 amount
-    ) public {
+        uint256 amount
+    ) internal {
         switchSigner(user);
         IERC20(token).approve(address(protocolFacet), type(uint).max);
         protocolFacet.depositCollateral(token, amount);
