@@ -10,6 +10,8 @@ import "../utils/validators/Error.sol";
 import "../model/Event.sol";
 import "../model/Protocol.sol";
 
+import "../utils/functions/Utils.sol";
+
 /// @title ProtocolFacet Contract
 /// @author Chukwuma Emmanuel(@ebukizy1).
 contract ProtocolFacet {
@@ -50,15 +52,15 @@ contract ProtocolFacet {
     /// @param _amountOfCollateral The amount of collateral to deposit
     function depositCollateral(
         address _tokenCollateralAddress,
-        uint128 _amountOfCollateral
+        uint256 _amountOfCollateral
     )
         external
         _moreThanZero(_amountOfCollateral)
         _isTokenAllowed(_tokenCollateralAddress)
     {
         _appStorage.s_addressToCollateralDeposited[msg.sender][
-                _tokenCollateralAddress
-            ] += _amountOfCollateral;
+            _tokenCollateralAddress
+        ] += _amountOfCollateral;
         emit CollateralDeposited(
             msg.sender,
             _tokenCollateralAddress,
@@ -84,7 +86,7 @@ contract ProtocolFacet {
      */
     function createLendingRequest(
         uint128 _amount,
-        uint8 _interest,
+        uint16 _interest,
         uint256 _returnDate,
         address _loanCurrency
     ) external _moreThanZero(_amount) {
@@ -120,8 +122,7 @@ contract ProtocolFacet {
         _newRequest.totalRepayment = _calculateLoanInterest(
             _returnDate,
             _amount,
-            _interest,
-            _loanCurrency
+            _interest
         );
         _newRequest.loanRequestAddr = _loanCurrency;
         _newRequest.status = Status.OPEN;
@@ -135,12 +136,10 @@ contract ProtocolFacet {
         );
     }
 
-
-
     /// @notice Directly services a lending request by transferring funds to the borrower
     /// @param _requestId Identifier of the request being serviced
     /// @param _tokenAddress Token in which the funds are being transferred
-    function serviceRequest(uint8 _requestId, address _tokenAddress) external {
+    function serviceRequest(uint96 _requestId, address _tokenAddress) external {
         Request storage _foundRequest = _appStorage.request[_requestId];
 
         if (_foundRequest.status != Status.OPEN)
@@ -150,7 +149,7 @@ contract ProtocolFacet {
 
         _foundRequest.lender = msg.sender;
         _foundRequest.status = Status.SERVICED;
-        uint128 amountToLend = _foundRequest.amount;
+        uint256 amountToLend = _foundRequest.amount;
 
         // Check if the lender has enough balance and the allowance to transfer the tokens
         if (IERC20(_tokenAddress).balanceOf(msg.sender) < amountToLend)
@@ -162,19 +161,18 @@ contract ProtocolFacet {
 
         uint256 _loanUsdValue = getUsdValue(_tokenAddress, amountToLend);
 
-        uint256 _totalRepayment = _loanUsdValue +
+        uint256 _totalRepayment = amountToLend +
             _calculateLoanInterest(
                 _foundRequest.returnDate,
                 _foundRequest.amount,
-                _foundRequest.interest,
-                _foundRequest.loanRequestAddr
+                _foundRequest.interest
             );
         _foundRequest.totalRepayment = _totalRepayment;
         _appStorage
             .addressToUser[_foundRequest.author]
             .totalLoanCollected += _totalRepayment;
 
-        if (_healthFactor(_foundRequest.author) < 1) {
+        if (_healthFactor(_foundRequest.author, _loanUsdValue) < 1) {
             revert Protocol__InsufficientCollateral();
         }
 
@@ -190,15 +188,13 @@ contract ProtocolFacet {
         _foundRequest.status = Status.SERVICED;
 
         // Emit a success event with relevant details
-        emit ServiceRequestSuccessful(
+        emit RequestServiced(
+            _requestId,
             msg.sender,
             _foundRequest.author,
-            _requestId,
             amountToLend
         );
     }
-
-
 
     /// @notice Withdraws collateral from the protocol
     /// @param _tokenCollateralAddress Address of the collateral token
@@ -230,8 +226,6 @@ contract ProtocolFacet {
         emit CollateralWithdrawn(msg.sender, _tokenCollateralAddress, _amount);
     }
 
-
-
     /// @notice Adds new collateral tokens to the protocol
     /// @param _tokens Array of new collateral token addresses
     /// @param _priceFeeds Array of price feed addresses for the new collateral tokens
@@ -253,8 +247,6 @@ contract ProtocolFacet {
             uint8(_appStorage.s_collateralToken.length)
         );
     }
-
-
 
     /// @notice Removes collateral tokens from the protocol
     /// @param _tokens Array of collateral token addresses to remove
@@ -279,8 +271,6 @@ contract ProtocolFacet {
         );
     }
 
-
-
     /// @dev For adding more tokens that are loanable on the platform
     /// @param _token the address of the token you want to be loanable on the protocol
     /// @param _priceFeed the address of the currency pair on chainlink
@@ -292,8 +282,6 @@ contract ProtocolFacet {
         emit UpdateLoanableToken(_token, _priceFeed, msg.sender);
     }
 
-
-
     /// @dev for upating git coin post score
     /// @param _user the address to the user you want to update
     /// @param _score the gitcoin point score.
@@ -301,7 +289,6 @@ contract ProtocolFacet {
         LibDiamond.enforceIsContractOwner();
         _appStorage.addressToUser[_user].gitCoinPoint = _score;
     }
-
 
     /**
      * @notice Creates a new ad listing for a loan with specified parameters
@@ -312,8 +299,8 @@ contract ProtocolFacet {
      * @param _loanCurrency The token address for the loan currency
      */
     function createListingAds(
-        uint128 _amount,
-        uint8 _interest,
+        uint256 _amount,
+        uint16 _interest,
         uint256 _returnDate,
         address _loanCurrency
     ) external {
@@ -345,8 +332,7 @@ contract ProtocolFacet {
         _newOrder.totalRepayment = _calculateLoanInterest(
             _returnDate,
             _amount,
-            _interest,
-            _loanCurrency
+            _interest
         );
         _newOrder.loanAddress = _loanCurrency;
         _newOrder.orderStatus = OrderStatus.OPEN;
@@ -359,8 +345,6 @@ contract ProtocolFacet {
             _appStorage.s_orderId
         );
     }
-
-
 
     /**
      * @notice Allows a user to withdraw the deposited ads token for a specific order
@@ -375,7 +359,7 @@ contract ProtocolFacet {
             revert Protocol__OwnerCreatedOrder();
         if (_newOrder.amount <= 0) revert Protocol__MustBeMoreThanZero();
 
-        uint128 _amount = _newOrder.amount;
+        uint256 _amount = _newOrder.amount;
         _newOrder.amount = 0;
         _newOrder.orderStatus = OrderStatus.CLOSED;
 
@@ -393,7 +377,127 @@ contract ProtocolFacet {
         );
     }
 
+    /**
+     * @notice Allows a user to create loan listing ads for a specific token with borrow limit
+     * @dev creates a listing, transfers token from user to protocol, and emits an event
+     * @param _amount The total amount of the loan to be listed
+     * @param _min_amount The minimum amount that can be borrowed from the listing
+     * @param _max_amount The maximum amount that can be borrowed from the listing
+     * @param _returnDate The total number of days the loan must be returned
+     * @param _interest The interest rate to be applied to the loan
+     * @param _loanCurrency The token address for the loan currency
+     */
+    function createLoanListing(
+        uint256 _amount,
+        uint256 _min_amount,
+        uint256 _max_amount,
+        uint256 _returnDate,
+        uint16 _interest,
+        address _loanCurrency
+    ) external {
+        if (!_appStorage.s_isLoanable[_loanCurrency]) {
+            revert Protocol__TokenNotLoanable();
+        }
 
+        if (IERC20(_loanCurrency).balanceOf(msg.sender) < _amount)
+            revert Protocol__InsufficientBalance();
+
+        if (
+            IERC20(_loanCurrency).allowance(msg.sender, address(this)) < _amount
+        ) revert Protocol__InsufficientAllowance();
+
+        bool success = IERC20(_loanCurrency).transferFrom(
+            msg.sender,
+            address(this),
+            _amount
+        );
+        require(success, "Protocol__TransferFailed");
+
+        _appStorage.listingId = _appStorage.listingId + 1;
+        LoanListing storage _newListing = _appStorage.loanListings[
+            _appStorage.listingId
+        ];
+        _newListing.listingId = _appStorage.listingId;
+        _newListing.author = msg.sender;
+        _newListing.amount = _amount;
+        _newListing.min_amount = _min_amount;
+        _newListing.max_amount = _max_amount;
+        _newListing.interest = _interest;
+        _newListing.returnDate = _returnDate;
+        _newListing.tokenAddress = _loanCurrency;
+        _newListing.listingStatus = ListingStatus.OPEN;
+        // _appStorage.loanListings[_appStorage.listingId] = _newListing;
+
+        emit LoanListingCreated(
+            _appStorage.listingId,
+            msg.sender,
+            _loanCurrency,
+            _amount
+        );
+    }
+
+    /**
+     * @notice Allows a user to request a loan from a listing ad
+     * @dev creates a request from the listing, transfers token from protocol to user and emits an event
+     * @param _listingId The id of the listing to request a loan from
+     * @param _amount The amount that should be borrowed from the listing
+     */
+    function requestLoanFromListing(uint96 _listingId, uint256 _amount) public {
+        LoanListing storage _listing = _appStorage.loanListings[_listingId];
+        if (_listing.listingStatus != ListingStatus.OPEN)
+            revert Protocol__ListingNotOpen();
+        if (_listing.author == msg.sender)
+            revert Protocol__OwnerCreatedListing();
+        if ((_amount < _listing.min_amount) || (_amount > _listing.max_amount))
+            revert Protocol__InvalidAmount();
+        if (_amount > _listing.amount) revert Protocol__InvalidAmount();
+
+        uint256 _loanUsdValue = getUsdValue(_listing.tokenAddress, _amount);
+        if (_healthFactor(msg.sender, _loanUsdValue) < 1) {
+            revert Protocol__InsufficientCollateral();
+        }
+
+        bool success = IERC20(_listing.tokenAddress).transfer(
+            msg.sender,
+            _amount
+        );
+        require(success, "Protocol__TransferFailed");
+
+        _listing.amount = _listing.amount - _amount;
+
+        _appStorage.requestId = _appStorage.requestId + 1;
+        Request storage _newRequest = _appStorage.request[
+            _appStorage.requestId
+        ];
+        _newRequest.requestId = _appStorage.requestId;
+        _newRequest.author = msg.sender;
+        _newRequest.lender = _listing.author;
+        _newRequest.amount = _amount;
+        _newRequest.interest = _listing.interest;
+        _newRequest.returnDate = _listing.returnDate + block.timestamp;
+        _newRequest.totalRepayment = _calculateLoanInterest(
+            _listing.returnDate + block.timestamp,
+            _amount,
+            _listing.interest
+        );
+        _newRequest.loanRequestAddr = _listing.tokenAddress;
+        _newRequest.status = Status.SERVICED;
+        _appStorage.s_requests.push(_newRequest);
+
+        emit RequestCreated(
+            msg.sender,
+            _appStorage.requestId,
+            _amount,
+            _listing.interest
+        );
+
+        emit RequestServiced(
+            _newRequest.requestId,
+            _newRequest.lender,
+            _newRequest.author,
+            _amount
+        );
+    }
 
     /**
      * @notice Accepts a listed ad order and processes the loan transfer to the borrower
@@ -418,15 +522,14 @@ contract ProtocolFacet {
             _calculateLoanInterest(
                 _newOrder.returnDate,
                 _newOrder.amount,
-                _newOrder.interest,
-                _newOrder.loanAddress
+                _newOrder.interest
             );
         _newOrder.totalRepayment = _totalRepayment;
         _appStorage
             .addressToUser[msg.sender]
             .totalLoanCollected += _totalRepayment;
 
-        if (_healthFactor(msg.sender) < 1) {
+        if (_healthFactor(msg.sender, _loanUsdValue) < 1) {
             revert Protocol__InsufficientCollateral();
         }
         _newOrder.orderStatus = OrderStatus.ACCEPTED;
@@ -446,7 +549,68 @@ contract ProtocolFacet {
         );
     }
 
+    function repayLoan(uint96 _requestId, uint256 _amount) external {
+        require(_amount > 0, "Protocol__MustBeMoreThanZero");
+        Request storage _request = _appStorage.request[_requestId];
+        if (_request.status != Status.SERVICED)
+            revert Protocol__RequestNotServiced();
 
+        IERC20 _token = IERC20(_request.loanRequestAddr);
+
+        if (_token.balanceOf(msg.sender) < _amount)
+            revert Protocol__InsufficientBalance();
+
+        if (_token.allowance(msg.sender, address(this)) < _amount)
+            revert Protocol__InsufficientAllowance();
+
+        if (_amount >= _request.totalRepayment) {
+            _request.totalRepayment = 0;
+            _request.status = Status.CLOSED;
+            _amount = _request.totalRepayment;
+        }
+
+        _request.totalRepayment -= _amount;
+        // TODO: Update the user's totalLoanCollected from appStorage
+
+        IERC20(_request.loanRequestAddr).transferFrom(
+            msg.sender,
+            _request.lender,
+            _amount
+        );
+
+        emit LoanRepayment(msg.sender, _requestId, _amount);
+    }
+
+    function repayAdsLoan(uint96 _orderId, uint256 _amount) external {
+        require(_amount > 0, "Protocol__MustBeMoreThanZero");
+        Order storage _order = _appStorage.order[_orderId];
+        if (_order.orderStatus != OrderStatus.ACCEPTED)
+            revert Protocol__OrderNotServiced();
+
+        IERC20 _token = IERC20(_order.loanAddress);
+
+        if (_token.balanceOf(msg.sender) < _amount)
+            revert Protocol__InsufficientBalance();
+
+        if (_token.allowance(msg.sender, address(this)) < _amount)
+            revert Protocol__InsufficientAllowance();
+
+        if (_amount >= _order.totalRepayment) {
+            _order.totalRepayment = 0;
+            _order.orderStatus = OrderStatus.CLOSED;
+            _amount = _order.totalRepayment;
+        }
+
+        _order.totalRepayment -= _amount;
+
+        IERC20(_order.loanAddress).transferFrom(
+            msg.sender,
+            address(this),
+            _amount
+        );
+
+        emit LoanRepayment(msg.sender, _orderId, _amount);
+    }
 
     ///////////////////////
     /// VIEW FUNCTIONS ///
@@ -459,7 +623,7 @@ contract ProtocolFacet {
     /// @return uint256 returns the equivalent amount in USD.
     function getUsdValue(
         address _token,
-        uint128 _amount
+        uint256 _amount
     ) public view returns (uint256) {
         AggregatorV3Interface _priceFeed = AggregatorV3Interface(
             _appStorage.s_priceFeeds[_token]
@@ -469,8 +633,6 @@ contract ProtocolFacet {
             ((uint256(_price) * Constants.NEW_PRECISION) * _amount) /
             Constants.PRECISION;
     }
-
-
 
     /// @notice This gets the amount of collateral a user has deposited in USD
     /// @param _user the address who you want to get their collateral value
@@ -484,14 +646,12 @@ contract ProtocolFacet {
             index++
         ) {
             address _token = _appStorage.s_collateralToken[index];
-            uint128 _amount = _appStorage.s_addressToCollateralDeposited[_user][
+            uint256 _amount = _appStorage.s_addressToCollateralDeposited[_user][
                 _token
             ];
             _totalCollateralValueInUsd += getUsdValue(_token, _amount);
         }
     }
-
-
 
     /**
      * @notice Retrieves all the requests stored in the system
@@ -502,8 +662,6 @@ contract ProtocolFacet {
         return _appStorage.s_requests;
     }
 
-
-
     /**
      * @notice Retrieves all listed orders stored in the system
      * @dev Returns an array of all orders
@@ -512,8 +670,6 @@ contract ProtocolFacet {
     function getAllListedOrders() external view returns (Order[] memory) {
         return _appStorage.s_order;
     }
-
-
 
     /**
      * @notice Retrieves the details of a specific order by its ID
@@ -527,7 +683,19 @@ contract ProtocolFacet {
         return _order;
     }
 
-
+    /**
+     * @notice Retrieves the details of a specific loan listing by its ID
+     * @dev Returns the listing if it exists, otherwise reverts if the listing's author is the zero address
+     * @param _listingId The ID of the listing to retrieve
+     * @return The `LoanListing` struct containing details of the specified listing
+     */
+    function getLoanListing(
+        uint96 _listingId
+    ) external view returns (LoanListing memory) {
+        LoanListing memory _listing = _appStorage.loanListings[_listingId];
+        if (_listing.author == address(0)) revert Protocol__IdNotExist();
+        return _listing;
+    }
 
     /**
      * @notice Retrieves the details of a specific request by its ID
@@ -535,15 +703,13 @@ contract ProtocolFacet {
      * @param _requestId The ID of the request to retrieve
      * @return The `Request` struct containing details of the specified request
      */
-    function getRquest(
+    function getRequest(
         uint96 _requestId
     ) external view returns (Request memory) {
         Request memory _request = _appStorage.request[_requestId];
         if (_request.author == address(0)) revert Protocol__NotOwner();
         return _request;
     }
-
-
 
     /// @notice This gets the account info of any account
     /// @param _user a parameter for the user account info you want to get
@@ -560,12 +726,14 @@ contract ProtocolFacet {
         _collateralValueInUsd = getAccountCollateralValue(_user);
     }
 
-
-
     /// @notice Checks the health Factor which is a way to check if the user has enough collateral to mint
     /// @param _user a parameter for the address to check
     /// @return uint256 returns the health factor which is supoose to be >= 1
-    function _healthFactor(address _user) private view returns (uint256) {
+    function _healthFactor(
+        address _user,
+        uint256 _borrow_Value
+    ) private view returns (uint256) {
+        // TODO: healthfactor to consider the new amount being borrowed
         (
             uint256 _totalBurrowInUsd,
             uint256 _collateralValueInUsd
@@ -574,10 +742,8 @@ contract ProtocolFacet {
             Constants.LIQUIDATION_THRESHOLD) / 100;
         return
             (_collateralAdjustedForThreshold * Constants.PRECISION) /
-            _totalBurrowInUsd;
+            (_totalBurrowInUsd + _borrow_Value);
     }
-
-
 
     /// @dev get the collection of all collateral token
     /// @return {address[] memory} the collection of collateral addresses
@@ -585,18 +751,14 @@ contract ProtocolFacet {
         return _appStorage.s_collateralToken;
     }
 
-
-
     /// @notice This checks the health factor to see if  it is broken if it is it reverts
     /// @param _user a parameter for the address we want to check the health factor for
     function _revertIfHealthFactorIsBroken(address _user) internal view {
-        uint256 _userHealthFactor = _healthFactor(_user);
+        uint256 _userHealthFactor = _healthFactor(_user, 0);
         if (_userHealthFactor < Constants.MIN_HEALTH_FACTOR) {
             revert Protocol__BreaksHealthFactor();
         }
     }
-
-
 
     /// @dev gets the amount of collateral auser has deposited
     /// @param _sender the user who has the collateral
@@ -609,30 +771,24 @@ contract ProtocolFacet {
         return _appStorage.s_addressToCollateralDeposited[_sender][_tokenAddr];
     }
 
-
-
     /// @dev calculates the loan interest and add it to the loam
     /// @param _returnDate the date at which the loan should be returned
     /// @param _amount the amount the user want to borrow
     /// @param _interest the percentage the user has agreed to payback
-    /// @param _token the token the user want to borrow
     /// @return _totalRepayment the amount the user is to payback
     function _calculateLoanInterest(
         uint256 _returnDate,
-        uint128 _amount,
-        uint8 _interest,
-        address _token
+        uint256 _amount,
+        uint16 _interest
     ) internal view returns (uint256 _totalRepayment) {
         if (_returnDate < block.timestamp)
             revert Protocol__DateMustBeInFuture();
-        // usd value
-        uint256 amountInUsd = getUsdValue(_token, _amount);
         // Calculate the total repayment amount including interest
-        _totalRepayment = (amountInUsd * _interest) / 100;
+        _totalRepayment =
+            _amount +
+            Utils.calculatePercentage(_amount, _interest);
         return _totalRepayment;
     }
-
-
 
     /// @dev for getting the gitcoinpoint score
     /// @param _user the address of you wan to check the score for.
@@ -644,8 +800,6 @@ contract ProtocolFacet {
         _score = _appStorage.addressToUser[_user].gitCoinPoint;
     }
 
-
-
     /// @return _assets the collection of token that can be loaned in the protocol
     function getLoanableAssets()
         external
@@ -654,8 +808,6 @@ contract ProtocolFacet {
     {
         _assets = _appStorage.s_loanableToken;
     }
-
-    
 
     /// @dev gets a request from a user
     /// @param _user the addresss of the user
