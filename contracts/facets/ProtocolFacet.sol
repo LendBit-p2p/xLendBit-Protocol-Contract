@@ -13,7 +13,7 @@ import "../model/Protocol.sol";
 import "../utils/functions/Utils.sol";
 
 /// @title ProtocolFacet Contract
-/// @author Chukwuma Emmanuel(@ebukizy1).
+/// @author Chukwuma Emmanuel(@ebukizy1). Favour Aniogor (@SuperDevFavour)
 contract ProtocolFacet {
     LibAppStorage.Layout internal _appStorage;
 
@@ -44,6 +44,21 @@ contract ProtocolFacet {
         _;
     }
 
+    /**
+     * @dev Ensures that the provided amount is greater than zero for depositing and withdraeing
+     * @param _amount The amount to be validated
+     * @param _token The address of the token to be validated
+     */
+    modifier _valueMoreThanZero(uint256 _amount, address _token) {
+        if (_amount <= 0) {
+            revert Protocol__MustBeMoreThanZero();
+        }
+        if (_token == Constants.NATIVE_TOKEN && msg.value <= 0) {
+            revert Protocol__MustBeMoreThanZero();
+        }
+        _;
+    }
+
     //////////////////
     /// FUNCTIONS ///
     ////////////////
@@ -55,24 +70,33 @@ contract ProtocolFacet {
         uint256 _amountOfCollateral
     )
         external
-        _moreThanZero(_amountOfCollateral)
+        payable
+        _valueMoreThanZero(_amountOfCollateral, _tokenCollateralAddress)
         _isTokenAllowed(_tokenCollateralAddress)
     {
+        if (_tokenCollateralAddress == Constants.NATIVE_TOKEN) {
+            _amountOfCollateral = msg.value;
+        }
+
         _appStorage.s_addressToCollateralDeposited[msg.sender][
             _tokenCollateralAddress
         ] += _amountOfCollateral;
+
         emit CollateralDeposited(
             msg.sender,
             _tokenCollateralAddress,
             _amountOfCollateral
         );
-        bool _success = IERC20(_tokenCollateralAddress).transferFrom(
-            msg.sender,
-            address(this),
-            _amountOfCollateral
-        );
-        if (!_success) {
-            revert Protocol__TransferFailed();
+
+        if (_tokenCollateralAddress != Constants.NATIVE_TOKEN) {
+            bool _success = IERC20(_tokenCollateralAddress).transferFrom(
+                msg.sender,
+                address(this),
+                _amountOfCollateral
+            );
+            if (!_success) {
+                revert Protocol__TransferFailed();
+            }
         }
     }
 

@@ -8,4 +8,5 @@ library Constants {
     uint256 constant LIQUIDATION_THRESHOLD = 80;
     uint256 constant MIN_HEALTH_FACTOR = 1;
     uint256 constant COLLATERALIZATION_RATIO = 80;
+    address constant NATIVE_TOKEN = address(1);
 }
