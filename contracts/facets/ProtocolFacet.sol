@@ -45,6 +45,17 @@ contract ProtocolFacet {
     }
 
     /**
+     * @dev Ensures that the provided amount Of the Native Token passed is greater than zero
+     * @param _token The address of the token to be validated
+     */
+    modifier _nativeMoreThanZero(address _token) {
+        if (_token == Constants.NATIVE_TOKEN && msg.value <= 0) {
+            revert Protocol__MustBeMoreThanZero();
+        }
+        _;
+    }
+
+    /**
      * @dev Ensures that the provided amount is greater than zero for depositing and withdraeing
      * @param _amount The amount to be validated
      * @param _token The address of the token to be validated
@@ -108,6 +119,8 @@ contract ProtocolFacet {
      * @param _loanCurrency The currency in which the loan is denominated
      * @dev This function calculates the required repayments and checks the borrower's collateral before accepting a loan request.
      */
+
+    //@audit this cannot create lending request for things lesser than 1 especially ether
     function createLendingRequest(
         uint128 _amount,
         uint16 _interest,
@@ -163,7 +176,12 @@ contract ProtocolFacet {
     /// @notice Directly services a lending request by transferring funds to the borrower
     /// @param _requestId Identifier of the request being serviced
     /// @param _tokenAddress Token in which the funds are being transferred
-    function serviceRequest(uint96 _requestId, address _tokenAddress) external {
+
+    //@audit fixing the amounts bugs for sending of tokens is rediculous
+    function serviceRequest(
+        uint96 _requestId,
+        address _tokenAddress
+    ) external payable _nativeMoreThanZero(_tokenAddress) {
         Request storage _foundRequest = _appStorage.request[_requestId];
 
         if (_foundRequest.status != Status.OPEN)
@@ -176,12 +194,18 @@ contract ProtocolFacet {
         uint256 amountToLend = _foundRequest.amount;
 
         // Check if the lender has enough balance and the allowance to transfer the tokens
-        if (IERC20(_tokenAddress).balanceOf(msg.sender) < amountToLend)
-            revert Protocol__InsufficientBalance();
-        if (
-            IERC20(_tokenAddress).allowance(msg.sender, address(this)) <
-            amountToLend
-        ) revert Protocol__InsufficientAllowance();
+        if (_tokenAddress == Constants.NATIVE_TOKEN) {
+            if (msg.value < amountToLend) {
+                revert Protocol__InsufficientAmount();
+            }
+        } else {
+            if (IERC20(_tokenAddress).balanceOf(msg.sender) < amountToLend)
+                revert Protocol__InsufficientBalance();
+            if (
+                IERC20(_tokenAddress).allowance(msg.sender, address(this)) <
+                amountToLend
+            ) revert Protocol__InsufficientAllowance();
+        }
 
         uint256 _loanUsdValue = getUsdValue(_tokenAddress, amountToLend);
 
@@ -201,12 +225,14 @@ contract ProtocolFacet {
         }
 
         // Transfer the funds from the lender to the borrower
-        bool success = IERC20(_tokenAddress).transferFrom(
-            msg.sender,
-            _foundRequest.author,
-            amountToLend
-        );
-        require(success, "Protocol__TransferFailed");
+        if (_tokenAddress != Constants.NATIVE_TOKEN) {
+            bool success = IERC20(_tokenAddress).transferFrom(
+                msg.sender,
+                _foundRequest.author,
+                amountToLend
+            );
+            require(success, "Protocol__TransferFailed");
+        }
 
         // Update the request's status to serviced
         _foundRequest.status = Status.SERVICED;
@@ -241,11 +267,15 @@ contract ProtocolFacet {
         // Check if remaining collateral still covers all loan obligations
         _revertIfHealthFactorIsBroken(msg.sender);
 
-        bool success = IERC20(_tokenCollateralAddress).transfer(
-            msg.sender,
-            _amount
-        );
-        require(success, "Protocol__TransferFailed");
+        if (_tokenCollateralAddress == Constants.NATIVE_TOKEN) {
+            payable(msg.sender).call{value: _amount}("");
+        } else {
+            bool success = IERC20(_tokenCollateralAddress).transfer(
+                msg.sender,
+                _amount
+            );
+            require(success, "Protocol__TransferFailed");
+        }
 
         emit CollateralWithdrawn(msg.sender, _tokenCollateralAddress, _amount);
     }

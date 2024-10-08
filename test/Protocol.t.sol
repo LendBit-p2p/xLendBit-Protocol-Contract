@@ -28,11 +28,13 @@ contract ProtocolTest is Test, IDiamondCut {
     address DIA_USD = 0xD1092a65338d049DB68D7Be6bD89d17a0929945e;
     address LINK_USD = 0xb113F5A928BCfF189C998ab20d753a47F9dE5A61;
     address WETH_USD = 0x4aDC67696bA383F43DD60A9e78F2C97Fbbfc7cb1;
+    address ETH_USD = 0x4aDC67696bA383F43DD60A9e78F2C97Fbbfc7cb1;
 
     address USDT_CONTRACT_ADDRESS = 0x00D1C02E008D594ebEFe3F3b7fd175850f96AEa0;
     address WETH_CONTRACT_ADDRESS = 0x7fEa3ea63433a35e8516777171D7d0e038804716;
     address DIA_CONTRACT_ADDRESS = 0x5caF98bf477CBE96d5CA56039FE7beec457bA653;
     address LINK_CONTRACT_ADDRESS = 0xb58c2e70c750CBAA1a2d487Dd0BfF26be92F5308;
+    address ETH_CONTRACT_ADDRESS = address(1);
 
     address owner = address(0xa);
     address B = address(0xb);
@@ -57,11 +59,13 @@ contract ProtocolTest is Test, IDiamondCut {
         tokens.push(DIA_CONTRACT_ADDRESS);
         tokens.push(LINK_CONTRACT_ADDRESS);
         tokens.push(WETH_CONTRACT_ADDRESS);
+        tokens.push(ETH_CONTRACT_ADDRESS);
 
         priceFeed.push(USDT_USD);
         priceFeed.push(DIA_USD);
         priceFeed.push(LINK_USD);
         priceFeed.push(WETH_USD);
+        priceFeed.push(ETH_USD);
 
         //upgrade diamond with facets
 
@@ -133,6 +137,72 @@ contract ProtocolTest is Test, IDiamondCut {
         uint256 _amountQualaterized = protocolFacet
             .gets_addressToCollateralDeposited(owner, USDT_CONTRACT_ADDRESS);
         assertEq(_amountQualaterized, 1000000);
+    }
+
+    function testDepositNativeCollateral() public {
+        switchSigner(owner);
+        vm.deal(owner, 500 ether);
+        protocolFacet.depositCollateral{value: 100 ether}(
+            ETH_CONTRACT_ADDRESS,
+            100 ether
+        );
+        uint256 _amountQualaterized = protocolFacet
+            .gets_addressToCollateralDeposited(owner, ETH_CONTRACT_ADDRESS);
+        assertEq(_amountQualaterized, 100 ether);
+    }
+
+    function testServiceNativeRequest() public {
+        switchSigner(owner);
+        protocolFacet.depositCollateral(USDT_CONTRACT_ADDRESS, 10000000000);
+
+        uint128 requestAmount = 1;
+        uint16 interestRate = 500;
+        uint256 returnDate = block.timestamp + 365 days;
+
+        protocolFacet.createLendingRequest(
+            requestAmount,
+            interestRate,
+            returnDate,
+            ETH_CONTRACT_ADDRESS
+        );
+
+        switchSigner(B);
+        vm.deal(B, 10 ether);
+
+        vm.expectEmit(true, true, true, true);
+        emit RequestServiced(1, B, owner, 1);
+        protocolFacet.serviceRequest{value: 1}(1, ETH_CONTRACT_ADDRESS);
+    }
+
+    function testWithdrawCollateral() public {
+        switchSigner(owner);
+        vm.deal(owner, 500 ether);
+        protocolFacet.depositCollateral{value: 100 ether}(
+            ETH_CONTRACT_ADDRESS,
+            100 ether
+        );
+
+        uint128 requestAmount = 1;
+        uint16 interestRate = 500;
+        uint256 returnDate = block.timestamp + 365 days;
+
+        protocolFacet.createLendingRequest(
+            requestAmount,
+            interestRate,
+            returnDate,
+            ETH_CONTRACT_ADDRESS
+        );
+
+        switchSigner(B);
+        vm.deal(B, 10 ether);
+
+        protocolFacet.serviceRequest{value: 1}(1, ETH_CONTRACT_ADDRESS);
+
+        switchSigner(owner);
+        protocolFacet.withdrawCollateral(ETH_CONTRACT_ADDRESS, 99 ether);
+        uint256 _amountQualaterized = protocolFacet
+            .gets_addressToCollateralDeposited(owner, ETH_CONTRACT_ADDRESS);
+        assertEq(_amountQualaterized, 1 ether);
     }
 
     function testUserCanCreateTwoRequest() public {
