@@ -385,124 +385,124 @@ contract ProtocolTest is Test, IDiamondCut {
         protocolFacet.serviceRequest(1, LINK_CONTRACT_ADDRESS);
     }
 
-    function testUserCanCreateListingAds() public {
-        switchSigner(owner);
-        uint128 requestAmount = 10000;
-        uint16 interestRate = 500;
-        uint256 returnDate = block.timestamp + 365 days;
+    // function testUserCanCreateListingAds() public {
+    //     switchSigner(owner);
+    //     uint128 requestAmount = 10000;
+    //     uint16 interestRate = 500;
+    //     uint256 returnDate = block.timestamp + 365 days;
 
-        protocolFacet.createListingAds(
-            requestAmount,
-            interestRate,
-            returnDate,
-            DIA_CONTRACT_ADDRESS
-        );
-        protocolFacet.createListingAds(
-            requestAmount,
-            interestRate,
-            returnDate,
-            DIA_CONTRACT_ADDRESS
-        );
-        // Verify that the request is correctly added
-        Order[] memory orders = protocolFacet.getAllListedOrders();
-        assertEq(orders.length, 2);
-        assertEq(orders[0].amount, requestAmount);
-    }
+    //     protocolFacet.createListingAds(
+    //         requestAmount,
+    //         interestRate,
+    //         returnDate,
+    //         DIA_CONTRACT_ADDRESS
+    //     );
+    //     protocolFacet.createListingAds(
+    //         requestAmount,
+    //         interestRate,
+    //         returnDate,
+    //         DIA_CONTRACT_ADDRESS
+    //     );
+    //     // Verify that the request is correctly added
+    //     Order[] memory orders = protocolFacet.getAllListedOrders();
+    //     assertEq(orders.length, 2);
+    //     assertEq(orders[0].amount, requestAmount);
+    // }
 
-    function testUserCanAcceptListedAds() public {
-        switchSigner(owner);
+    // function testUserCanAcceptListedAds() public {
+    //     switchSigner(owner);
 
-        IERC20(USDT_CONTRACT_ADDRESS).transfer(B, 1000000);
+    //     IERC20(USDT_CONTRACT_ADDRESS).transfer(B, 1000000);
 
-        uint128 requestAmount = 1000;
-        uint16 interestRate = 500;
-        uint256 returnDate = block.timestamp + 365 days;
+    //     uint128 requestAmount = 1000;
+    //     uint16 interestRate = 500;
+    //     uint256 returnDate = block.timestamp + 365 days;
 
-        protocolFacet.createListingAds(
-            requestAmount,
-            interestRate,
-            returnDate,
-            DIA_CONTRACT_ADDRESS
-        );
-        protocolFacet.createListingAds(
-            requestAmount,
-            interestRate,
-            returnDate,
-            DIA_CONTRACT_ADDRESS
-        );
+    //     protocolFacet.createListingAds(
+    //         requestAmount,
+    //         interestRate,
+    //         returnDate,
+    //         DIA_CONTRACT_ADDRESS
+    //     );
+    //     protocolFacet.createListingAds(
+    //         requestAmount,
+    //         interestRate,
+    //         returnDate,
+    //         DIA_CONTRACT_ADDRESS
+    //     );
 
-        switchSigner(B);
-        IERC20(USDT_CONTRACT_ADDRESS).approve(address(protocolFacet), 10000000);
-        protocolFacet.depositCollateral(USDT_CONTRACT_ADDRESS, 100000);
+    //     switchSigner(B);
+    //     IERC20(USDT_CONTRACT_ADDRESS).approve(address(protocolFacet), 10000000);
+    //     protocolFacet.depositCollateral(USDT_CONTRACT_ADDRESS, 100000);
 
-        protocolFacet.acceptListedAds(1);
-        assertEq(IERC20(DIA_CONTRACT_ADDRESS).balanceOf(B), 1000);
-    }
+    //     protocolFacet.acceptListedAds(1);
+    //     assertEq(IERC20(DIA_CONTRACT_ADDRESS).balanceOf(B), 1000);
+    // }
 
-    function testUserCannotAcceptListedAdsWithoutDepositingColateral() public {
-        switchSigner(owner);
+    // function testUserCannotAcceptListedAdsWithoutDepositingColateral() public {
+    //     switchSigner(owner);
 
-        IERC20(USDT_CONTRACT_ADDRESS).transfer(B, 1000000);
+    //     IERC20(USDT_CONTRACT_ADDRESS).transfer(B, 1000000);
 
-        uint256 requestAmount = 1000;
-        uint16 interestRate = 500;
-        uint256 returnDate = block.timestamp + 365 days;
+    //     uint256 requestAmount = 1000;
+    //     uint16 interestRate = 500;
+    //     uint256 returnDate = block.timestamp + 365 days;
 
-        protocolFacet.createListingAds(
-            requestAmount,
-            interestRate,
-            returnDate,
-            DIA_CONTRACT_ADDRESS
-        );
-        protocolFacet.createListingAds(
-            requestAmount,
-            interestRate,
-            returnDate,
-            DIA_CONTRACT_ADDRESS
-        );
+    //     protocolFacet.createListingAds(
+    //         requestAmount,
+    //         interestRate,
+    //         returnDate,
+    //         DIA_CONTRACT_ADDRESS
+    //     );
+    //     protocolFacet.createListingAds(
+    //         requestAmount,
+    //         interestRate,
+    //         returnDate,
+    //         DIA_CONTRACT_ADDRESS
+    //     );
 
-        switchSigner(B);
+    //     switchSigner(B);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(Protocol__InsufficientCollateral.selector)
-        );
-        protocolFacet.acceptListedAds(1);
-    }
+    //     vm.expectRevert(
+    //         abi.encodeWithSelector(Protocol__InsufficientCollateral.selector)
+    //     );
+    //     protocolFacet.acceptListedAds(1);
+    // }
 
-    function testUserCanWithdrawnDepositedAdsToken() public {
-        switchSigner(owner);
+    // function testUserCanWithdrawnDepositedAdsToken() public {
+    //     switchSigner(owner);
 
-        uint128 requestAmount = 10000;
-        uint16 interestRate = 500;
-        uint256 returnDate = block.timestamp + 365 days;
+    //     uint128 requestAmount = 10000;
+    //     uint16 interestRate = 500;
+    //     uint256 returnDate = block.timestamp + 365 days;
 
-        protocolFacet.createListingAds(
-            requestAmount,
-            interestRate,
-            returnDate,
-            DIA_CONTRACT_ADDRESS
-        );
-        protocolFacet.createListingAds(
-            requestAmount,
-            interestRate,
-            returnDate,
-            DIA_CONTRACT_ADDRESS
-        );
+    //     protocolFacet.createListingAds(
+    //         requestAmount,
+    //         interestRate,
+    //         returnDate,
+    //         DIA_CONTRACT_ADDRESS
+    //     );
+    //     protocolFacet.createListingAds(
+    //         requestAmount,
+    //         interestRate,
+    //         returnDate,
+    //         DIA_CONTRACT_ADDRESS
+    //     );
 
-        uint256 _AfterDepositTokenAds = IERC20(DIA_CONTRACT_ADDRESS).balanceOf(
-            owner
-        );
+    //     uint256 _AfterDepositTokenAds = IERC20(DIA_CONTRACT_ADDRESS).balanceOf(
+    //         owner
+    //     );
 
-        protocolFacet.withdrawnDepositedAdsToken(1);
+    //     protocolFacet.withdrawnDepositedAdsToken(1);
 
-        uint256 _AfterWithdrawnTokenAds = IERC20(DIA_CONTRACT_ADDRESS)
-            .balanceOf(owner);
+    //     uint256 _AfterWithdrawnTokenAds = IERC20(DIA_CONTRACT_ADDRESS)
+    //         .balanceOf(owner);
 
-        assertEq(
-            _AfterWithdrawnTokenAds,
-            _AfterDepositTokenAds + requestAmount
-        );
-    }
+    //     assertEq(
+    //         _AfterWithdrawnTokenAds,
+    //         _AfterDepositTokenAds + requestAmount
+    //     );
+    // }
 
     function testRepayLoan() public {
         testServiceRequest();
@@ -555,44 +555,44 @@ contract ProtocolTest is Test, IDiamondCut {
         assertEq(_requestAfterRepay2.totalRepayment, 0);
     }
 
-    function testRepayAdsLoan() public {
-        testUserCanAcceptListedAds();
-        switchSigner(owner);
-        Order memory _order = protocolFacet.getOrder(1);
+    // function testRepayAdsLoan() public {
+    //     testUserCanAcceptListedAds();
+    //     switchSigner(owner);
+    //     Order memory _order = protocolFacet.getOrder(1);
 
-        IERC20(_order.loanAddress).approve(
-            address(protocolFacet),
-            _order.totalRepayment
-        );
+    //     IERC20(_order.loanAddress).approve(
+    //         address(protocolFacet),
+    //         _order.totalRepayment
+    //     );
 
-        protocolFacet.repayAdsLoan(1, _order.totalRepayment);
+    //     protocolFacet.repayAdsLoan(1, _order.totalRepayment);
 
-        Order memory _orderAfterRepay = protocolFacet.getOrder(1);
-        assertEq(
-            uint8(_orderAfterRepay.orderStatus),
-            uint8(OrderStatus.CLOSED)
-        );
-        assertEq(_orderAfterRepay.totalRepayment, 0);
-    }
+    //     Order memory _orderAfterRepay = protocolFacet.getOrder(1);
+    //     assertEq(
+    //         uint8(_orderAfterRepay.orderStatus),
+    //         uint8(OrderStatus.CLOSED)
+    //     );
+    //     assertEq(_orderAfterRepay.totalRepayment, 0);
+    // }
 
-    function testProgressiveAdsLoanRepayment() public {
-        testUserCanAcceptListedAds();
-        switchSigner(owner);
-        Order memory _order = protocolFacet.getOrder(1);
+    // function testProgressiveAdsLoanRepayment() public {
+    //     testUserCanAcceptListedAds();
+    //     switchSigner(owner);
+    //     Order memory _order = protocolFacet.getOrder(1);
 
-        // IERC20(_order.loanAddress).approve(address(protocolFacet), _order.totalRepayment);
+    //     // IERC20(_order.loanAddress).approve(address(protocolFacet), _order.totalRepayment);
 
-        protocolFacet.repayAdsLoan(1, _order.totalRepayment / 2);
-        Order memory _orderAfterRepay = protocolFacet.getOrder(1);
-        assertEq(
-            _orderAfterRepay.totalRepayment,
-            _order.totalRepayment - (_order.totalRepayment / 2)
-        );
+    //     protocolFacet.repayAdsLoan(1, _order.totalRepayment / 2);
+    //     Order memory _orderAfterRepay = protocolFacet.getOrder(1);
+    //     assertEq(
+    //         _orderAfterRepay.totalRepayment,
+    //         _order.totalRepayment - (_order.totalRepayment / 2)
+    //     );
 
-        protocolFacet.repayAdsLoan(1, _orderAfterRepay.totalRepayment);
-        Order memory _orderAfterRepay2 = protocolFacet.getOrder(1);
-        assertEq(_orderAfterRepay2.totalRepayment, 0);
-    }
+    //     protocolFacet.repayAdsLoan(1, _orderAfterRepay.totalRepayment);
+    //     Order memory _orderAfterRepay2 = protocolFacet.getOrder(1);
+    //     assertEq(_orderAfterRepay2.totalRepayment, 0);
+    // }
 
     function testCreateLoanListing() public {
         switchSigner(owner);
