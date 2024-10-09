@@ -276,7 +276,6 @@ contract ProtocolFacet {
             );
             require(success, "Protocol__TransferFailed");
         }
-
         emit CollateralWithdrawn(msg.sender, _tokenCollateralAddress, _amount);
     }
 
@@ -368,6 +367,9 @@ contract ProtocolFacet {
         if (
             IERC20(_loanCurrency).allowance(msg.sender, address(this)) < _amount
         ) revert Protocol__InsufficientAllowance();
+        
+
+
 
         bool success = IERC20(_loanCurrency).transferFrom(
             msg.sender,
@@ -448,7 +450,7 @@ contract ProtocolFacet {
         uint256 _returnDate,
         uint16 _interest,
         address _loanCurrency
-    ) external {
+    ) payable external  {
         if (!_appStorage.s_isLoanable[_loanCurrency]) {
             revert Protocol__TokenNotLoanable();
         }
@@ -460,12 +462,20 @@ contract ProtocolFacet {
             IERC20(_loanCurrency).allowance(msg.sender, address(this)) < _amount
         ) revert Protocol__InsufficientAllowance();
 
-        bool success = IERC20(_loanCurrency).transferFrom(
-            msg.sender,
-            address(this),
-            _amount
-        );
-        require(success, "Protocol__TransferFailed");
+         if (_loanCurrency == Constants.NATIVE_TOKEN) {
+            _amount = msg.value;
+        }
+
+        if (_loanCurrency != Constants.NATIVE_TOKEN) {
+            bool _success = IERC20(_tokenCollateralAddress).transferFrom(
+                msg.sender,
+                address(this),
+                _amount
+            );
+            if (!_success) {
+                revert Protocol__TransferFailed();
+            }
+        }
 
         _appStorage.listingId = _appStorage.listingId + 1;
         LoanListing storage _newListing = _appStorage.loanListings[
