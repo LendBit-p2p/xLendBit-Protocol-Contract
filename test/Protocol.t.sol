@@ -208,10 +208,7 @@ contract ProtocolTest is Test, IDiamondCut {
 
     function testNativeListingAds() external {
         switchSigner(owner);
-        IERC20(DIA_CONTRACT_ADDRESS).approve(
-            address(protocolFacet),
-            type(uint256).max
-        );
+  
         vm.deal(owner, 500 ether);
 
         uint256 _amount = 100 ether;
@@ -219,18 +216,18 @@ contract ProtocolTest is Test, IDiamondCut {
         uint256 _returnDate = 365 days;
         uint256 _min_amount = 2E10;
         uint256 _max_amount = 10E10;
-        protocolFacet.createLoanListing{value: 100 ether (
+        protocolFacet.createLoanListing{value: 100 ether} (
             _amount,
             _min_amount,
             _max_amount,
             _returnDate,
             _interestRate,
-            DIA_CONTRACT_ADDRESS
+            ETH_CONTRACT_ADDRESS
         );
 
         LoanListing memory _listing = protocolFacet.getLoanListing(1);
         assertEq(_listing.author, owner);
-        assertEq(_listing.tokenAddress, DIA_CONTRACT_ADDRESS);
+        assertEq(_listing.tokenAddress, ETH_CONTRACT_ADDRESS);
         assertEq(_listing.amount, _amount);
         assertEq(_listing.interest, _interestRate);
         assertEq(_listing.min_amount, _min_amount);
