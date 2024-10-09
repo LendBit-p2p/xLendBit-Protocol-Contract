@@ -268,7 +268,8 @@ contract ProtocolFacet {
         _revertIfHealthFactorIsBroken(msg.sender);
 
         if (_tokenCollateralAddress == Constants.NATIVE_TOKEN) {
-            payable(msg.sender).call{value: _amount}("");
+            (bool sent, ) = payable(msg.sender).call{value: _amount}("");
+            require(sent, "Protocol__TransferFailed");       
         } else {
             bool success = IERC20(_tokenCollateralAddress).transfer(
                 msg.sender,
@@ -276,7 +277,6 @@ contract ProtocolFacet {
             );
             require(success, "Protocol__TransferFailed");
         }
-
         emit CollateralWithdrawn(msg.sender, _tokenCollateralAddress, _amount);
     }
 
@@ -368,6 +368,9 @@ contract ProtocolFacet {
         if (
             IERC20(_loanCurrency).allowance(msg.sender, address(this)) < _amount
         ) revert Protocol__InsufficientAllowance();
+        
+
+
 
         bool success = IERC20(_loanCurrency).transferFrom(
             msg.sender,
@@ -387,7 +390,7 @@ contract ProtocolFacet {
             _returnDate,
             _amount,
             _interest
-        );
+        );        
         _newOrder.loanAddress = _loanCurrency;
         _newOrder.orderStatus = OrderStatus.OPEN;
         _appStorage.s_order.push(_newOrder);
@@ -405,17 +408,19 @@ contract ProtocolFacet {
      * @dev Withdraws the ads token associated with an open order, closes the order, and emits an event
      * @param _orderId The ID of the order to withdraw the token from
      */
-    function withdrawnDepositedAdsToken(uint96 _orderId) external {
-        Order storage _newOrder = _appStorage.order[_orderId];
-        if (_newOrder.orderStatus != OrderStatus.OPEN)
+    function withdrawnListenDepositedTokens(uint96 _orderId) external {
+      LoanListing  storage _newListing = _appStorage.loanListings[_orderId];
+        if (_newListing.listingStatus != ListingStatus.OPEN)
             revert Protocol__OrderNotOpen();
-        if (_newOrder.author != msg.sender)
+        if (_newListing.author != msg.sender)
             revert Protocol__OwnerCreatedOrder();
-        if (_newOrder.amount <= 0) revert Protocol__MustBeMoreThanZero();
+        if (_newListing.amount <= 0) revert Protocol__MustBeMoreThanZero();
+        if()
 
         uint256 _amount = _newOrder.amount;
         _newOrder.amount = 0;
         _newOrder.orderStatus = OrderStatus.CLOSED;
+
 
         bool success = IERC20(_newOrder.loanAddress).transfer(
             msg.sender,
@@ -448,7 +453,7 @@ contract ProtocolFacet {
         uint256 _returnDate,
         uint16 _interest,
         address _loanCurrency
-    ) external {
+    ) payable external  {
         if (!_appStorage.s_isLoanable[_loanCurrency]) {
             revert Protocol__TokenNotLoanable();
         }
@@ -460,12 +465,20 @@ contract ProtocolFacet {
             IERC20(_loanCurrency).allowance(msg.sender, address(this)) < _amount
         ) revert Protocol__InsufficientAllowance();
 
-        bool success = IERC20(_loanCurrency).transferFrom(
-            msg.sender,
-            address(this),
-            _amount
-        );
-        require(success, "Protocol__TransferFailed");
+         if (_loanCurrency == Constants.NATIVE_TOKEN) {
+            _amount = msg.value;
+        }
+
+        if (_loanCurrency != Constants.NATIVE_TOKEN) {
+            bool _success = IERC20(_loanCurrency).transferFrom(
+                msg.sender,
+                address(this),
+                _amount
+            );
+            if (!_success) {
+                revert Protocol__TransferFailed();
+            }
+        }
 
         _appStorage.listingId = _appStorage.listingId + 1;
         LoanListing storage _newListing = _appStorage.loanListings[
@@ -500,8 +513,10 @@ contract ProtocolFacet {
         LoanListing storage _listing = _appStorage.loanListings[_listingId];
         if (_listing.listingStatus != ListingStatus.OPEN)
             revert Protocol__ListingNotOpen();
+
         if (_listing.author == msg.sender)
             revert Protocol__OwnerCreatedListing();
+
         if ((_amount < _listing.min_amount) || (_amount > _listing.max_amount))
             revert Protocol__InvalidAmount();
         if (_amount > _listing.amount) revert Protocol__InvalidAmount();
@@ -511,12 +526,17 @@ contract ProtocolFacet {
             revert Protocol__InsufficientCollateral();
         }
 
-        bool success = IERC20(_listing.tokenAddress).transfer(
+        if (_listing.tokenAddress == Constants.NATIVE_TOKEN) {
+            (bool sent, ) = payable(msg.sender).call{value: _amount}("");
+            require(sent, "Protocol__TransferFailed");  
+        }else {
+               bool success = IERC20(_listing.tokenAddress).transfer(
             msg.sender,
             _amount
         );
         require(success, "Protocol__TransferFailed");
-
+        }
+      
         _listing.amount = _listing.amount - _amount;
 
         _appStorage.requestId = _appStorage.requestId + 1;
@@ -536,6 +556,7 @@ contract ProtocolFacet {
         );
         _newRequest.loanRequestAddr = _listing.tokenAddress;
         _newRequest.status = Status.SERVICED;
+        
         _appStorage.s_requests.push(_newRequest);
 
         emit RequestCreated(
@@ -623,48 +644,56 @@ contract ProtocolFacet {
             _amount = _request.totalRepayment;
         }
 
+
         _request.totalRepayment -= _amount;
         // TODO: Update the user's totalLoanCollected from appStorage
 
-        IERC20(_request.loanRequestAddr).transferFrom(
+         if (_request.loanRequestAddr == Constants.NATIVE_TOKEN) {
+            (bool sent, ) = payable(msg.sender).call{value: _amount}("");
+            require(sent, "Protocol__TransferFailed");  
+            
+        }else {
+              IERC20(_request.loanRequestAddr).transferFrom(
             msg.sender,
             _request.lender,
             _amount
         );
+        }
+      
 
         emit LoanRepayment(msg.sender, _requestId, _amount);
     }
 
-    function repayAdsLoan(uint96 _orderId, uint256 _amount) external {
-        require(_amount > 0, "Protocol__MustBeMoreThanZero");
-        Order storage _order = _appStorage.order[_orderId];
-        if (_order.orderStatus != OrderStatus.ACCEPTED)
-            revert Protocol__OrderNotServiced();
+    // function repayAdsLoan(uint96 _orderId, uint256 _amount) external {
+    //     require(_amount > 0, "Protocol__MustBeMoreThanZero");
+    //     Order storage _order = _appStorage.order[_orderId];
+    //     if (_order.orderStatus != OrderStatus.ACCEPTED)
+    //         revert Protocol__OrderNotServiced();
 
-        IERC20 _token = IERC20(_order.loanAddress);
+    //     IERC20 _token = IERC20(_order.loanAddress);
 
-        if (_token.balanceOf(msg.sender) < _amount)
-            revert Protocol__InsufficientBalance();
+    //     if (_token.balanceOf(msg.sender) < _amount)
+    //         revert Protocol__InsufficientBalance();
 
-        if (_token.allowance(msg.sender, address(this)) < _amount)
-            revert Protocol__InsufficientAllowance();
+    //     if (_token.allowance(msg.sender, address(this)) < _amount)
+    //         revert Protocol__InsufficientAllowance();
 
-        if (_amount >= _order.totalRepayment) {
-            _order.totalRepayment = 0;
-            _order.orderStatus = OrderStatus.CLOSED;
-            _amount = _order.totalRepayment;
-        }
+    //     if (_amount >= _order.totalRepayment) {
+    //         _order.totalRepayment = 0;
+    //         _order.orderStatus = OrderStatus.CLOSED;
+    //         _amount = _order.totalRepayment;
+    //     }
 
-        _order.totalRepayment -= _amount;
+    //     _order.totalRepayment -= _amount;
 
-        IERC20(_order.loanAddress).transferFrom(
-            msg.sender,
-            address(this),
-            _amount
-        );
+    //     IERC20(_order.loanAddress).transferFrom(
+    //         msg.sender,
+    //         address(this),
+    //         _amount
+    //     );
 
-        emit LoanRepayment(msg.sender, _orderId, _amount);
-    }
+    //     emit LoanRepayment(msg.sender, _orderId, _amount);
+    // }
 
     ///////////////////////
     /// VIEW FUNCTIONS ///

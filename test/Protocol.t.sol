@@ -203,6 +203,38 @@ contract ProtocolTest is Test, IDiamondCut {
         uint256 _amountQualaterized = protocolFacet
             .gets_addressToCollateralDeposited(owner, ETH_CONTRACT_ADDRESS);
         assertEq(_amountQualaterized, 1 ether);
+
+    }
+
+    function testNativeListingAds() external {
+        switchSigner(owner);
+  
+        vm.deal(owner, 500 ether);
+
+        uint256 _amount = 100 ether;
+        uint16 _interestRate = 500;
+        uint256 _returnDate = 365 days;
+        uint256 _min_amount = 2E10;
+        uint256 _max_amount = 10E10;
+        protocolFacet.createLoanListing{value: 100 ether} (
+            _amount,
+            _min_amount,
+            _max_amount,
+            _returnDate,
+            _interestRate,
+            ETH_CONTRACT_ADDRESS
+        );
+
+        LoanListing memory _listing = protocolFacet.getLoanListing(1);
+        assertEq(_listing.author, owner);
+        assertEq(_listing.tokenAddress, ETH_CONTRACT_ADDRESS);
+        assertEq(_listing.amount, _amount);
+        assertEq(_listing.interest, _interestRate);
+        assertEq(_listing.min_amount, _min_amount);
+        assertEq(_listing.max_amount, _max_amount);
+        assertEq(_listing.returnDate, _returnDate);
+        assertEq(uint8(_listing.listingStatus), uint8(ListingStatus.OPEN));
+
     }
 
     function testUserCanCreateTwoRequest() public {
