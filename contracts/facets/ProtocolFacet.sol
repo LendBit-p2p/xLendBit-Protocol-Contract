@@ -147,6 +147,10 @@ contract ProtocolFacet {
             revert Protocol__InsufficientCollateral();
         }
         //
+        address[] memory _collateralTokens = getUserCollateralTokens(
+            msg.sender
+        );
+
         _appStorage.requestId = _appStorage.requestId + 1;
         Request storage _newRequest = _appStorage.request[
             _appStorage.requestId
@@ -162,7 +166,25 @@ contract ProtocolFacet {
             _interest
         );
         _newRequest.loanRequestAddr = _loanCurrency;
+        _newRequest.collateralTokens = _collateralTokens;
         _newRequest.status = Status.OPEN;
+
+        uint256 collateralToLock = (_loanUsdValue * 100) / maxLoanableAmount; // Account for 80% LTV
+
+        for (uint256 i = 0; i < _collateralTokens.length; i++) {
+            address token = _collateralTokens[i];
+            uint256 userBalance = _appStorage.s_addressToCollateralDeposited[
+                msg.sender
+            ][token];
+
+            // Calculate the amount to lock for each token based on its proportion of the total collateral
+            uint256 amountToLockUSD = (getUsdValue(token, userBalance) *
+                collateralToLock) / 100;
+            uint256 amountToLock = amountToLockUSD / getUsdValue(token, 1);
+            _appStorage.s_idToCollateralTokenAmount[_appStorage.requestId][
+                token
+            ] = amountToLock;
+        }
         _appStorage.s_requests.push(_newRequest);
 
         emit RequestCreated(
@@ -511,6 +533,12 @@ contract ProtocolFacet {
             revert Protocol__InsufficientCollateral();
         }
 
+        uint256 collateralValueInLoanCurrency = getAccountCollateralValue(
+            msg.sender
+        );
+        uint256 maxLoanableAmount = (collateralValueInLoanCurrency *
+            Constants.COLLATERALIZATION_RATIO) / 100;
+
         bool success = IERC20(_listing.tokenAddress).transfer(
             msg.sender,
             _amount
@@ -518,6 +546,10 @@ contract ProtocolFacet {
         require(success, "Protocol__TransferFailed");
 
         _listing.amount = _listing.amount - _amount;
+
+        address[] memory _collateralTokens = getUserCollateralTokens(
+            msg.sender
+        );
 
         _appStorage.requestId = _appStorage.requestId + 1;
         Request storage _newRequest = _appStorage.request[
@@ -536,6 +568,24 @@ contract ProtocolFacet {
         );
         _newRequest.loanRequestAddr = _listing.tokenAddress;
         _newRequest.status = Status.SERVICED;
+
+        uint256 collateralToLock = (_loanUsdValue * 100) / maxLoanableAmount;
+
+        for (uint256 i = 0; i < _collateralTokens.length; i++) {
+            address token = _collateralTokens[i];
+            uint256 userBalance = _appStorage.s_addressToCollateralDeposited[
+                msg.sender
+            ][token];
+
+            // Calculate the amount to lock for each token based on its proportion of the total collateral
+            uint256 amountToLockUSD = (getUsdValue(token, userBalance) *
+                collateralToLock) / 100;
+            uint256 amountToLock = amountToLockUSD / getUsdValue(token, 1);
+            _appStorage.s_idToCollateralTokenAmount[_appStorage.requestId][
+                token
+            ] = amountToLock;
+        }
+
         _appStorage.s_requests.push(_newRequest);
 
         emit RequestCreated(
@@ -874,5 +924,24 @@ contract ProtocolFacet {
         Request memory _request = _appStorage.request[_requestId];
         if (_request.author != _user) revert Protocol__NotOwner();
         return _request;
+    }
+
+    function getUserCollateralTokens(
+        address _user
+    ) public view returns (address[] memory _collaterals) {
+        address[] memory tokens = _appStorage.s_collateralToken;
+        address[] memory userTokens = new address[](tokens.length);
+        uint8 userLength = 0;
+
+        for (uint256 i = 0; i < tokens.length; i++) {
+            if (
+                _appStorage.s_addressToCollateralDeposited[_user][tokens[i]] > 0
+            ) {
+                userTokens[userLength] = tokens[i];
+                userLength++;
+            }
+        }
+
+        return userTokens;
     }
 }

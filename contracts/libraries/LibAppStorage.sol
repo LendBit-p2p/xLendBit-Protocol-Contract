@@ -14,6 +14,8 @@ library LibAppStorage {
         mapping(address => User) addressToUser;
         ///@dev mapping of users to their address
         mapping(uint96 requestId => Request) request;
+        ///@dev mapping a requestId to the collaterals used in a request
+        mapping(uint96 requestId => mapping(address => uint256)) s_idToCollateralTokenAmount;
         ///@dev mapping of id to orders
         mapping(uint96 orderId => Order) order;
         ///@dev mapping of id to loanListing
