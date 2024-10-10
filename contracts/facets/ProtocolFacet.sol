@@ -77,7 +77,6 @@ contract ProtocolFacet {
 
     /// @param _tokenCollateralAddress The address of the token to deposit as collateral
     /// @param _amountOfCollateral The amount of collateral to deposit
-    // @follow-up add available balance
     function depositCollateral(
         address _tokenCollateralAddress,
         uint256 _amountOfCollateral
@@ -208,8 +207,6 @@ contract ProtocolFacet {
     /// @notice Directly services a lending request by transferring funds to the borrower
     /// @param _requestId Identifier of the request being serviced
     /// @param _tokenAddress Token in which the funds are being transferred
-
-    //@audit fixing the amounts bugs for sending of tokens is rediculous
     function serviceRequest(
         uint96 _requestId,
         address _tokenAddress
@@ -299,7 +296,6 @@ contract ProtocolFacet {
     /// @notice Withdraws collateral from the protocol
     /// @param _tokenCollateralAddress Address of the collateral token
     /// @param _amount Amount of collateral to withdraw
-    // @audit I have to make sure the token amount is available
     function withdrawCollateral(
         address _tokenCollateralAddress,
         uint128 _amount
@@ -515,7 +511,6 @@ contract ProtocolFacet {
      * @param _listingId The id of the listing to request a loan from
      * @param _amount The amount that should be borrowed from the listing
      */
-    //@audit Rentrant can drain contract
     function requestLoanFromListing(
         uint96 _listingId,
         uint256 _amount
@@ -796,7 +791,6 @@ contract ProtocolFacet {
         address _user,
         uint256 _borrow_Value
     ) private view returns (uint256) {
-        // TODO: healthfactor to consider the new amount being borrowed
         (
             uint256 _totalBurrowInUsd,
             uint256 _collateralValueInUsd
@@ -845,6 +839,17 @@ contract ProtocolFacet {
         address _tokenAddr
     ) external view returns (uint256) {
         return _appStorage.s_addressToCollateralDeposited[_sender][_tokenAddr];
+    }
+
+    /// @dev gets the amount of token balance avialble to the user
+    /// @param _sender the user who has the balance
+    /// @param _tokenAddr the user who has the balance
+    /// @return {uint256} the return variables of a contract’s function state variable
+    function gets_addressToAvailableBalance(
+        address _sender,
+        address _tokenAddr
+    ) external view returns (uint256) {
+        return _appStorage.s_addressToAvailableBalance[_sender][_tokenAddr];
     }
 
     /// @dev calculates the loan interest and add it to the loam
