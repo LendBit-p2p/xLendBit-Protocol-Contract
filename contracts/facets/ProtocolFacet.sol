@@ -180,7 +180,8 @@ contract ProtocolFacet {
             // Calculate the amount to lock for each token based on its proportion of the total collateral
             uint256 amountToLockUSD = (getUsdValue(token, userBalance) *
                 collateralToLock) / 100;
-            uint256 amountToLock = amountToLockUSD / getUsdValue(token, 1);
+            uint256 amountToLock = ((amountToLockUSD * 10) /
+                getUsdValue(token, 10)) * (10 ** 6);
             _appStorage.s_idToCollateralTokenAmount[_appStorage.requestId][
                 token
             ] = amountToLock;
@@ -930,15 +931,24 @@ contract ProtocolFacet {
         address _user
     ) public view returns (address[] memory _collaterals) {
         address[] memory tokens = _appStorage.s_collateralToken;
-        address[] memory userTokens = new address[](tokens.length);
         uint8 userLength = 0;
 
         for (uint256 i = 0; i < tokens.length; i++) {
             if (
                 _appStorage.s_addressToCollateralDeposited[_user][tokens[i]] > 0
             ) {
-                userTokens[userLength] = tokens[i];
                 userLength++;
+            }
+        }
+
+        address[] memory userTokens = new address[](userLength);
+
+        for (uint256 i = 0; i < tokens.length; i++) {
+            if (
+                _appStorage.s_addressToCollateralDeposited[_user][tokens[i]] > 0
+            ) {
+                userTokens[userLength - 1] = tokens[i];
+                userLength--;
             }
         }
 

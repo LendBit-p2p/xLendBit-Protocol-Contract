@@ -183,7 +183,7 @@ contract ProtocolTest is Test, IDiamondCut {
         );
 
         uint128 requestAmount = 1;
-        uint16 interestRate = 500;
+        uint16 interestRate = 1000;
         uint256 returnDate = block.timestamp + 365 days;
 
         protocolFacet.createLendingRequest(
@@ -203,6 +203,20 @@ contract ProtocolTest is Test, IDiamondCut {
         uint256 _amountQualaterized = protocolFacet
             .gets_addressToCollateralDeposited(owner, ETH_CONTRACT_ADDRESS);
         assertEq(_amountQualaterized, 1 ether);
+    }
+
+    function testGetUserCollateralToken() external {
+        switchSigner(owner);
+        vm.deal(owner, 500 ether);
+        protocolFacet.depositCollateral{value: 100 ether}(
+            ETH_CONTRACT_ADDRESS,
+            100 ether
+        );
+
+        address[] memory userTokens = protocolFacet.getUserCollateralTokens(
+            owner
+        );
+        assertEq(userTokens.length, 1);
     }
 
     function testUserCanCreateTwoRequest() public {
