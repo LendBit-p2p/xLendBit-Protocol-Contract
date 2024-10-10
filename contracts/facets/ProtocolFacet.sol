@@ -6,6 +6,7 @@ import {Constants} from "../utils/constants/constant.sol";
 import {Validator} from "../utils/validators/Validator.sol";
 import {LibDiamond} from "../libraries/LibDiamond.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "../utils/validators/Error.sol";
 import "../model/Event.sol";
 import "../model/Protocol.sol";
@@ -130,7 +131,10 @@ contract ProtocolFacet {
         if (!_appStorage.s_isLoanable[_loanCurrency]) {
             revert Protocol__TokenNotLoanable();
         }
-        uint256 _loanUsdValue = getUsdValue(_loanCurrency, _amount);
+        uint8 decimal = _getTokenDecimal(_loanCurrency);
+
+        uint256 _loanUsdValue = getUsdValue(_loanCurrency, _amount, decimal);
+
         if (_loanUsdValue < 1) revert Protocol__InvalidAmount();
 
         uint256 collateralValueInLoanCurrency = getAccountCollateralValue(
@@ -173,15 +177,19 @@ contract ProtocolFacet {
 
         for (uint256 i = 0; i < _collateralTokens.length; i++) {
             address token = _collateralTokens[i];
+            uint8 _decimalToken = _getTokenDecimal(token);
             uint256 userBalance = _appStorage.s_addressToCollateralDeposited[
                 msg.sender
             ][token];
 
             // Calculate the amount to lock for each token based on its proportion of the total collateral
-            uint256 amountToLockUSD = (getUsdValue(token, userBalance) *
-                collateralToLock) / 100;
-            uint256 amountToLock = ((amountToLockUSD * 10) /
-                getUsdValue(token, 10)) * (10 ** 6);
+            uint256 amountToLockUSD = (getUsdValue(
+                token,
+                userBalance,
+                _decimalToken
+            ) * collateralToLock) / 100;
+            uint256 amountToLock = ((amountToLockUSD) /
+                getUsdValue(token, 1, _decimalToken)) * (10 ** _decimalToken);
             _appStorage.s_idToCollateralTokenAmount[_appStorage.requestId][
                 token
             ] = amountToLock;
@@ -230,7 +238,12 @@ contract ProtocolFacet {
             ) revert Protocol__InsufficientAllowance();
         }
 
-        uint256 _loanUsdValue = getUsdValue(_tokenAddress, amountToLend);
+        uint8 _decimalToken = _getTokenDecimal(_tokenAddress);;
+        uint256 _loanUsdValue = getUsdValue(
+            _tokenAddress,
+            amountToLend,
+            _decimalToken
+        );
 
         uint256 _totalRepayment = amountToLend +
             _calculateLoanInterest(
@@ -728,15 +741,16 @@ contract ProtocolFacet {
     /// @return uint256 returns the equivalent amount in USD.
     function getUsdValue(
         address _token,
-        uint256 _amount
+        uint256 _amount,
+        uint8 _decimal
     ) public view returns (uint256) {
         AggregatorV3Interface _priceFeed = AggregatorV3Interface(
             _appStorage.s_priceFeeds[_token]
         );
         (, int256 _price, , , ) = _priceFeed.latestRoundData();
         return
-            ((uint256(_price) * Constants.NEW_PRECISION) * _amount) /
-            Constants.PRECISION;
+            ((uint256(_price) * Constants.NEW_PRECISION) *
+                (_amount / _decimal)) / Constants.PRECISION;
     }
 
     /// @notice This gets the amount of collateral a user has deposited in USD
@@ -848,6 +862,16 @@ contract ProtocolFacet {
         return
             (_collateralAdjustedForThreshold * Constants.PRECISION) /
             (_totalBurrowInUsd + _borrow_Value);
+    }
+
+    function _getTokenDecimal(
+        address _token
+    ) internal view returns (uint8 decimal) {
+        if (_token == Constants.NATIVE_TOKEN) {
+            decimal = 18;
+        } else {
+            decimal = ERC20(_token).decimals();
+        }
     }
 
     /// @dev get the collection of all collateral token
