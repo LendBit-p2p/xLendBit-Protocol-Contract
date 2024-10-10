@@ -568,6 +568,7 @@ contract ProtocolFacet {
             _listing.interest
         );
         _newRequest.loanRequestAddr = _listing.tokenAddress;
+        _newRequest.collateralTokens = _collateralTokens;
         _newRequest.status = Status.SERVICED;
 
         uint256 collateralToLock = (_loanUsdValue * 100) / maxLoanableAmount;
