@@ -16,6 +16,7 @@ struct Request {
     uint256 returnDate;
     address lender;
     address loanRequestAddr;
+    address[] collateralTokens; // Addresses of collateral tokens
     Status status;
 }
 
