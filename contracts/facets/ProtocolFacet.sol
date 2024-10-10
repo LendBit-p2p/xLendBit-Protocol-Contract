@@ -94,12 +94,6 @@ contract ProtocolFacet {
             _tokenCollateralAddress
         ] += _amountOfCollateral;
 
-        emit CollateralDeposited(
-            msg.sender,
-            _tokenCollateralAddress,
-            _amountOfCollateral
-        );
-
         if (_tokenCollateralAddress != Constants.NATIVE_TOKEN) {
             bool _success = IERC20(_tokenCollateralAddress).transferFrom(
                 msg.sender,
@@ -110,6 +104,11 @@ contract ProtocolFacet {
                 revert Protocol__TransferFailed();
             }
         }
+        emit CollateralDeposited(
+            msg.sender,
+            _tokenCollateralAddress,
+            _amountOfCollateral
+        );
     }
 
     /**
@@ -304,7 +303,8 @@ contract ProtocolFacet {
         _revertIfHealthFactorIsBroken(msg.sender);
 
         if (_tokenCollateralAddress == Constants.NATIVE_TOKEN) {
-            payable(msg.sender).call{value: _amount}("");
+            (bool sent, ) = payable(msg.sender).call{value: _amount}("");
+            require(sent, "Protocol__TransferFailed");
         } else {
             bool success = IERC20(_tokenCollateralAddress).transfer(
                 msg.sender,
@@ -312,7 +312,6 @@ contract ProtocolFacet {
             );
             require(success, "Protocol__TransferFailed");
         }
-
         emit CollateralWithdrawn(msg.sender, _tokenCollateralAddress, _amount);
     }
 
@@ -381,88 +380,37 @@ contract ProtocolFacet {
     }
 
     /**
-     * @notice Creates a new ad listing for a loan with specified parameters
-     * @dev The function checks the loan currency's eligibility,
-     * @param _amount The amount of the loan to be listed
-     * @param _interest The interest rate applied to the loan
-     * @param _returnDate The date by which the loan must be returned
-     * @param _loanCurrency The token address for the loan currency
-     */
-    function createListingAds(
-        uint256 _amount,
-        uint16 _interest,
-        uint256 _returnDate,
-        address _loanCurrency
-    ) external {
-        if (!_appStorage.s_isLoanable[_loanCurrency]) {
-            revert Protocol__TokenNotLoanable();
-        }
-
-        if (IERC20(_loanCurrency).balanceOf(msg.sender) < _amount)
-            revert Protocol__InsufficientBalance();
-
-        if (
-            IERC20(_loanCurrency).allowance(msg.sender, address(this)) < _amount
-        ) revert Protocol__InsufficientAllowance();
-
-        bool success = IERC20(_loanCurrency).transferFrom(
-            msg.sender,
-            address(this),
-            _amount
-        );
-        require(success, "Protocol__TransferFailed");
-
-        _appStorage.s_orderId = _appStorage.s_orderId + 1;
-        Order storage _newOrder = _appStorage.order[_appStorage.s_orderId];
-        _newOrder.orderId = _appStorage.s_orderId;
-        _newOrder.author = msg.sender;
-        _newOrder.amount = _amount;
-        _newOrder.interest = _interest;
-        _newOrder.returnDate = _returnDate;
-        _newOrder.totalRepayment = _calculateLoanInterest(
-            _returnDate,
-            _amount,
-            _interest
-        );
-        _newOrder.loanAddress = _loanCurrency;
-        _newOrder.orderStatus = OrderStatus.OPEN;
-        _appStorage.s_order.push(_newOrder);
-
-        emit OrderCreated(
-            msg.sender,
-            _loanCurrency,
-            _amount,
-            _appStorage.s_orderId
-        );
-    }
-
-    /**
      * @notice Allows a user to withdraw the deposited ads token for a specific order
      * @dev Withdraws the ads token associated with an open order, closes the order, and emits an event
-     * @param _orderId The ID of the order to withdraw the token from
+     * @param _listingId The ID of the order to withdraw the token from
      */
-    function withdrawnDepositedAdsToken(uint96 _orderId) external {
-        Order storage _newOrder = _appStorage.order[_orderId];
-        if (_newOrder.orderStatus != OrderStatus.OPEN)
+    function closeListingAd(uint96 _listingId) external {
+        LoanListing storage _newListing = _appStorage.loanListings[_listingId];
+        if (_newListing.listingStatus != ListingStatus.OPEN)
             revert Protocol__OrderNotOpen();
-        if (_newOrder.author != msg.sender)
+        if (_newListing.author != msg.sender)
             revert Protocol__OwnerCreatedOrder();
-        if (_newOrder.amount <= 0) revert Protocol__MustBeMoreThanZero();
+        if (_newListing.amount == 0) revert Protocol__MustBeMoreThanZero();
 
-        uint256 _amount = _newOrder.amount;
-        _newOrder.amount = 0;
-        _newOrder.orderStatus = OrderStatus.CLOSED;
+        uint256 _amount = _newListing.amount;
+        _newListing.amount = 0;
+        _newListing.listingStatus = ListingStatus.CLOSED;
 
-        bool success = IERC20(_newOrder.loanAddress).transfer(
-            msg.sender,
-            _amount
-        );
-        require(success, "Protocol__TransferFailed");
+        if (_newListing.tokenAddress == Constants.NATIVE_TOKEN) {
+            (bool sent, ) = payable(msg.sender).call{value: _amount}("");
+            require(sent, "Protocol__TransferFailed");
+        } else {
+            bool success = IERC20(_newListing.tokenAddress).transfer(
+                msg.sender,
+                _amount
+            );
+            require(success, "Protocol__TransferFailed");
+        }
 
         emit withdrawnAdsToken(
             msg.sender,
-            _orderId,
-            uint8(_newOrder.orderStatus),
+            _listingId,
+            uint8(_newListing.listingStatus),
             _amount
         );
     }
@@ -484,24 +432,40 @@ contract ProtocolFacet {
         uint256 _returnDate,
         uint16 _interest,
         address _loanCurrency
-    ) external {
+    )
+        external
+        payable
+        _valueMoreThanZero(_amount, _loanCurrency)
+        _moreThanZero(_amount)
+    {
         if (!_appStorage.s_isLoanable[_loanCurrency]) {
             revert Protocol__TokenNotLoanable();
         }
 
-        if (IERC20(_loanCurrency).balanceOf(msg.sender) < _amount)
-            revert Protocol__InsufficientBalance();
+        if (_loanCurrency != Constants.NATIVE_TOKEN) {
+            if (IERC20(_loanCurrency).balanceOf(msg.sender) < _amount)
+                revert Protocol__InsufficientBalance();
 
-        if (
-            IERC20(_loanCurrency).allowance(msg.sender, address(this)) < _amount
-        ) revert Protocol__InsufficientAllowance();
+            if (
+                IERC20(_loanCurrency).allowance(msg.sender, address(this)) <
+                _amount
+            ) revert Protocol__InsufficientAllowance();
+        }
 
-        bool success = IERC20(_loanCurrency).transferFrom(
-            msg.sender,
-            address(this),
-            _amount
-        );
-        require(success, "Protocol__TransferFailed");
+        if (_loanCurrency == Constants.NATIVE_TOKEN) {
+            _amount = msg.value;
+        }
+
+        if (_loanCurrency != Constants.NATIVE_TOKEN) {
+            bool _success = IERC20(_loanCurrency).transferFrom(
+                msg.sender,
+                address(this),
+                _amount
+            );
+            if (!_success) {
+                revert Protocol__TransferFailed();
+            }
+        }
 
         _appStorage.listingId = _appStorage.listingId + 1;
         LoanListing storage _newListing = _appStorage.loanListings[
@@ -532,12 +496,17 @@ contract ProtocolFacet {
      * @param _listingId The id of the listing to request a loan from
      * @param _amount The amount that should be borrowed from the listing
      */
-    function requestLoanFromListing(uint96 _listingId, uint256 _amount) public {
+    function requestLoanFromListing(
+        uint96 _listingId,
+        uint256 _amount
+    ) public _moreThanZero(_amount) {
         LoanListing storage _listing = _appStorage.loanListings[_listingId];
         if (_listing.listingStatus != ListingStatus.OPEN)
             revert Protocol__ListingNotOpen();
+
         if (_listing.author == msg.sender)
             revert Protocol__OwnerCreatedListing();
+
         if ((_amount < _listing.min_amount) || (_amount > _listing.max_amount))
             revert Protocol__InvalidAmount();
         if (_amount > _listing.amount) revert Protocol__InvalidAmount();
@@ -553,11 +522,16 @@ contract ProtocolFacet {
         uint256 maxLoanableAmount = (collateralValueInLoanCurrency *
             Constants.COLLATERALIZATION_RATIO) / 100;
 
-        bool success = IERC20(_listing.tokenAddress).transfer(
-            msg.sender,
-            _amount
-        );
-        require(success, "Protocol__TransferFailed");
+        if (_listing.tokenAddress == Constants.NATIVE_TOKEN) {
+            (bool sent, ) = payable(msg.sender).call{value: _amount}("");
+            require(sent, "Protocol__TransferFailed");
+        } else {
+            bool success = IERC20(_listing.tokenAddress).transfer(
+                msg.sender,
+                _amount
+            );
+            require(success, "Protocol__TransferFailed");
+        }
 
         _listing.amount = _listing.amount - _amount;
 
@@ -574,9 +548,9 @@ contract ProtocolFacet {
         _newRequest.lender = _listing.author;
         _newRequest.amount = _amount;
         _newRequest.interest = _listing.interest;
-        _newRequest.returnDate = _listing.returnDate + block.timestamp;
+        _newRequest.returnDate = _listing.returnDate;
         _newRequest.totalRepayment = _calculateLoanInterest(
-            _listing.returnDate + block.timestamp,
+            _listing.returnDate,
             _amount,
             _listing.interest
         );
@@ -599,7 +573,7 @@ contract ProtocolFacet {
                 token
             ] = amountToLock;
         }
-
+        
         _appStorage.s_requests.push(_newRequest);
 
         emit RequestCreated(
@@ -617,69 +591,24 @@ contract ProtocolFacet {
         );
     }
 
-    /**
-     * @notice Accepts a listed ad order and processes the loan transfer to the borrower
-     * @dev Accepts the listed ad, calculates the total repayment with interest,
-     *  checks the borrower's health factor, and transfers the loan amount.
-     *  Emits an event when the ad is accepted.
-     * @param _orderId The ID of the ad order to be accepted
-     */
-    function acceptListedAds(uint96 _orderId) external {
-        Order storage _newOrder = _appStorage.order[_orderId];
-        if (_newOrder.orderStatus != OrderStatus.OPEN)
-            revert Protocol__OrderNotOpen();
-        if (_newOrder.author == msg.sender)
-            revert Protocol__OwnerCreatedOrder();
-
-        uint256 _loanUsdValue = getUsdValue(
-            _newOrder.loanAddress,
-            _newOrder.amount
-        );
-
-        uint256 _totalRepayment = _loanUsdValue +
-            _calculateLoanInterest(
-                _newOrder.returnDate,
-                _newOrder.amount,
-                _newOrder.interest
-            );
-        _newOrder.totalRepayment = _totalRepayment;
-        _appStorage
-            .addressToUser[msg.sender]
-            .totalLoanCollected += _totalRepayment;
-
-        if (_healthFactor(msg.sender, _loanUsdValue) < 1) {
-            revert Protocol__InsufficientCollateral();
-        }
-        _newOrder.orderStatus = OrderStatus.ACCEPTED;
-
-        bool success = IERC20(_newOrder.loanAddress).transfer(
-            msg.sender,
-            _newOrder.amount
-        );
-
-        require(success, "Protocol__TransferFailed");
-
-        emit AcceptedListedAds(
-            msg.sender,
-            _orderId,
-            _newOrder.amount,
-            uint8(_newOrder.orderStatus)
-        );
-    }
-
-    function repayLoan(uint96 _requestId, uint256 _amount) external {
+    function repayLoan(uint96 _requestId, uint256 _amount) external payable {
         require(_amount > 0, "Protocol__MustBeMoreThanZero");
         Request storage _request = _appStorage.request[_requestId];
         if (_request.status != Status.SERVICED)
             revert Protocol__RequestNotServiced();
 
-        IERC20 _token = IERC20(_request.loanRequestAddr);
+        if (msg.sender != _request.author) revert Protocol__NotOwner();
 
-        if (_token.balanceOf(msg.sender) < _amount)
-            revert Protocol__InsufficientBalance();
-
-        if (_token.allowance(msg.sender, address(this)) < _amount)
-            revert Protocol__InsufficientAllowance();
+        if (_request.loanRequestAddr == Constants.NATIVE_TOKEN) {
+            _amount = msg.value;
+        } else {
+            IERC20 _token = IERC20(_request.loanRequestAddr);
+            if (_token.balanceOf(msg.sender) < _amount) {
+                revert Protocol__InsufficientBalance();
+            }
+            if (_token.allowance(msg.sender, address(this)) < _amount)
+                revert Protocol__InsufficientAllowance();
+        }
 
         if (_amount >= _request.totalRepayment) {
             _request.totalRepayment = 0;
@@ -690,44 +619,18 @@ contract ProtocolFacet {
         _request.totalRepayment -= _amount;
         // TODO: Update the user's totalLoanCollected from appStorage
 
-        IERC20(_request.loanRequestAddr).transferFrom(
-            msg.sender,
-            _request.lender,
-            _amount
-        );
-
-        emit LoanRepayment(msg.sender, _requestId, _amount);
-    }
-
-    function repayAdsLoan(uint96 _orderId, uint256 _amount) external {
-        require(_amount > 0, "Protocol__MustBeMoreThanZero");
-        Order storage _order = _appStorage.order[_orderId];
-        if (_order.orderStatus != OrderStatus.ACCEPTED)
-            revert Protocol__OrderNotServiced();
-
-        IERC20 _token = IERC20(_order.loanAddress);
-
-        if (_token.balanceOf(msg.sender) < _amount)
-            revert Protocol__InsufficientBalance();
-
-        if (_token.allowance(msg.sender, address(this)) < _amount)
-            revert Protocol__InsufficientAllowance();
-
-        if (_amount >= _order.totalRepayment) {
-            _order.totalRepayment = 0;
-            _order.orderStatus = OrderStatus.CLOSED;
-            _amount = _order.totalRepayment;
+        if (_request.loanRequestAddr == Constants.NATIVE_TOKEN) {
+            (bool sent, ) = payable(msg.sender).call{value: _amount}("");
+            require(sent, "Protocol__TransferFailed");
+        } else {
+            IERC20(_request.loanRequestAddr).transferFrom(
+                msg.sender,
+                _request.lender,
+                _amount
+            );
         }
 
-        _order.totalRepayment -= _amount;
-
-        IERC20(_order.loanAddress).transferFrom(
-            msg.sender,
-            address(this),
-            _amount
-        );
-
-        emit LoanRepayment(msg.sender, _orderId, _amount);
+        emit LoanRepayment(msg.sender, _requestId, _amount);
     }
 
     ///////////////////////
@@ -782,27 +685,6 @@ contract ProtocolFacet {
     }
 
     /**
-     * @notice Retrieves all listed orders stored in the system
-     * @dev Returns an array of all orders
-     * @return An array of `Order` structs representing all listed orders
-     */
-    function getAllListedOrders() external view returns (Order[] memory) {
-        return _appStorage.s_order;
-    }
-
-    /**
-     * @notice Retrieves the details of a specific order by its ID
-     * @dev Returns the order if it exists, otherwise reverts if the order's author is the zero address
-     * @param _orderId The ID of the order to retrieve
-     * @return The `Order` struct containing details of the specified order
-     */
-    function getOrder(uint96 _orderId) external view returns (Order memory) {
-        Order memory _order = _appStorage.order[_orderId];
-        if (_order.author == address(0)) revert Protocol__NotOwner();
-        return _order;
-    }
-
-    /**
      * @notice Retrieves the details of a specific loan listing by its ID
      * @dev Returns the listing if it exists, otherwise reverts if the listing's author is the zero address
      * @param _listingId The ID of the listing to retrieve
@@ -845,8 +727,16 @@ contract ProtocolFacet {
         _collateralValueInUsd = getAccountCollateralValue(_user);
     }
 
+    /// @notice Checks the health Factor which is a way to check if the user has enough collateral
+    /// @param _user a parameter for the address to check
+    /// @return uint256 returns the health factor which is supoose to be >= 1
+    function getHealthFactor(address _user) external view returns (uint256) {
+        return _healthFactor(_user, 0);
+    }
+
     /// @notice Checks the health Factor which is a way to check if the user has enough collateral to mint
     /// @param _user a parameter for the address to check
+    /// @param _borrow_Value amount the user wants to borrow in usd
     /// @return uint256 returns the health factor which is supoose to be >= 1
     function _healthFactor(
         address _user,
@@ -859,6 +749,9 @@ contract ProtocolFacet {
         ) = _getAccountInfo(_user);
         uint256 _collateralAdjustedForThreshold = (_collateralValueInUsd *
             Constants.LIQUIDATION_THRESHOLD) / 100;
+
+        if ((_totalBurrowInUsd == 0) && (_borrow_Value == 0))
+            return (_collateralAdjustedForThreshold * Constants.PRECISION);
         return
             (_collateralAdjustedForThreshold * Constants.PRECISION) /
             (_totalBurrowInUsd + _borrow_Value);
@@ -977,5 +870,8 @@ contract ProtocolFacet {
         }
 
         return userTokens;
+  }
+    fallback() external {
+        revert("ProtocolFacet: fallback");
     }
 }

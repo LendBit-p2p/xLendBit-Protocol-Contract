@@ -196,7 +196,7 @@ contract ProtocolTest is Test, IDiamondCut {
         switchSigner(B);
         vm.deal(B, 10 ether);
 
-        protocolFacet.serviceRequest{value: 1}(1, ETH_CONTRACT_ADDRESS);
+        protocolFacet.serviceRequest{value: 1 ether}(1, ETH_CONTRACT_ADDRESS);
 
         switchSigner(owner);
         protocolFacet.withdrawCollateral(ETH_CONTRACT_ADDRESS, 99 ether);
@@ -204,6 +204,7 @@ contract ProtocolTest is Test, IDiamondCut {
             .gets_addressToCollateralDeposited(owner, ETH_CONTRACT_ADDRESS);
         assertEq(_amountQualaterized, 1 ether);
     }
+
 
     function testGetUserCollateralToken() external {
         switchSigner(owner);
@@ -217,6 +218,52 @@ contract ProtocolTest is Test, IDiamondCut {
             owner
         );
         assertEq(userTokens.length, 1);
+     }
+     
+    function testWithdrawNativeCollateral() public {
+        switchSigner(owner);
+        vm.deal(owner, 500 ether);
+        protocolFacet.depositCollateral{value: 400 ether}(
+            ETH_CONTRACT_ADDRESS,
+            1
+        );
+
+        protocolFacet.withdrawCollateral(ETH_CONTRACT_ADDRESS, 250 ether);
+        uint256 _amountCollaterized = protocolFacet
+            .gets_addressToCollateralDeposited(owner, ETH_CONTRACT_ADDRESS);
+        assertEq(_amountCollaterized, 150 ether);
+        assertEq(address(owner).balance, 350 ether);
+    }
+
+    function testNativeListingAds() external {
+        switchSigner(owner);
+
+        vm.deal(owner, 500 ether);
+
+        uint256 _amount = 100 ether;
+        uint16 _interestRate = 500;
+        uint256 _returnDate = 365 days;
+        uint256 _min_amount = 2E10;
+        uint256 _max_amount = 10E10;
+        protocolFacet.createLoanListing{value: 100 ether}(
+            _amount,
+            _min_amount,
+            _max_amount,
+            _returnDate,
+            _interestRate,
+            ETH_CONTRACT_ADDRESS
+        );
+
+        LoanListing memory _listing = protocolFacet.getLoanListing(1);
+        assertEq(_listing.author, owner);
+        assertEq(_listing.tokenAddress, ETH_CONTRACT_ADDRESS);
+        assertEq(_listing.amount, _amount);
+        assertEq(_listing.interest, _interestRate);
+        assertEq(_listing.min_amount, _min_amount);
+        assertEq(_listing.max_amount, _max_amount);
+        assertEq(_listing.returnDate, _returnDate);
+        assertEq(uint8(_listing.listingStatus), uint8(ListingStatus.OPEN));
+
     }
 
     function testUserCanCreateTwoRequest() public {
@@ -367,61 +414,9 @@ contract ProtocolTest is Test, IDiamondCut {
         protocolFacet.serviceRequest(1, LINK_CONTRACT_ADDRESS);
     }
 
-    function testUserCanCreateListingAds() public {
-        switchSigner(owner);
-        uint128 requestAmount = 10000;
-        uint16 interestRate = 500;
-        uint256 returnDate = block.timestamp + 365 days;
-
-        protocolFacet.createListingAds(
-            requestAmount,
-            interestRate,
-            returnDate,
-            DIA_CONTRACT_ADDRESS
-        );
-        protocolFacet.createListingAds(
-            requestAmount,
-            interestRate,
-            returnDate,
-            DIA_CONTRACT_ADDRESS
-        );
-        // Verify that the request is correctly added
-        Order[] memory orders = protocolFacet.getAllListedOrders();
-        assertEq(orders.length, 2);
-        assertEq(orders[0].amount, requestAmount);
-    }
-
-    function testUserCanAcceptListedAds() public {
-        switchSigner(owner);
-
-        IERC20(USDT_CONTRACT_ADDRESS).transfer(B, 1000000);
-
-        uint128 requestAmount = 1000;
-        uint16 interestRate = 500;
-        uint256 returnDate = block.timestamp + 365 days;
-
-        protocolFacet.createListingAds(
-            requestAmount,
-            interestRate,
-            returnDate,
-            DIA_CONTRACT_ADDRESS
-        );
-        protocolFacet.createListingAds(
-            requestAmount,
-            interestRate,
-            returnDate,
-            DIA_CONTRACT_ADDRESS
-        );
-
-        switchSigner(B);
-        IERC20(USDT_CONTRACT_ADDRESS).approve(address(protocolFacet), 10000000);
-        protocolFacet.depositCollateral(USDT_CONTRACT_ADDRESS, 100000);
-
-        protocolFacet.acceptListedAds(1);
-        assertEq(IERC20(DIA_CONTRACT_ADDRESS).balanceOf(B), 1000);
-    }
-
-    function testUserCannotAcceptListedAdsWithoutDepositingColateral() public {
+    function testUserCannotRequestLoanFromListingWithoutDepositingCollateral()
+        public
+    {
         switchSigner(owner);
 
         IERC20(USDT_CONTRACT_ADDRESS).transfer(B, 1000000);
@@ -430,16 +425,20 @@ contract ProtocolTest is Test, IDiamondCut {
         uint16 interestRate = 500;
         uint256 returnDate = block.timestamp + 365 days;
 
-        protocolFacet.createListingAds(
+        protocolFacet.createLoanListing(
             requestAmount,
-            interestRate,
+            0,
+            requestAmount,
             returnDate,
+            interestRate,
             DIA_CONTRACT_ADDRESS
         );
-        protocolFacet.createListingAds(
+        protocolFacet.createLoanListing(
             requestAmount,
-            interestRate,
+            0,
+            requestAmount,
             returnDate,
+            interestRate,
             DIA_CONTRACT_ADDRESS
         );
 
@@ -448,42 +447,48 @@ contract ProtocolTest is Test, IDiamondCut {
         vm.expectRevert(
             abi.encodeWithSelector(Protocol__InsufficientCollateral.selector)
         );
-        protocolFacet.acceptListedAds(1);
+        protocolFacet.requestLoanFromListing(1, requestAmount);
     }
 
-    function testUserCanWithdrawnDepositedAdsToken() public {
+    function testCloseListingAd() public {
         switchSigner(owner);
 
         uint128 requestAmount = 10000;
         uint16 interestRate = 500;
         uint256 returnDate = block.timestamp + 365 days;
 
-        protocolFacet.createListingAds(
+        protocolFacet.createLoanListing(
             requestAmount,
-            interestRate,
+            0,
+            requestAmount,
             returnDate,
+            interestRate,
             DIA_CONTRACT_ADDRESS
         );
-        protocolFacet.createListingAds(
+        protocolFacet.createLoanListing(
             requestAmount,
-            interestRate,
+            0,
+            requestAmount,
             returnDate,
+            interestRate,
             DIA_CONTRACT_ADDRESS
         );
 
-        uint256 _AfterDepositTokenAds = IERC20(DIA_CONTRACT_ADDRESS).balanceOf(
-            owner
-        );
-
-        protocolFacet.withdrawnDepositedAdsToken(1);
-
-        uint256 _AfterWithdrawnTokenAds = IERC20(DIA_CONTRACT_ADDRESS)
+        uint256 _balanceBeforeClosingListing = IERC20(DIA_CONTRACT_ADDRESS)
             .balanceOf(owner);
 
+        protocolFacet.closeListingAd(1);
+
+        uint256 _balanceAfterClosingListing = IERC20(DIA_CONTRACT_ADDRESS)
+            .balanceOf(owner);
+        LoanListing memory _listing = protocolFacet.getLoanListing(1);
+
         assertEq(
-            _AfterWithdrawnTokenAds,
-            _AfterDepositTokenAds + requestAmount
+            _balanceAfterClosingListing,
+            _balanceBeforeClosingListing + requestAmount
         );
+        assertEq(_listing.amount, 0);
+        assertEq(uint8(_listing.listingStatus), uint8(ListingStatus.CLOSED));
     }
 
     function testRepayLoan() public {
@@ -537,45 +542,6 @@ contract ProtocolTest is Test, IDiamondCut {
         assertEq(_requestAfterRepay2.totalRepayment, 0);
     }
 
-    function testRepayAdsLoan() public {
-        testUserCanAcceptListedAds();
-        switchSigner(owner);
-        Order memory _order = protocolFacet.getOrder(1);
-
-        IERC20(_order.loanAddress).approve(
-            address(protocolFacet),
-            _order.totalRepayment
-        );
-
-        protocolFacet.repayAdsLoan(1, _order.totalRepayment);
-
-        Order memory _orderAfterRepay = protocolFacet.getOrder(1);
-        assertEq(
-            uint8(_orderAfterRepay.orderStatus),
-            uint8(OrderStatus.CLOSED)
-        );
-        assertEq(_orderAfterRepay.totalRepayment, 0);
-    }
-
-    function testProgressiveAdsLoanRepayment() public {
-        testUserCanAcceptListedAds();
-        switchSigner(owner);
-        Order memory _order = protocolFacet.getOrder(1);
-
-        // IERC20(_order.loanAddress).approve(address(protocolFacet), _order.totalRepayment);
-
-        protocolFacet.repayAdsLoan(1, _order.totalRepayment / 2);
-        Order memory _orderAfterRepay = protocolFacet.getOrder(1);
-        assertEq(
-            _orderAfterRepay.totalRepayment,
-            _order.totalRepayment - (_order.totalRepayment / 2)
-        );
-
-        protocolFacet.repayAdsLoan(1, _orderAfterRepay.totalRepayment);
-        Order memory _orderAfterRepay2 = protocolFacet.getOrder(1);
-        assertEq(_orderAfterRepay2.totalRepayment, 0);
-    }
-
     function testCreateLoanListing() public {
         switchSigner(owner);
         IERC20(DIA_CONTRACT_ADDRESS).approve(
@@ -619,7 +585,7 @@ contract ProtocolTest is Test, IDiamondCut {
 
         assertEq(_request.amount, 5E10);
         assertEq(_request.interest, _listing.interest);
-        assertEq(_request.returnDate, _listing.returnDate + block.timestamp);
+        assertEq(_request.returnDate, _listing.returnDate);
         assertEq(uint8(_request.status), uint8(Status.SERVICED));
         assertEq(_listing.amount, 5E10);
     }
@@ -634,10 +600,35 @@ contract ProtocolTest is Test, IDiamondCut {
             10E10,
             2E10,
             10E10,
-            365 days,
+            block.timestamp + 365 days,
             500,
             DIA_CONTRACT_ADDRESS
         );
+    }
+
+    function testGetHealthFactor() public {
+        uint256 _healthfactorBeforeDeposit = protocolFacet.getHealthFactor(
+            owner
+        );
+        _depositCollateral(owner, LINK_CONTRACT_ADDRESS, 5E11);
+
+        uint256 _healthfactorAfterDeposit = protocolFacet.getHealthFactor(
+            owner
+        );
+
+        assertEq(_healthfactorBeforeDeposit, 0);
+        assert(_healthfactorAfterDeposit > 1);
+    }
+
+    function testSendingEtherDirectlyToContractReverts() public {
+        vm.deal(owner, 100 ether);
+        switchSigner(owner);
+
+        vm.expectRevert("ProtocolFacet: fallback");
+        (bool _success, ) = payable(address(protocolFacet)).call{
+            value: 100 ether
+        }("");
+        assertFalse(_success);
     }
 
     function transferTokenToOwner() public {
