@@ -133,10 +133,10 @@ contract ProtocolTest is Test, IDiamondCut {
 
     function testDepositTCollateral() public {
         switchSigner(owner);
-        protocolFacet.depositCollateral(USDT_CONTRACT_ADDRESS, 1000000);
+        protocolFacet.depositCollateral(USDT_CONTRACT_ADDRESS, 100 * (10 ** 6));
         uint256 _amountQualaterized = protocolFacet
             .gets_addressToCollateralDeposited(owner, USDT_CONTRACT_ADDRESS);
-        assertEq(_amountQualaterized, 1000000);
+        assertEq(_amountQualaterized, (100 * 10 ** 6));
     }
 
     function testDepositNativeCollateral() public {
@@ -151,11 +151,20 @@ contract ProtocolTest is Test, IDiamondCut {
         assertEq(_amountQualaterized, 100 ether);
     }
 
+    function testGetUsdValue() public {
+        uint256 value = protocolFacet.getUsdValue(
+            ETH_CONTRACT_ADDRESS,
+            0.1 ether,
+            18
+        );
+        assert(value > 0);
+    }
+
     function testServiceNativeRequest() public {
         switchSigner(owner);
-        protocolFacet.depositCollateral(USDT_CONTRACT_ADDRESS, 10000000000);
+        protocolFacet.depositCollateral(USDT_CONTRACT_ADDRESS, 1000000000);
 
-        uint128 requestAmount = 1;
+        uint128 requestAmount = 0.01 ether;
         uint16 interestRate = 500;
         uint256 returnDate = block.timestamp + 365 days;
 
@@ -170,8 +179,11 @@ contract ProtocolTest is Test, IDiamondCut {
         vm.deal(B, 10 ether);
 
         vm.expectEmit(true, true, true, true);
-        emit RequestServiced(1, B, owner, 1);
-        protocolFacet.serviceRequest{value: 1}(1, ETH_CONTRACT_ADDRESS);
+        emit RequestServiced(1, B, owner, 0.01 ether);
+        protocolFacet.serviceRequest{value: 0.01 ether}(
+            1,
+            ETH_CONTRACT_ADDRESS
+        );
     }
 
     function testWithdrawCollateral() public {
@@ -182,7 +194,7 @@ contract ProtocolTest is Test, IDiamondCut {
             100 ether
         );
 
-        uint128 requestAmount = 1;
+        uint128 requestAmount = 1 ether;
         uint16 interestRate = 1000;
         uint256 returnDate = block.timestamp + 365 days;
 
@@ -199,12 +211,11 @@ contract ProtocolTest is Test, IDiamondCut {
         protocolFacet.serviceRequest{value: 1 ether}(1, ETH_CONTRACT_ADDRESS);
 
         switchSigner(owner);
-        protocolFacet.withdrawCollateral(ETH_CONTRACT_ADDRESS, 99 ether);
+        protocolFacet.withdrawCollateral(ETH_CONTRACT_ADDRESS, 90 ether);
         uint256 _amountQualaterized = protocolFacet
             .gets_addressToCollateralDeposited(owner, ETH_CONTRACT_ADDRESS);
-        assertEq(_amountQualaterized, 1 ether);
+        assertEq(_amountQualaterized, 10 ether);
     }
-
 
     function testGetUserCollateralToken() external {
         switchSigner(owner);
@@ -218,8 +229,8 @@ contract ProtocolTest is Test, IDiamondCut {
             owner
         );
         assertEq(userTokens.length, 1);
-     }
-     
+    }
+
     function testWithdrawNativeCollateral() public {
         switchSigner(owner);
         vm.deal(owner, 500 ether);
@@ -263,7 +274,6 @@ contract ProtocolTest is Test, IDiamondCut {
         assertEq(_listing.max_amount, _max_amount);
         assertEq(_listing.returnDate, _returnDate);
         assertEq(uint8(_listing.listingStatus), uint8(ListingStatus.OPEN));
-
     }
 
     function testUserCanCreateTwoRequest() public {
@@ -271,7 +281,7 @@ contract ProtocolTest is Test, IDiamondCut {
 
         switchSigner(owner);
 
-        uint128 requestAmount = 10000;
+        uint128 requestAmount = 30 ether;
         uint16 interestRate = 500;
         uint256 returnDate = block.timestamp + 365 days;
 
@@ -299,7 +309,7 @@ contract ProtocolTest is Test, IDiamondCut {
         testDepositTCollateral();
         switchSigner(owner);
 
-        uint128 requestAmount = 100000000000;
+        uint128 requestAmount = 100 ether;
 
         uint16 interestRate = 500;
         uint256 returnDate = block.timestamp + 365 days; // 1 year later
@@ -318,10 +328,10 @@ contract ProtocolTest is Test, IDiamondCut {
         // IERC20 daiContract = IERC20(WETHHolders);
         // switchSigner(WETHHolders);
         switchSigner(owner);
-        IERC20(LINK_CONTRACT_ADDRESS).transfer(B, 10000);
+        IERC20(LINK_CONTRACT_ADDRESS).transfer(B, 2 ether);
         testDepositTCollateral();
 
-        uint128 requestAmount = 10000;
+        uint128 requestAmount = 2 ether;
         uint16 interestRate = 500;
         uint256 returnDate = block.timestamp + 365 days; // 1 year later
 
@@ -334,6 +344,12 @@ contract ProtocolTest is Test, IDiamondCut {
             returnDate,
             LINK_CONTRACT_ADDRESS
         );
+
+        uint256 bal = protocolFacet.gets_addressToAvailableBalance(
+            owner,
+            USDT_CONTRACT_ADDRESS
+        );
+        console.log("Available Balance", bal);
 
         switchSigner(B);
         IERC20(LINK_CONTRACT_ADDRESS).approve(
@@ -353,10 +369,10 @@ contract ProtocolTest is Test, IDiamondCut {
 
     function testServiceRequestFailsAfterFirstService() public {
         switchSigner(owner);
-        IERC20(LINK_CONTRACT_ADDRESS).transfer(B, 10000);
+        IERC20(LINK_CONTRACT_ADDRESS).transfer(B, 2 ether);
         testDepositTCollateral();
 
-        uint128 requestAmount = 10000;
+        uint128 requestAmount = 2 ether;
         uint16 interestRate = 500;
         uint256 returnDate = block.timestamp + 365 days; // 1 year later
 
@@ -391,10 +407,10 @@ contract ProtocolTest is Test, IDiamondCut {
 
     function testServiceRequestFailsWithoutTokenAllowance() public {
         switchSigner(owner);
-        IERC20(LINK_CONTRACT_ADDRESS).transfer(B, 10000);
+        IERC20(LINK_CONTRACT_ADDRESS).transfer(B, 2 ether);
         testDepositTCollateral();
 
-        uint128 requestAmount = 10000;
+        uint128 requestAmount = 2 ether;
         uint16 interestRate = 500;
         uint256 returnDate = block.timestamp + 365 days; // 1 year later
 
@@ -524,20 +540,22 @@ contract ProtocolTest is Test, IDiamondCut {
         testServiceRequest();
         switchSigner(owner);
         Request memory _request = protocolFacet.getRequest(1);
+        uint256 firstHalf = _request.totalRepayment / 2;
+        uint256 secondHalf = _request.totalRepayment - firstHalf;
 
         IERC20(_request.loanRequestAddr).approve(
             address(protocolFacet),
             _request.totalRepayment
         );
 
-        protocolFacet.repayLoan(1, _request.totalRepayment / 2);
+        protocolFacet.repayLoan(1, firstHalf);
         Request memory _requestAfterRepay = protocolFacet.getRequest(1);
         assertEq(
             _requestAfterRepay.totalRepayment,
             _request.totalRepayment - (_request.totalRepayment / 2)
         );
 
-        protocolFacet.repayLoan(1, _requestAfterRepay.totalRepayment);
+        protocolFacet.repayLoan(1, secondHalf);
         Request memory _requestAfterRepay2 = protocolFacet.getRequest(1);
         assertEq(_requestAfterRepay2.totalRepayment, 0);
     }
@@ -575,8 +593,8 @@ contract ProtocolTest is Test, IDiamondCut {
 
     function testRequestLoanFromListing() public {
         createLoanListing();
-        IERC20(LINK_CONTRACT_ADDRESS).transfer(B, 500000000000);
-        _depositCollateral(B, LINK_CONTRACT_ADDRESS, 500000000000);
+        IERC20(LINK_CONTRACT_ADDRESS).transfer(B, 250 ether);
+        _depositCollateral(B, LINK_CONTRACT_ADDRESS, 200 ether);
 
         protocolFacet.requestLoanFromListing(1, 5E10);
 
@@ -610,7 +628,7 @@ contract ProtocolTest is Test, IDiamondCut {
         uint256 _healthfactorBeforeDeposit = protocolFacet.getHealthFactor(
             owner
         );
-        _depositCollateral(owner, LINK_CONTRACT_ADDRESS, 5E11);
+        _depositCollateral(owner, LINK_CONTRACT_ADDRESS, 5E18);
 
         uint256 _healthfactorAfterDeposit = protocolFacet.getHealthFactor(
             owner
@@ -633,13 +651,13 @@ contract ProtocolTest is Test, IDiamondCut {
 
     function transferTokenToOwner() public {
         switchSigner(USDTHolders);
-        IERC20(USDT_CONTRACT_ADDRESS).transfer(owner, 500000000000);
+        IERC20(USDT_CONTRACT_ADDRESS).transfer(owner, 1000 * (10 ** 6));
         switchSigner(DAIHolders);
-        IERC20(DIA_CONTRACT_ADDRESS).transfer(owner, 500000000000);
+        IERC20(DIA_CONTRACT_ADDRESS).transfer(owner, 500 ether);
         switchSigner(WETHHolders);
-        IERC20(WETH_CONTRACT_ADDRESS).transfer(owner, 500000000000);
+        IERC20(WETH_CONTRACT_ADDRESS).transfer(owner, 500 ether);
         switchSigner(LINKHolders);
-        IERC20(LINK_CONTRACT_ADDRESS).transfer(owner, 500000000000);
+        IERC20(LINK_CONTRACT_ADDRESS).transfer(owner, 500 ether);
     }
 
     function _depositCollateral(

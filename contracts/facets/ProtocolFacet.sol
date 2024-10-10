@@ -188,8 +188,8 @@ contract ProtocolFacet {
                 userBalance,
                 _decimalToken
             ) * collateralToLock) / 100;
-            uint256 amountToLock = ((amountToLockUSD) /
-                getUsdValue(token, 1, _decimalToken)) * (10 ** _decimalToken);
+            uint256 amountToLock = (((amountToLockUSD) * 10) /
+                getUsdValue(token, 10, 0)) * (10 ** _decimalToken);
             _appStorage.s_idToCollateralTokenAmount[_appStorage.requestId][
                 token
             ] = amountToLock;
@@ -260,6 +260,9 @@ contract ProtocolFacet {
 
         // Update the request's status to serviced
         _foundRequest.status = Status.SERVICED;
+        _appStorage
+            .addressToUser[msg.sender]
+            .totalLoanCollected += _loanUsdValue;
 
         for (uint i = 0; i < _foundRequest.collateralTokens.length; i++) {
             _appStorage.s_addressToAvailableBalance[_foundRequest.author][
@@ -582,8 +585,8 @@ contract ProtocolFacet {
                 userBalance,
                 decimal
             ) * collateralToLock) / 100;
-            uint256 amountToLock = (amountToLockUSD /
-                getUsdValue(token, 1, decimal)) * (10 ** decimal);
+            uint256 amountToLock = ((amountToLockUSD * 10) /
+                getUsdValue(token, 10, 0)) * (10 ** decimal);
             _appStorage.s_idToCollateralTokenAmount[_appStorage.requestId][
                 token
             ] = amountToLock;
@@ -593,6 +596,9 @@ contract ProtocolFacet {
         }
 
         _appStorage.s_requests.push(_newRequest);
+        _appStorage
+            .addressToUser[msg.sender]
+            .totalLoanCollected += _loanUsdValue;
 
         if (_listing.tokenAddress == Constants.NATIVE_TOKEN) {
             (bool sent, ) = payable(msg.sender).call{value: _amount}("");
@@ -669,10 +675,13 @@ contract ProtocolFacet {
                 _request.collateralTokens[i]
             ];
         }
-
-        _appStorage.addressToUser[msg.sender].totalLoanCollected =
-            loanCollected -
-            _loanUsdValue;
+        if (loanCollected > _loanUsdValue) {
+            _appStorage.addressToUser[msg.sender].totalLoanCollected =
+                loanCollected -
+                _loanUsdValue;
+        } else {
+            _appStorage.addressToUser[msg.sender].totalLoanCollected = 0;
+        }
 
         emit LoanRepayment(msg.sender, _requestId, _amount);
     }
@@ -696,8 +705,8 @@ contract ProtocolFacet {
         );
         (, int256 _price, , , ) = _priceFeed.latestRoundData();
         return
-            ((uint256(_price) * Constants.NEW_PRECISION) *
-                (_amount / _decimal)) / Constants.PRECISION;
+            ((uint256(_price) * Constants.NEW_PRECISION) * (_amount)) /
+            (Constants.PRECISION * (10 ** _decimal));
     }
 
     /// @notice This gets the amount of collateral a user has deposited in USD
@@ -772,7 +781,7 @@ contract ProtocolFacet {
         view
         returns (uint256 _totalBurrowInUsd, uint256 _collateralValueInUsd)
     {
-        _totalBurrowInUsd = _appStorage.addressToUser[_user].totalLoanCollected;
+        _totalBurrowInUsd = getLoanCollectedInUsd(_user);
         _collateralValueInUsd = getAccountCollateralValue(_user);
     }
 
@@ -934,16 +943,18 @@ contract ProtocolFacet {
         address _user
     ) public view returns (uint256 _value) {
         Request[] memory userActiveRequest = getUserActiveRequests(_user);
+        uint256 loans = 0;
         for (uint i = 0; i < userActiveRequest.length; i++) {
             uint8 tokenDecimal = _getTokenDecimal(
                 userActiveRequest[i].loanRequestAddr
             );
-            _value += getUsdValue(
+            loans += getUsdValue(
                 userActiveRequest[i].loanRequestAddr,
                 userActiveRequest[i].amount,
                 tokenDecimal
             );
         }
+        _value = loans;
     }
 
     function getUserCollateralTokens(
