@@ -77,6 +77,7 @@ contract ProtocolFacet {
 
     /// @param _tokenCollateralAddress The address of the token to deposit as collateral
     /// @param _amountOfCollateral The amount of collateral to deposit
+    // @follow-up add available balance
     function depositCollateral(
         address _tokenCollateralAddress,
         uint256 _amountOfCollateral
@@ -119,8 +120,6 @@ contract ProtocolFacet {
      * @param _loanCurrency The currency in which the loan is denominated
      * @dev This function calculates the required repayments and checks the borrower's collateral before accepting a loan request.
      */
-
-    //@audit this cannot create lending request for things lesser than 1 especially ether
     function createLendingRequest(
         uint128 _amount,
         uint16 _interest,
@@ -237,7 +236,7 @@ contract ProtocolFacet {
             ) revert Protocol__InsufficientAllowance();
         }
 
-        uint8 _decimalToken = _getTokenDecimal(_tokenAddress);;
+        uint8 _decimalToken = _getTokenDecimal(_tokenAddress);
         uint256 _loanUsdValue = getUsdValue(
             _tokenAddress,
             amountToLend,
@@ -284,6 +283,7 @@ contract ProtocolFacet {
     /// @notice Withdraws collateral from the protocol
     /// @param _tokenCollateralAddress Address of the collateral token
     /// @param _amount Amount of collateral to withdraw
+    // @audit I have to make sure the token amount is available
     function withdrawCollateral(
         address _tokenCollateralAddress,
         uint128 _amount
@@ -496,6 +496,7 @@ contract ProtocolFacet {
      * @param _listingId The id of the listing to request a loan from
      * @param _amount The amount that should be borrowed from the listing
      */
+    //@audit Rentrant can drain contract
     function requestLoanFromListing(
         uint96 _listingId,
         uint256 _amount
@@ -511,7 +512,13 @@ contract ProtocolFacet {
             revert Protocol__InvalidAmount();
         if (_amount > _listing.amount) revert Protocol__InvalidAmount();
 
-        uint256 _loanUsdValue = getUsdValue(_listing.tokenAddress, _amount);
+        uint8 _decimalToken = _getTokenDecimal(_listing.tokenAddress);
+        uint256 _loanUsdValue = getUsdValue(
+            _listing.tokenAddress,
+            _amount,
+            _decimalToken
+        );
+
         if (_healthFactor(msg.sender, _loanUsdValue) < 1) {
             revert Protocol__InsufficientCollateral();
         }
@@ -521,17 +528,6 @@ contract ProtocolFacet {
         );
         uint256 maxLoanableAmount = (collateralValueInLoanCurrency *
             Constants.COLLATERALIZATION_RATIO) / 100;
-
-        if (_listing.tokenAddress == Constants.NATIVE_TOKEN) {
-            (bool sent, ) = payable(msg.sender).call{value: _amount}("");
-            require(sent, "Protocol__TransferFailed");
-        } else {
-            bool success = IERC20(_listing.tokenAddress).transfer(
-                msg.sender,
-                _amount
-            );
-            require(success, "Protocol__TransferFailed");
-        }
 
         _listing.amount = _listing.amount - _amount;
 
@@ -561,20 +557,36 @@ contract ProtocolFacet {
 
         for (uint256 i = 0; i < _collateralTokens.length; i++) {
             address token = _collateralTokens[i];
+            uint8 decimal = _getTokenDecimal(token);
             uint256 userBalance = _appStorage.s_addressToCollateralDeposited[
                 msg.sender
             ][token];
 
             // Calculate the amount to lock for each token based on its proportion of the total collateral
-            uint256 amountToLockUSD = (getUsdValue(token, userBalance) *
-                collateralToLock) / 100;
-            uint256 amountToLock = amountToLockUSD / getUsdValue(token, 1);
+            uint256 amountToLockUSD = (getUsdValue(
+                token,
+                userBalance,
+                decimal
+            ) * collateralToLock) / 100;
+            uint256 amountToLock = (amountToLockUSD /
+                getUsdValue(token, 1, decimal)) * (10 ** decimal);
             _appStorage.s_idToCollateralTokenAmount[_appStorage.requestId][
                 token
             ] = amountToLock;
         }
-        
+
         _appStorage.s_requests.push(_newRequest);
+
+        if (_listing.tokenAddress == Constants.NATIVE_TOKEN) {
+            (bool sent, ) = payable(msg.sender).call{value: _amount}("");
+            require(sent, "Protocol__TransferFailed");
+        } else {
+            bool success = IERC20(_listing.tokenAddress).transfer(
+                msg.sender,
+                _amount
+            );
+            require(success, "Protocol__TransferFailed");
+        }
 
         emit RequestCreated(
             msg.sender,
@@ -614,21 +626,24 @@ contract ProtocolFacet {
             _request.totalRepayment = 0;
             _request.status = Status.CLOSED;
             _amount = _request.totalRepayment;
-        }
-
-        _request.totalRepayment -= _amount;
-        // TODO: Update the user's totalLoanCollected from appStorage
-
-        if (_request.loanRequestAddr == Constants.NATIVE_TOKEN) {
-            (bool sent, ) = payable(msg.sender).call{value: _amount}("");
-            require(sent, "Protocol__TransferFailed");
         } else {
-            IERC20(_request.loanRequestAddr).transferFrom(
-                msg.sender,
-                _request.lender,
-                _amount
-            );
+            _request.totalRepayment -= _amount;
         }
+
+        uint8 decimal = _getTokenDecimal(_request.loanRequestAddr);
+        uint256 _loanUsdValue = getUsdValue(
+            _request.loanRequestAddr,
+            _amount,
+            decimal
+        );
+        uint256 loanCollected = getLoanCollectedInUsd(msg.sender);
+
+        _appStorage.s_addressToCollateralDeposited[_request.lender][
+            _request.loanRequestAddr
+        ] += _amount;
+        _appStorage.addressToUser[msg.sender].totalLoanCollected =
+            loanCollected -
+            _loanUsdValue;
 
         emit LoanRepayment(msg.sender, _requestId, _amount);
     }
@@ -671,7 +686,12 @@ contract ProtocolFacet {
             uint256 _amount = _appStorage.s_addressToCollateralDeposited[_user][
                 _token
             ];
-            _totalCollateralValueInUsd += getUsdValue(_token, _amount);
+            uint8 _tokenDecimal = _getTokenDecimal(_token);
+            _totalCollateralValueInUsd += getUsdValue(
+                _token,
+                _amount,
+                _tokenDecimal
+            );
         }
     }
 
@@ -844,6 +864,49 @@ contract ProtocolFacet {
         return _request;
     }
 
+    function getUserActiveRequests(
+        address _user
+    ) public view returns (Request[] memory _requests) {
+        Request[] memory requests = _appStorage.s_requests;
+        uint64 requestLength;
+        for (uint i = 0; i < requests.length; i++) {
+            if (
+                requests[i].author == _user &&
+                requests[i].status == Status.SERVICED
+            ) {
+                requestLength++;
+            }
+        }
+
+        _requests = new Request[](requestLength);
+
+        for (uint i = 0; i < requests.length; i++) {
+            if (
+                requests[i].author == _user &&
+                requests[i].status == Status.SERVICED
+            ) {
+                _requests[requestLength - 1] = requests[i];
+                requestLength--;
+            }
+        }
+    }
+
+    function getLoanCollectedInUsd(
+        address _user
+    ) public view returns (uint256 _value) {
+        Request[] memory userActiveRequest = getUserActiveRequests(_user);
+        for (uint i = 0; i < userActiveRequest.length; i++) {
+            uint8 tokenDecimal = _getTokenDecimal(
+                userActiveRequest[i].loanRequestAddr
+            );
+            _value += getUsdValue(
+                userActiveRequest[i].loanRequestAddr,
+                userActiveRequest[i].amount,
+                tokenDecimal
+            );
+        }
+    }
+
     function getUserCollateralTokens(
         address _user
     ) public view returns (address[] memory _collaterals) {
@@ -870,7 +933,7 @@ contract ProtocolFacet {
         }
 
         return userTokens;
-  }
+    }
     fallback() external {
         revert("ProtocolFacet: fallback");
     }
