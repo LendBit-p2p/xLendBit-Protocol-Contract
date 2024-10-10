@@ -964,9 +964,7 @@ contract ProtocolFacet {
         uint8 userLength = 0;
 
         for (uint256 i = 0; i < tokens.length; i++) {
-            if (
-                _appStorage.s_addressToCollateralDeposited[_user][tokens[i]] > 0
-            ) {
+            if (_appStorage.s_addressToAvailableBalance[_user][tokens[i]] > 0) {
                 userLength++;
             }
         }
