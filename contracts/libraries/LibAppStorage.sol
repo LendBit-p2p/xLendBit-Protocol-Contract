@@ -10,6 +10,8 @@ library LibAppStorage {
         mapping(address token => bool isLoanable) s_isLoanable;
         /// @dev maps user to the value of balance he has collaterised
         mapping(address => mapping(address token => uint256 balance)) s_addressToCollateralDeposited;
+        /// @dev maps user to the value of balance he has available
+        mapping(address => mapping(address token => uint256 balance)) s_addressToAvailableBalance;
         ///@dev mapping the address of a user to its Struct
         mapping(address => User) addressToUser;
         ///@dev mapping of users to their address

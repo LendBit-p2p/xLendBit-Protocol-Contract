@@ -94,6 +94,9 @@ contract ProtocolFacet {
         _appStorage.s_addressToCollateralDeposited[msg.sender][
             _tokenCollateralAddress
         ] += _amountOfCollateral;
+        _appStorage.s_addressToAvailableBalance[msg.sender][
+            _tokenCollateralAddress
+        ] += _amountOfCollateral;
 
         if (_tokenCollateralAddress != Constants.NATIVE_TOKEN) {
             bool _success = IERC20(_tokenCollateralAddress).transferFrom(
@@ -258,6 +261,17 @@ contract ProtocolFacet {
             revert Protocol__InsufficientCollateral();
         }
 
+        // Update the request's status to serviced
+        _foundRequest.status = Status.SERVICED;
+
+        for (uint i = 0; i < _foundRequest.collateralTokens.length; i++) {
+            _appStorage.s_addressToAvailableBalance[_foundRequest.author][
+                _foundRequest.collateralTokens[i]
+            ] -= _appStorage.s_idToCollateralTokenAmount[_requestId][
+                _foundRequest.collateralTokens[i]
+            ];
+        }
+
         // Transfer the funds from the lender to the borrower
         if (_tokenAddress != Constants.NATIVE_TOKEN) {
             bool success = IERC20(_tokenAddress).transferFrom(
@@ -266,10 +280,12 @@ contract ProtocolFacet {
                 amountToLend
             );
             require(success, "Protocol__TransferFailed");
+        } else {
+            (bool sent, ) = payable(_foundRequest.author).call{
+                value: amountToLend
+            }("");
+            require(sent, "Protocol__TransferFailed");
         }
-
-        // Update the request's status to serviced
-        _foundRequest.status = Status.SERVICED;
 
         // Emit a success event with relevant details
         emit RequestServiced(
@@ -296,6 +312,9 @@ contract ProtocolFacet {
         }
 
         _appStorage.s_addressToCollateralDeposited[msg.sender][
+            _tokenCollateralAddress
+        ] -= _amount;
+        _appStorage.s_addressToAvailableBalance[msg.sender][
             _tokenCollateralAddress
         ] -= _amount;
 
@@ -573,6 +592,9 @@ contract ProtocolFacet {
             _appStorage.s_idToCollateralTokenAmount[_appStorage.requestId][
                 token
             ] = amountToLock;
+            _appStorage.s_addressToAvailableBalance[msg.sender][
+                token
+            ] -= amountToLock;
         }
 
         _appStorage.s_requests.push(_newRequest);
@@ -641,6 +663,18 @@ contract ProtocolFacet {
         _appStorage.s_addressToCollateralDeposited[_request.lender][
             _request.loanRequestAddr
         ] += _amount;
+        _appStorage.s_addressToAvailableBalance[_request.lender][
+            _request.loanRequestAddr
+        ] += _amount;
+
+        for (uint i = 0; i < _request.collateralTokens.length; i++) {
+            _appStorage.s_addressToAvailableBalance[_request.author][
+                _request.collateralTokens[i]
+            ] += _appStorage.s_idToCollateralTokenAmount[_requestId][
+                _request.collateralTokens[i]
+            ];
+        }
+
         _appStorage.addressToUser[msg.sender].totalLoanCollected =
             loanCollected -
             _loanUsdValue;
