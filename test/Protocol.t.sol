@@ -186,6 +186,15 @@ contract ProtocolTest is Test, IDiamondCut {
         );
     }
 
+    function testGetConvertValue() external {
+        uint256 value = protocolFacet.getConvertValue(
+            ETH_CONTRACT_ADDRESS,
+            USDT_CONTRACT_ADDRESS,
+            1 ether
+        );
+        assert(value > 2200E6);
+    }
+
     function testWithdrawCollateral() public {
         switchSigner(owner);
         vm.deal(owner, 500 ether);
