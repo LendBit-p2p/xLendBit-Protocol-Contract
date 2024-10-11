@@ -710,6 +710,18 @@ contract ProtocolFacet {
             (Constants.PRECISION * (10 ** _decimal));
     }
 
+    ///@notice get the expected amount in converting tokens
+    function getConvertValue(
+        address _from,
+        address _to,
+        uint256 _amount
+    ) public view returns (uint256 value) {
+        uint8 fromDecimal = _getTokenDecimal(_from);
+        uint8 toDecimal = _getTokenDecimal(_to);
+        uint256 fromUsd = getUsdValue(_from, _amount, fromDecimal);
+        value = ((fromUsd * 10) / getUsdValue(_to, 10, 0)) * (10 ** toDecimal);
+    }
+
     /// @notice This gets the amount of collateral a user has deposited in USD
     /// @param _user the address who you want to get their collateral value
     /// @return _totalCollateralValueInUsd returns the value of the user deposited collateral in USD
