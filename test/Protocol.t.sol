@@ -151,7 +151,7 @@ contract ProtocolTest is Test, IDiamondCut {
         assertEq(_amountQualaterized, 100 ether);
     }
 
-    function testGetUsdValue() public {
+    function testGetUsdValue() public view{
         uint256 value = protocolFacet.getUsdValue(
             ETH_CONTRACT_ADDRESS,
             0.1 ether,
@@ -186,7 +186,7 @@ contract ProtocolTest is Test, IDiamondCut {
         );
     }
 
-    function testGetConvertValue() external {
+    function testGetConvertValue() external view{
         uint256 value = protocolFacet.getConvertValue(
             ETH_CONTRACT_ADDRESS,
             USDT_CONTRACT_ADDRESS,
@@ -195,6 +195,7 @@ contract ProtocolTest is Test, IDiamondCut {
         assert(value > 2200E6);
     }
 
+    
     function testWithdrawCollateral() public {
         switchSigner(owner);
         vm.deal(owner, 500 ether);
@@ -285,6 +286,8 @@ contract ProtocolTest is Test, IDiamondCut {
         assertEq(uint8(_listing.listingStatus), uint8(ListingStatus.OPEN));
     }
 
+  
+
     function testUserCanCreateTwoRequest() public {
         testDepositTCollateral();
 
@@ -313,6 +316,8 @@ contract ProtocolTest is Test, IDiamondCut {
         assertEq(requests.length, 2);
         assertEq(requests[0].amount, requestAmount);
     }
+
+    
 
     function testExcessiveBorrowing() public {
         testDepositTCollateral();
@@ -615,6 +620,17 @@ contract ProtocolTest is Test, IDiamondCut {
         assertEq(_request.returnDate, _listing.returnDate);
         assertEq(uint8(_request.status), uint8(Status.SERVICED));
         assertEq(_listing.amount, 5E10);
+    }
+
+      function testLiquidateUser() external{
+
+            testRequestLoanFromListing();
+            protocolFacet.liquidateUserRequest(1);
+            
+
+
+
+
     }
 
     function createLoanListing() public {

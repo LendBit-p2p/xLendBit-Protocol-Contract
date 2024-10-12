@@ -33,5 +33,9 @@ library LibAppStorage {
         uint96 requestId;
         uint96 s_orderId;
         uint96 listingId;
+
+        address botAddress;
+        address swapRouter;
+
     }
 }

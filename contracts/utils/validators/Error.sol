@@ -43,3 +43,4 @@ error Protocol__OrderNotServiced();
 error Protocol__ListingNotOpen();
 error Protocol__OwnerCreatedListing();
 error Protocol__InsufficientAmount();
+error Protocol__OnlyBotCanAccess();
