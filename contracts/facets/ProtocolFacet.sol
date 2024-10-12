@@ -708,6 +708,7 @@ contract ProtocolFacet {
 
     function liquidateUserRequest(uint96 requestId)
         external
+        onlyBot
     {
         Request memory _activeRequest = getActiveRequestsByRequestId(requestId);
         address loanCurrency = _activeRequest.loanRequestAddr;
