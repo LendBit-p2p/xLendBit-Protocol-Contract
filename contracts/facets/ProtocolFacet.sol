@@ -564,6 +564,14 @@ contract ProtocolFacet {
 
         _listing.amount = _listing.amount - _amount;
 
+        if (_listing.amount <= _listing.max_amount) {
+            _listing.max_amount = _listing.amount;
+        }
+
+        if (_listing.amount <= _listing.min_amount) {
+            _listing.min_amount = 0;
+        }
+
         address[] memory _collateralTokens = getUserCollateralTokens(
             msg.sender
         );
