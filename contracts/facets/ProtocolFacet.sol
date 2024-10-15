@@ -452,6 +452,18 @@ contract ProtocolFacet {
         );
     }
 
+    function closeRequest(uint96 _requestId) external {
+        Request storage _foundRequest = _appStorage.request[_requestId];
+        Request storage _Request = _appStorage.s_requests[_requestId - 1];
+
+        if (_foundRequest.status != Status.OPEN)
+            revert Protocol__RequestNotOpen();
+        if (_foundRequest.author != msg.sender) revert Protocol__NotOwner();
+
+        _foundRequest.status = Status.CLOSED;
+        _Request.status = Status.CLOSED;
+    }
+
     /**
      * @notice Allows a user to create loan listing ads for a specific token with borrow limit
      * @dev creates a listing, transfers token from user to protocol, and emits an event

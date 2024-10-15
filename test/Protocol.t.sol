@@ -212,6 +212,28 @@ contract ProtocolTest is Test, IDiamondCut {
         assertEq(_requests.length, 1);
     }
 
+    function testCloseRequest() public {
+        switchSigner(owner);
+        protocolFacet.depositCollateral(USDT_CONTRACT_ADDRESS, 1000000000);
+
+        uint128 requestAmount = 0.01 ether;
+        uint16 interestRate = 500;
+        uint256 returnDate = block.timestamp + 365 days;
+
+        protocolFacet.createLendingRequest(
+            requestAmount,
+            interestRate,
+            returnDate,
+            ETH_CONTRACT_ADDRESS
+        );
+
+        protocolFacet.closeRequest(1);
+
+        Request[] memory requests = protocolFacet.getUserActiveRequests(owner);
+
+        assertEq(requests.length, 0);
+    }
+
     function testGetConvertValue() external view {
         uint256 value = protocolFacet.getConvertValue(
             ETH_CONTRACT_ADDRESS,
