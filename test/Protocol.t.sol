@@ -203,6 +203,15 @@ contract ProtocolTest is Test, IDiamondCut {
         );
     }
 
+    function testGetServicedRequestByLender() public {
+        testServiceNativeRequest();
+        Request[] memory _requests = protocolFacet.getServicedRequestByLender(
+            B
+        );
+
+        assertEq(_requests.length, 1);
+    }
+
     function testGetConvertValue() external view {
         uint256 value = protocolFacet.getConvertValue(
             ETH_CONTRACT_ADDRESS,

@@ -228,6 +228,7 @@ contract ProtocolFacet {
         address _tokenAddress
     ) external payable _nativeMoreThanZero(_tokenAddress) {
         Request storage _foundRequest = _appStorage.request[_requestId];
+        Request storage _Request = _appStorage.s_requests[_requestId - 1];
 
         if (_foundRequest.status != Status.OPEN)
             revert Protocol__RequestNotOpen();
@@ -235,7 +236,9 @@ contract ProtocolFacet {
             revert Protocol__InvalidToken();
 
         _foundRequest.lender = msg.sender;
+        _Request.lender = msg.sender;
         _foundRequest.status = Status.SERVICED;
+        _Request.status = Status.SERVICED;
         uint256 amountToLend = _foundRequest.amount;
 
         // Check if the lender has enough balance and the allowance to transfer the tokens
@@ -1094,6 +1097,27 @@ contract ProtocolFacet {
                 requests[i].author == _user &&
                 requests[i].status == Status.SERVICED
             ) {
+                _requests[requestLength - 1] = requests[i];
+                requestLength--;
+            }
+        }
+    }
+
+    function getServicedRequestByLender(
+        address _lender
+    ) public view returns (Request[] memory _requests) {
+        Request[] memory requests = _appStorage.s_requests;
+        uint64 requestLength;
+        for (uint i = 0; i < requests.length; i++) {
+            if (requests[i].lender == _lender) {
+                requestLength++;
+            }
+        }
+
+        _requests = new Request[](requestLength);
+
+        for (uint i = 0; i < requests.length; i++) {
+            if (requests[i].lender == _lender) {
                 _requests[requestLength - 1] = requests[i];
                 requestLength--;
             }
