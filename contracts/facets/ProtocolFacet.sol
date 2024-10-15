@@ -10,6 +10,7 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "../utils/validators/Error.sol";
 import "../model/Event.sol";
 import "../model/Protocol.sol";
+import "../interfaces/IUniswapV2Router02.sol";
 
 import "../utils/functions/Utils.sol";
 
@@ -51,6 +52,21 @@ contract ProtocolFacet {
      */
     modifier _nativeMoreThanZero(address _token) {
         if (_token == Constants.NATIVE_TOKEN && msg.value <= 0) {
+            revert Protocol__MustBeMoreThanZero();
+        }
+        _;
+    }
+
+    /**
+     * @dev Ensure that only bot address can call this function
+     * @param _requestId the id of the request that will be liquidate
+     */
+    modifier onlyBot(uint96 _requestId) {
+        if (_appStorage.botAddress != msg.sender) {
+            revert Protocol__OnlyBotCanAccess();
+        }
+
+        if (_requestId <= 0) {
             revert Protocol__MustBeMoreThanZero();
         }
         _;
@@ -685,6 +701,109 @@ contract ProtocolFacet {
         }
 
         emit LoanRepayment(msg.sender, _requestId, _amount);
+    }
+
+    function liquidateUserRequest(
+        uint96 requestId
+    ) external onlyBot(requestId) {
+        Request memory _activeRequest = getActiveRequestsByRequestId(requestId);
+        address loanCurrency = _activeRequest.loanRequestAddr;
+        address lenderAddress = _activeRequest.lender;
+        uint256 swappedAmount = 0;
+
+        for (uint96 i = 0; i < _activeRequest.collateralTokens.length; i++) {
+            address collateralToken = _activeRequest.collateralTokens[i];
+            uint256 amountOfCollateralToken = _appStorage
+                .s_idToCollateralTokenAmount[requestId][collateralToken];
+
+            if (amountOfCollateralToken > 0) {
+                uint256 loanCurrencyAmount = swapToLoanCurrency(
+                    collateralToken,
+                    amountOfCollateralToken,
+                    loanCurrency
+                );
+
+                // Update available balance and collateral deposited
+                _appStorage.s_addressToAvailableBalance[_activeRequest.author][
+                    collateralToken
+                ] -= amountOfCollateralToken;
+                _appStorage.s_addressToCollateralDeposited[
+                    _activeRequest.author
+                ][collateralToken] -= amountOfCollateralToken;
+
+                swappedAmount += loanCurrencyAmount;
+
+                _appStorage.s_idToCollateralTokenAmount[requestId][
+                    collateralToken
+                ] = 0;
+            }
+        }
+        // Transfer total repayment to lender
+        IERC20(loanCurrency).transfer(
+            lenderAddress,
+            _activeRequest.totalRepayment
+        );
+
+        // Close request
+        _activeRequest.status = Status.CLOSED;
+
+        emit RequestLiquidated(
+            requestId,
+            lenderAddress,
+            _activeRequest.totalRepayment
+        );
+    }
+
+    // Function to swap collateral tokens to loan currency using Uniswap
+    function swapToLoanCurrency(
+        address collateralToken,
+        uint256 collateralAmount,
+        address loanCurrency
+    ) internal returns (uint256 loanCurrencyAmount) {
+        address[] memory path = new address[](2);
+        path[0] = collateralToken;
+        path[1] = loanCurrency;
+
+        // Approve Uniswap to spend collateral tokens
+        IERC20(collateralToken).approve(
+            _appStorage.swapRouter,
+            collateralAmount
+        );
+
+        uint256 _totalswappedToken = getConvertValue(
+            collateralToken,
+            loanCurrency,
+            collateralAmount
+        );
+        uint[] memory amountsOut = IUniswapV2Router02(_appStorage.swapRouter)
+            .swapTokensForExactTokens(
+                _totalswappedToken,
+                collateralAmount,
+                path,
+                address(this),
+                block.timestamp + 300 // Deadline of 5 minutes
+            );
+        return amountsOut[1]; // Return the received amount of loan currency
+    }
+
+    function getActiveRequestsByRequestId(
+        uint96 _requestId
+    ) private view returns (Request memory) {
+        Request memory _request = _appStorage.request[_requestId];
+        if (_request.status != Status.SERVICED) {
+            revert Protocol__RequestNotServiced();
+        }
+        return _request;
+    }
+
+    function setBotAddress(address _botAddress) external {
+        LibDiamond.enforceIsContractOwner();
+        _appStorage.botAddress = _botAddress;
+    }
+
+    function setSwapRouter(address _swapRouter) external {
+        LibDiamond.enforceIsContractOwner();
+        _appStorage.swapRouter = _swapRouter;
     }
 
     ///////////////////////

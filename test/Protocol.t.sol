@@ -40,6 +40,9 @@ contract ProtocolTest is Test, IDiamondCut {
     address B = address(0xb);
     address C = address(0xc);
 
+    address botAddress = address(0x0beaf0BfC5D1f3f3F8d3a6b0F1B6E3f2b0f1b6e3);
+    address swapRouterAddress = 0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24;
+
     address[] tokens;
     address[] priceFeed;
 
@@ -106,6 +109,8 @@ contract ProtocolTest is Test, IDiamondCut {
         diamond.initialize(tokens, priceFeed);
 
         protocolFacet = ProtocolFacet(address(diamond));
+        protocolFacet.setBotAddress(botAddress);
+        protocolFacet.setSwapRouter(swapRouterAddress);
 
         // protocolFacet.approveUserToSpendTokens(DIA_CONTRACT_ADDRESS, B, type(uint).max);
 
@@ -151,7 +156,7 @@ contract ProtocolTest is Test, IDiamondCut {
         assertEq(_amountQualaterized, 100 ether);
     }
 
-    function testGetUsdValue() public {
+    function testGetUsdValue() public view {
         uint256 value = protocolFacet.getUsdValue(
             ETH_CONTRACT_ADDRESS,
             0.1 ether,
@@ -186,7 +191,7 @@ contract ProtocolTest is Test, IDiamondCut {
         );
     }
 
-    function testGetConvertValue() external {
+    function testGetConvertValue() external view {
         uint256 value = protocolFacet.getConvertValue(
             ETH_CONTRACT_ADDRESS,
             USDT_CONTRACT_ADDRESS,
@@ -615,6 +620,16 @@ contract ProtocolTest is Test, IDiamondCut {
         assertEq(_request.returnDate, _listing.returnDate);
         assertEq(uint8(_request.status), uint8(Status.SERVICED));
         assertEq(_listing.amount, 5E10);
+    }
+
+    function testLiquidateUser() external {
+        testRequestLoanFromListing();
+        uint256 _balance = IERC20(DIA_CONTRACT_ADDRESS).balanceOf(
+            address(diamond)
+        );
+        console.log("Balance", _balance);
+        switchSigner(botAddress);
+        protocolFacet.liquidateUserRequest(1);
     }
 
     function createLoanListing() public {
