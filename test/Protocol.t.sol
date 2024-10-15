@@ -165,6 +165,18 @@ contract ProtocolTest is Test, IDiamondCut {
         assert(value > 0);
     }
 
+    function testGetAccountAvailableValue() public {
+        testDepositTCollateral();
+        uint256 _avaiable = protocolFacet.getAccountAvailableValue(owner);
+        uint256 value = protocolFacet.getUsdValue(
+            USDT_CONTRACT_ADDRESS,
+            100E6,
+            6
+        );
+
+        assertEq(_avaiable, value);
+    }
+
     function testServiceNativeRequest() public {
         switchSigner(owner);
         protocolFacet.depositCollateral(USDT_CONTRACT_ADDRESS, 1000000000);

@@ -865,6 +865,27 @@ contract ProtocolFacet {
         }
     }
 
+    function getAccountAvailableValue(
+        address _user
+    ) public view returns (uint256 _totalAvailableValueInUsd) {
+        for (
+            uint256 index = 0;
+            index < _appStorage.s_collateralToken.length;
+            index++
+        ) {
+            address _token = _appStorage.s_collateralToken[index];
+            uint256 _amount = _appStorage.s_addressToAvailableBalance[_user][
+                _token
+            ];
+            uint8 _tokenDecimal = _getTokenDecimal(_token);
+            _totalAvailableValueInUsd += getUsdValue(
+                _token,
+                _amount,
+                _tokenDecimal
+            );
+        }
+    }
+
     /**
      * @notice Retrieves all the requests stored in the system
      * @dev Returns an array of all requests
