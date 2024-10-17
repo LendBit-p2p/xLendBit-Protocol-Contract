@@ -197,7 +197,8 @@ contract ProtocolFacet {
         _newRequest.collateralTokens = _collateralTokens;
         _newRequest.status = Status.OPEN;
 
-        uint256 collateralToLock = (_loanUsdValue * 100) / maxLoanableAmount; // Account for 80% LTV
+        uint256 collateralToLock = (_loanUsdValue * 100 * Constants.PRECISION) /
+            maxLoanableAmount; // Account for 80% LTV
 
         for (uint256 i = 0; i < _collateralTokens.length; i++) {
             address token = _collateralTokens[i];
@@ -212,8 +213,9 @@ contract ProtocolFacet {
                 userBalance,
                 _decimalToken
             ) * collateralToLock) / 100;
-            uint256 amountToLock = (((amountToLockUSD) * 10) /
-                getUsdValue(token, 10, 0)) * (10 ** _decimalToken);
+            uint256 amountToLock = ((((amountToLockUSD) * 10) /
+                getUsdValue(token, 10, 0)) * (10 ** _decimalToken)) /
+                Constants.PRECISION;
             _appStorage.s_idToCollateralTokenAmount[_appStorage.requestId][
                 token
             ] = amountToLock;
@@ -299,9 +301,13 @@ contract ProtocolFacet {
         for (uint i = 0; i < _foundRequest.collateralTokens.length; i++) {
             _appStorage.s_addressToAvailableBalance[_foundRequest.author][
                 _foundRequest.collateralTokens[i]
-            ] -= _appStorage.s_idToCollateralTokenAmount[_requestId][
-                _foundRequest.collateralTokens[i]
-            ];
+            ] =
+                _appStorage.s_addressToAvailableBalance[_foundRequest.author][
+                    _foundRequest.collateralTokens[i]
+                ] -
+                _appStorage.s_idToCollateralTokenAmount[_requestId][
+                    _foundRequest.collateralTokens[i]
+                ];
         }
 
         // Transfer the funds from the lender to the borrower
@@ -621,7 +627,8 @@ contract ProtocolFacet {
         _newRequest.collateralTokens = _collateralTokens;
         _newRequest.status = Status.SERVICED;
 
-        uint256 collateralToLock = (_loanUsdValue * 100) / maxLoanableAmount;
+        uint256 collateralToLock = (_loanUsdValue * 100 * Constants.PRECISION) /
+            maxLoanableAmount;
 
         for (uint256 i = 0; i < _collateralTokens.length; i++) {
             address token = _collateralTokens[i];
@@ -636,8 +643,10 @@ contract ProtocolFacet {
                 userBalance,
                 decimal
             ) * collateralToLock) / 100;
-            uint256 amountToLock = ((amountToLockUSD * 10) /
-                getUsdValue(token, 10, 0)) * (10 ** decimal);
+            uint256 amountToLock = ((((amountToLockUSD) * 10) /
+                getUsdValue(token, 10, 0)) * (10 ** _decimalToken)) /
+                Constants.PRECISION;
+
             _appStorage.s_idToCollateralTokenAmount[_appStorage.requestId][
                 token
             ] = amountToLock;
@@ -1052,6 +1061,13 @@ contract ProtocolFacet {
         address _tokenAddr
     ) external view returns (uint256) {
         return _appStorage.s_addressToAvailableBalance[_sender][_tokenAddr];
+    }
+
+    function getRequestToColateral(
+        uint96 _requestId,
+        address _token
+    ) external view returns (uint256) {
+        return _appStorage.s_idToCollateralTokenAmount[_requestId][_token];
     }
 
     /// @dev calculates the loan interest and add it to the loam

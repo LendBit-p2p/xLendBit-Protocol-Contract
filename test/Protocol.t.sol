@@ -436,6 +436,50 @@ contract ProtocolTest is Test, IDiamondCut {
         assertEq(uint8(_borrowRequest.status), uint8(1));
     }
 
+    function testServiceRequestAvailable() public {
+        // IERC20 daiContract = IERC20(WETHHolders);
+        // switchSigner(WETHHolders);
+        switchSigner(owner);
+        IERC20(LINK_CONTRACT_ADDRESS).transfer(B, 2 ether);
+        IERC20(LINK_CONTRACT_ADDRESS).approve(address(protocolFacet), 1 ether);
+
+        protocolFacet.depositCollateral(LINK_CONTRACT_ADDRESS, 1 ether);
+        uint256 _amountQualaterized = protocolFacet
+            .gets_addressToCollateralDeposited(owner, LINK_CONTRACT_ADDRESS);
+
+        uint128 requestAmount = 0.5 ether;
+        uint16 interestRate = 500;
+        uint256 returnDate = block.timestamp + 365 days; // 1 year later
+
+        protocolFacet.createLendingRequest(
+            requestAmount,
+            interestRate,
+            returnDate,
+            LINK_CONTRACT_ADDRESS
+        );
+
+        uint256 tokenBal = protocolFacet.getRequestToColateral(
+            1,
+            LINK_CONTRACT_ADDRESS
+        );
+        switchSigner(B);
+
+        IERC20(LINK_CONTRACT_ADDRESS).approve(
+            address(protocolFacet),
+            requestAmount
+        );
+        protocolFacet.serviceRequest(1, LINK_CONTRACT_ADDRESS);
+        uint256 bal = protocolFacet.gets_addressToAvailableBalance(
+            owner,
+            LINK_CONTRACT_ADDRESS
+        );
+
+        console.log("Token Balance", tokenBal);
+        console.log("Available Balance", bal);
+
+        assert(bal < 0.5 ether);
+    }
+
     function testServiceRequestFailsAfterFirstService() public {
         switchSigner(owner);
         IERC20(LINK_CONTRACT_ADDRESS).transfer(B, 2 ether);
