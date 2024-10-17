@@ -335,9 +335,10 @@ contract ProtocolFacet {
         address _tokenCollateralAddress,
         uint128 _amount
     ) external _isTokenAllowed(_tokenCollateralAddress) _moreThanZero(_amount) {
-        uint256 depositedAmount = _appStorage.s_addressToCollateralDeposited[
+        uint256 depositedAmount = _appStorage.s_addressToAvailableBalance[
             msg.sender
         ][_tokenCollateralAddress];
+
         if (depositedAmount < _amount) {
             revert Protocol__InsufficientCollateralDeposited();
         }
@@ -348,9 +349,6 @@ contract ProtocolFacet {
         _appStorage.s_addressToAvailableBalance[msg.sender][
             _tokenCollateralAddress
         ] -= _amount;
-
-        // Check if remaining collateral still covers all loan obligations
-        _revertIfHealthFactorIsBroken(msg.sender);
 
         if (_tokenCollateralAddress == Constants.NATIVE_TOKEN) {
             (bool sent, ) = payable(msg.sender).call{value: _amount}("");
@@ -682,6 +680,8 @@ contract ProtocolFacet {
     function repayLoan(uint96 _requestId, uint256 _amount) external payable {
         require(_amount > 0, "Protocol__MustBeMoreThanZero");
         Request storage _request = _appStorage.request[_requestId];
+        Request storage _foundRequest = _appStorage.s_requests[_requestId - 1];
+
         if (_request.status != Status.SERVICED)
             revert Protocol__RequestNotServiced();
 
@@ -700,10 +700,13 @@ contract ProtocolFacet {
 
         if (_amount >= _request.totalRepayment) {
             _request.totalRepayment = 0;
+            _foundRequest.totalRepayment = 0;
             _request.status = Status.CLOSED;
+            _foundRequest.status = Status.CLOSED;
             _amount = _request.totalRepayment;
         } else {
             _request.totalRepayment -= _amount;
+            _foundRequest.totalRepayment -= _amount;
         }
 
         uint8 decimal = _getTokenDecimal(_request.loanRequestAddr);
@@ -998,6 +1001,7 @@ contract ProtocolFacet {
 
         if ((_totalBurrowInUsd == 0) && (_borrow_Value == 0))
             return (_collateralAdjustedForThreshold * Constants.PRECISION);
+
         return
             (_collateralAdjustedForThreshold * Constants.PRECISION) /
             (_totalBurrowInUsd + _borrow_Value);

@@ -5,7 +5,7 @@ pragma solidity ^0.8.20;
 library Constants {
     uint256 constant NEW_PRECISION = 1e10;
     uint256 constant PRECISION = 1e18;
-    uint256 constant LIQUIDATION_THRESHOLD = 85;
+    uint256 constant LIQUIDATION_THRESHOLD = 80;
     uint256 constant MIN_HEALTH_FACTOR = 1;
     uint256 constant COLLATERALIZATION_RATIO = 80;
     address constant NATIVE_TOKEN = address(1);

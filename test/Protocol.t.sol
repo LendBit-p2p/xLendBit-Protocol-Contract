@@ -303,6 +303,18 @@ contract ProtocolTest is Test, IDiamondCut {
         assertEq(address(owner).balance, 350 ether);
     }
 
+    function testGetHealthFactorBeforeDeposit() public view {
+        uint256 value = protocolFacet.getHealthFactor(owner);
+        assertEq(value, 0);
+    }
+
+    function testGetHealthFactorAfterDeposit() public {
+        testDepositTCollateral();
+        switchSigner(owner);
+        uint256 value = protocolFacet.getHealthFactor(owner);
+        assertEq(value, 0);
+    }
+
     function testNativeListingAds() external {
         switchSigner(owner);
 
