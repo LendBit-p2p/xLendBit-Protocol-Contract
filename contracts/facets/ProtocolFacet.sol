@@ -147,8 +147,15 @@ contract ProtocolFacet {
         if (!_appStorage.s_isLoanable[_loanCurrency]) {
             revert Protocol__TokenNotLoanable();
         }
+
+        if ((_returnDate - block.timestamp) < 1 days) {
+            revert Protocol__DateMustBeInFuture();
+        }
+
+        //get token decimal
         uint8 decimal = _getTokenDecimal(_loanCurrency);
 
+        //get usd value
         uint256 _loanUsdValue = getUsdValue(_loanCurrency, _amount, decimal);
 
         if (_loanUsdValue < 1) revert Protocol__InvalidAmount();
@@ -156,6 +163,7 @@ contract ProtocolFacet {
         uint256 collateralValueInLoanCurrency = getAccountCollateralValue(
             msg.sender
         );
+
         uint256 maxLoanableAmount = (collateralValueInLoanCurrency *
             Constants.COLLATERALIZATION_RATIO) / 100;
 
@@ -234,6 +242,12 @@ contract ProtocolFacet {
             revert Protocol__RequestNotOpen();
         if (_foundRequest.loanRequestAddr != _tokenAddress)
             revert Protocol__InvalidToken();
+        if (_foundRequest.author == msg.sender) {
+            revert Protocol__CantFundSelf();
+        }
+        if (_foundRequest.returnDate <= block.timestamp) {
+            revert Protocol__RequestExpired();
+        }
 
         _foundRequest.lender = msg.sender;
         _Request.lender = msg.sender;
@@ -278,7 +292,6 @@ contract ProtocolFacet {
         }
 
         // Update the request's status to serviced
-        _foundRequest.status = Status.SERVICED;
         _appStorage
             .addressToUser[msg.sender]
             .totalLoanCollected += _loanUsdValue;
