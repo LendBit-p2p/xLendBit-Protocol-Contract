@@ -705,14 +705,16 @@ contract ProtocolFacet {
             }
             if (_token.allowance(msg.sender, address(this)) < _amount)
                 revert Protocol__InsufficientAllowance();
+
+            _token.transferFrom(msg.sender, address(this), _amount);
         }
 
         if (_amount >= _request.totalRepayment) {
+            _amount = _request.totalRepayment;
             _request.totalRepayment = 0;
             _foundRequest.totalRepayment = 0;
             _request.status = Status.CLOSED;
             _foundRequest.status = Status.CLOSED;
-            _amount = _request.totalRepayment;
         } else {
             _request.totalRepayment -= _amount;
             _foundRequest.totalRepayment -= _amount;

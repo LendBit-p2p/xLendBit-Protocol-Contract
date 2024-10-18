@@ -637,6 +637,43 @@ contract ProtocolTest is Test, IDiamondCut {
         assertEq(_requestAfterRepay.totalRepayment, 0);
     }
 
+    function testRepayLoanAvailable() public {
+        testServiceRequestAvailable();
+        switchSigner(owner);
+        Request memory _request = protocolFacet.getRequest(1);
+
+        IERC20(_request.loanRequestAddr).approve(
+            address(protocolFacet),
+            _request.totalRepayment
+        );
+        uint256 totalRepayment = _request.totalRepayment;
+        protocolFacet.repayLoan(1, totalRepayment);
+
+        Request[] memory _requestAfterRepay = protocolFacet
+            .getUserActiveRequests(owner);
+
+        uint256 loanerCA = protocolFacet.gets_addressToCollateralDeposited(
+            _request.lender,
+            _request.loanRequestAddr
+        );
+        uint256 loanerAB = protocolFacet.gets_addressToAvailableBalance(
+            _request.lender,
+            _request.loanRequestAddr
+        );
+
+        Request memory _request1 = protocolFacet.getRequest(1);
+
+        uint256 conbal = IERC20(_request.loanRequestAddr).balanceOf(
+            address(protocolFacet)
+        );
+
+        assertEq(uint8(_requestAfterRepay.length), uint8(0));
+        assertEq(_request1.totalRepayment, 0);
+        assertEq(loanerCA, totalRepayment);
+        assertEq(loanerAB, totalRepayment);
+        assertEq(conbal, loanerAB + 1 ether);
+    }
+
     function testRepayLoanFailsWithoutAllowance() public {
         testServiceRequest();
         switchSigner(owner);
