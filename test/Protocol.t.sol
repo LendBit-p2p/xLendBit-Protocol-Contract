@@ -240,6 +240,7 @@ contract ProtocolTest is Test, IDiamondCut {
             USDT_CONTRACT_ADDRESS,
             1 ether
         );
+        console.log(value);
         assert(value > 2200E6);
     }
 
@@ -640,6 +641,7 @@ contract ProtocolTest is Test, IDiamondCut {
     function testRepayLoanAvailable() public {
         testServiceRequestAvailable();
         switchSigner(owner);
+
         Request memory _request = protocolFacet.getRequest(1);
 
         IERC20(_request.loanRequestAddr).approve(
@@ -669,6 +671,7 @@ contract ProtocolTest is Test, IDiamondCut {
 
         assertEq(uint8(_requestAfterRepay.length), uint8(0));
         assertEq(_request1.totalRepayment, 0);
+        assertEq(uint8(_request1.status), uint8(2));
         assertEq(loanerCA, totalRepayment);
         assertEq(loanerAB, totalRepayment);
         assertEq(conbal, loanerAB + 1 ether);

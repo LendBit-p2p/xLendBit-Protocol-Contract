@@ -215,7 +215,7 @@ contract ProtocolFacet {
             ) * collateralToLock) / 100;
             uint256 amountToLock = ((((amountToLockUSD) * 10) /
                 getUsdValue(token, 10, 0)) * (10 ** _decimalToken)) /
-                Constants.PRECISION;
+                (Constants.PRECISION);
             _appStorage.s_idToCollateralTokenAmount[_appStorage.requestId][
                 token
             ] = amountToLock;
@@ -604,6 +604,10 @@ contract ProtocolFacet {
             _listing.min_amount = 0;
         }
 
+        if (_listing.amount == 0) {
+            _listing.listingStatus = ListingStatus.CLOSED;
+        }
+
         address[] memory _collateralTokens = getUserCollateralTokens(
             msg.sender
         );
@@ -645,7 +649,7 @@ contract ProtocolFacet {
             ) * collateralToLock) / 100;
             uint256 amountToLock = ((((amountToLockUSD) * 10) /
                 getUsdValue(token, 10, 0)) * (10 ** _decimalToken)) /
-                Constants.PRECISION;
+                (Constants.PRECISION);
 
             _appStorage.s_idToCollateralTokenAmount[_appStorage.requestId][
                 token
@@ -876,7 +880,7 @@ contract ProtocolFacet {
         (, int256 _price, , , ) = _priceFeed.latestRoundData();
         return
             ((uint256(_price) * Constants.NEW_PRECISION) * (_amount)) /
-            (Constants.PRECISION * (10 ** _decimal));
+            ((10 ** _decimal));
     }
 
     ///@notice get the expected amount in converting tokens
@@ -888,7 +892,8 @@ contract ProtocolFacet {
         uint8 fromDecimal = _getTokenDecimal(_from);
         uint8 toDecimal = _getTokenDecimal(_to);
         uint256 fromUsd = getUsdValue(_from, _amount, fromDecimal);
-        value = ((fromUsd * 10) / getUsdValue(_to, 10, 0)) * (10 ** toDecimal);
+        value = (((fromUsd * 10) / getUsdValue(_to, 10, 0)) *
+            (10 ** toDecimal));
     }
 
     /// @notice This gets the amount of collateral a user has deposited in USD
@@ -1182,7 +1187,7 @@ contract ProtocolFacet {
             );
             loans += getUsdValue(
                 userActiveRequest[i].loanRequestAddr,
-                userActiveRequest[i].amount,
+                userActiveRequest[i].totalRepayment,
                 tokenDecimal
             );
         }
