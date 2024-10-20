@@ -21,7 +21,7 @@ contract ProtocolTest is Test, IDiamondCut {
 
     address USDTHolders = 0xCEFc1C9af894a9dFBF763A394E6588b0b4D9a5a8;
     address DAIHolders = 0xCEFc1C9af894a9dFBF763A394E6588b0b4D9a5a8;
-    address LINKHolders = 0xCEFc1C9af894a9dFBF763A394E6588b0b4D9a5a8;
+    address LINKHolders = 0x4281eCF07378Ee595C564a59048801330f3084eE;
     address WETHHolders = 0x0a4CAA57ac414f6B936261ff7CB1d6883bBF7264;
 
     address USDT_USD = 0x3ec8593F930EA45ea58c968260e6e9FF53FC934f;
@@ -33,7 +33,7 @@ contract ProtocolTest is Test, IDiamondCut {
     address USDT_CONTRACT_ADDRESS = 0x00D1C02E008D594ebEFe3F3b7fd175850f96AEa0;
     address WETH_CONTRACT_ADDRESS = 0x7fEa3ea63433a35e8516777171D7d0e038804716;
     address DIA_CONTRACT_ADDRESS = 0x5caF98bf477CBE96d5CA56039FE7beec457bA653;
-    address LINK_CONTRACT_ADDRESS = 0xb58c2e70c750CBAA1a2d487Dd0BfF26be92F5308;
+    address LINK_CONTRACT_ADDRESS = 0xE4aB69C077896252FAFBD49EFD26B5D171A32410;
     address ETH_CONTRACT_ADDRESS = address(1);
 
     address owner = address(0xa);
@@ -41,7 +41,7 @@ contract ProtocolTest is Test, IDiamondCut {
     address C = address(0xc);
 
     address botAddress = address(0x0beaf0BfC5D1f3f3F8d3a6b0F1B6E3f2b0f1b6e3);
-    address swapRouterAddress = 0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24;
+    address swapRouterAddress = 0x1689E7B1F10000AE47eBfE339a4f69dECd19F602;
 
     address[] tokens;
     address[] priceFeed;
@@ -687,6 +687,116 @@ contract ProtocolTest is Test, IDiamondCut {
         );
 
         protocolFacet.repayLoan(1, _request.totalRepayment);
+    }
+
+    function testSwapEthToToken() external {
+        switchSigner(owner);
+
+        vm.deal(address(protocolFacet), 50 ether);
+
+        uint256 linkBalanceBeforeSwap = IERC20(LINK_CONTRACT_ADDRESS).balanceOf(
+            address(protocolFacet)
+        );
+
+        uint[] memory amountsOut = protocolFacet.swapToLoanCurrency(
+            address(1),
+            0.01 ether,
+            LINK_CONTRACT_ADDRESS
+        );
+
+        uint256 linkBalanceAfterSwap = IERC20(LINK_CONTRACT_ADDRESS).balanceOf(
+            address(protocolFacet)
+        );
+
+        assertGt(amountsOut[1], 0);
+
+        assertGt(linkBalanceAfterSwap, linkBalanceBeforeSwap);
+
+        uint256 linkReceived = linkBalanceAfterSwap - linkBalanceBeforeSwap;
+
+        assertEq(linkReceived, amountsOut[1]);
+    }
+
+    function testSwapTokenForEth() external {
+        switchSigner(owner);
+
+        IERC20(LINK_CONTRACT_ADDRESS).transfer(
+            address(protocolFacet),
+            200 ether
+        );
+
+        switchSigner(B);
+
+        vm.deal(B, 50 ether);
+
+        uint256 ethBalanceBeforeSwap = address(protocolFacet).balance;
+
+        uint[] memory amountsOut = protocolFacet.swapToLoanCurrency(
+            LINK_CONTRACT_ADDRESS,
+            0.01 ether,
+            Constants.NATIVE_TOKEN
+        );
+
+        uint256 ethBalanceAfterSwap = address(protocolFacet).balance;
+
+        //  Assert that some ETH was received from the swap
+        assertGt(amountsOut[1], 0);
+        // Assert that the ETH balance of protocolFacet increased
+        assertGt(ethBalanceAfterSwap, ethBalanceBeforeSwap);
+
+        //  Calculate how much ETH was received
+        uint256 ethReceived = ethBalanceAfterSwap - ethBalanceBeforeSwap;
+
+        // Assert that the received ETH matches the output amount from the swap
+        assertEq(ethReceived, amountsOut[1]);
+    }
+
+    function testswapExactTokensForTokens() external {
+        switchSigner(owner);
+
+        IERC20(LINK_CONTRACT_ADDRESS).transfer(
+            address(protocolFacet),
+            200 ether
+        );
+
+        switchSigner(B);
+
+        vm.deal(B, 50 ether);
+
+        // Get the balance of LINK (collateral token) and DAI (loan currency) before the swap
+        uint256 linkBalanceBeforeSwap = IERC20(LINK_CONTRACT_ADDRESS).balanceOf(
+            address(protocolFacet)
+        );
+        uint256 daiBalanceBeforeSwap = IERC20(DIA_CONTRACT_ADDRESS).balanceOf(
+            address(protocolFacet)
+        );
+
+        // Perform the swap: swap 10 LINK tokens for DAI
+        uint[] memory amountsOut = protocolFacet.swapToLoanCurrency(
+            LINK_CONTRACT_ADDRESS,
+            10 ether,
+            DIA_CONTRACT_ADDRESS
+        );
+
+        // Get the balance of LINK and DAI after the swap
+        uint256 linkBalanceAfterSwap = IERC20(LINK_CONTRACT_ADDRESS).balanceOf(
+            address(protocolFacet)
+        );
+        uint256 daiBalanceAfterSwap = IERC20(DIA_CONTRACT_ADDRESS).balanceOf(
+            address(protocolFacet)
+        );
+
+        // Assert that LINK balance decreased after the swap
+        assertLt(linkBalanceAfterSwap, linkBalanceBeforeSwap);
+
+        // Assert that DAI balance increased after the swap
+        assertGt(daiBalanceAfterSwap, daiBalanceBeforeSwap);
+
+        // Optionally, check how much DAI was received
+        uint256 daiReceived = daiBalanceAfterSwap - daiBalanceBeforeSwap;
+
+        // Assert that the DAI received matches the output amount in `amountsOut`
+        assertEq(daiReceived, amountsOut[1]); // Ensure DAI received matches amountsOut[1].
     }
 
     function testProgressiveLoanRepayment() public {

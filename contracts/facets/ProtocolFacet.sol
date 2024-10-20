@@ -761,44 +761,53 @@ contract ProtocolFacet {
         uint96 requestId
     ) external onlyBot(requestId) {
         Request memory _activeRequest = getActiveRequestsByRequestId(requestId);
+
         address loanCurrency = _activeRequest.loanRequestAddr;
         address lenderAddress = _activeRequest.lender;
         uint256 swappedAmount = 0;
 
-        for (uint96 i = 0; i < _activeRequest.collateralTokens.length; i++) {
-            address collateralToken = _activeRequest.collateralTokens[i];
+        for (
+            uint96 index = 0;
+            index < _activeRequest.collateralTokens.length;
+            index++
+        ) {
+            address collateralToken = _activeRequest.collateralTokens[index];
             uint256 amountOfCollateralToken = _appStorage
                 .s_idToCollateralTokenAmount[requestId][collateralToken];
 
             if (amountOfCollateralToken > 0) {
-                uint256 loanCurrencyAmount = swapToLoanCurrency(
+                uint256[] memory loanCurrencyAmount = swapToLoanCurrency(
                     collateralToken,
                     amountOfCollateralToken,
                     loanCurrency
                 );
 
-                // Update available balance and collateral deposited
-                _appStorage.s_addressToAvailableBalance[_activeRequest.author][
-                    collateralToken
-                ] -= amountOfCollateralToken;
                 _appStorage.s_addressToCollateralDeposited[
                     _activeRequest.author
                 ][collateralToken] -= amountOfCollateralToken;
 
-                swappedAmount += loanCurrencyAmount;
+                if (loanCurrencyAmount.length > 0) {
+                    swappedAmount += loanCurrencyAmount[1];
+                } else {
+                    swappedAmount += amountOfCollateralToken;
+                }
 
                 _appStorage.s_idToCollateralTokenAmount[requestId][
                     collateralToken
                 ] = 0;
             }
         }
-        // Transfer total repayment to lender
-        IERC20(loanCurrency).transfer(
-            lenderAddress,
-            _activeRequest.totalRepayment
-        );
 
-        // Close request
+        // Transfer total repayment to lender
+        if (swappedAmount >= _activeRequest.totalRepayment) {
+            IERC20(loanCurrency).transfer(
+                lenderAddress,
+                _activeRequest.totalRepayment
+            );
+        } else {
+            IERC20(loanCurrency).transfer(lenderAddress, swappedAmount);
+        }
+
         _activeRequest.status = Status.CLOSED;
 
         emit RequestLiquidated(
@@ -808,36 +817,78 @@ contract ProtocolFacet {
         );
     }
 
-    // Function to swap collateral tokens to loan currency using Uniswap
     function swapToLoanCurrency(
         address collateralToken,
         uint256 collateralAmount,
         address loanCurrency
-    ) internal returns (uint256 loanCurrencyAmount) {
+    ) public returns (uint256[] memory loanCurrencyAmount) {
+        uint256 amountOfTokenOut_ = 0;
+        uint[] memory amountsOut;
+
+        if (loanCurrency == collateralToken) {
+            return amountsOut;
+        }
+
+        if (collateralToken == Constants.NATIVE_TOKEN) {
+            // Wrap ETH to WETH by depositing it
+            collateralToken = Constants.WETH;
+        }
+        if (loanCurrency == Constants.NATIVE_TOKEN) {
+            // Wrap ETH to WETH by depositing it
+            loanCurrency = Constants.WETH;
+        }
+
         address[] memory path = new address[](2);
         path[0] = collateralToken;
         path[1] = loanCurrency;
 
-        // Approve Uniswap to spend collateral tokens
-        IERC20(collateralToken).approve(
-            _appStorage.swapRouter,
-            collateralAmount
-        );
+        // If collateralToken is ETH, use swapExactETHForTokens
 
-        uint256 _totalswappedToken = getConvertValue(
-            collateralToken,
-            loanCurrency,
-            collateralAmount
-        );
-        uint[] memory amountsOut = IUniswapV2Router02(_appStorage.swapRouter)
-            .swapTokensForExactTokens(
-                _totalswappedToken,
-                collateralAmount,
+        if (collateralToken == Constants.WETH) {
+            amountsOut = IUniswapV2Router02(_appStorage.swapRouter)
+                .swapExactETHForTokens{value: collateralAmount}(
+                amountOfTokenOut_,
                 path,
                 address(this),
-                block.timestamp + 300 // Deadline of 5 minutes
+                block.timestamp + 300
             );
-        return amountsOut[1]; // Return the received amount of loan currency
+
+            // If loanCurrency is ETH, use swapTokensForExactETH
+        } else if (loanCurrency == Constants.WETH) {
+            // Approve Uniswap to spend collateral tokens
+            IERC20(collateralToken).approve(
+                _appStorage.swapRouter,
+                collateralAmount
+            );
+
+            amountsOut = IUniswapV2Router02(_appStorage.swapRouter)
+                .swapExactTokensForETH(
+                    collateralAmount,
+                    amountOfTokenOut_,
+                    path,
+                    address(this),
+                    block.timestamp + 300
+                );
+
+            // For ERC20 to ERC20 swaps, use swapExactTokensForTokens
+        } else {
+            // Approve Uniswap to spend collateral tokens
+            IERC20(collateralToken).approve(
+                _appStorage.swapRouter,
+                collateralAmount
+            );
+
+            amountsOut = IUniswapV2Router02(_appStorage.swapRouter)
+                .swapExactTokensForTokens(
+                    collateralAmount,
+                    amountOfTokenOut_,
+                    path,
+                    address(this),
+                    block.timestamp + 300
+                );
+        }
+
+        return amountsOut; // Return the amount of loan currency received
     }
 
     function getActiveRequestsByRequestId(
