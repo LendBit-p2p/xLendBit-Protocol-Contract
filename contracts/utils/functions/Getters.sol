@@ -115,7 +115,9 @@ contract Getters {
      */
     function getHealthFactor(
         address _user
-    ) external view returns (uint256 _value) {}
+    ) external view returns (uint256 _value) {
+        _value = LibGettersImpl._healthFactor(_appStorage, _user, 0);
+    }
 
     /**
      * @notice Gets the collection of all collateral token
@@ -126,7 +128,9 @@ contract Getters {
         external
         view
         returns (address[] memory _tokens)
-    {}
+    {
+        _tokens = _appStorage.s_collateralToken;
+    }
 
     /**
      * @notice Gets the amount of collateral token a user has deposited
