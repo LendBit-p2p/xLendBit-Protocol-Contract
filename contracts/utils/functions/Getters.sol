@@ -95,15 +95,16 @@ contract Getters {
 
     /**
      * @notice Retrieves the details of a specific request by its ID
-     * @dev Returns the request if it exists, otherwise reverts if the request's author is the zero address
      *
      * @param _requestId The ID of the request to retrieve
      *
-     * @return The `Request` struct containing details of the specified request
+     * @return _request The `Request` struct containing details of the specified request
      */
     function getRequest(
         uint96 _requestId
-    ) external view returns (Request memory) {}
+    ) external view returns (Request memory _request) {
+        _request = LibGettersImpl._getRequest(_appStorage, _requestId);
+    }
 
     /**
      * @notice Checks the health Factor which is a way to check if the user has enough collateral

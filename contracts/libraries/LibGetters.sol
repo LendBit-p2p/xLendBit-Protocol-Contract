@@ -124,4 +124,20 @@ library LibGettersImpl {
         if (_listing.author == address(0)) revert Protocol__IdNotExist();
         return _listing;
     }
+
+    /**
+     * @dev Returns the request if it exists, otherwise reverts if the request's author is the zero address
+     *
+     * @param _requestId The ID of the request to retrieve
+     *
+     * @return _request The `Request` struct containing details of the specified request
+     */
+    function _getRequest(
+        LibAppStorage.Layout storage _appStorage,
+        uint96 _requestId
+    ) internal view returns (Request memory) {
+        Request memory _request = _appStorage.request[_requestId];
+        if (_request.author == address(0)) revert Protocol__NotOwner();
+        return _request;
+    }
 }
