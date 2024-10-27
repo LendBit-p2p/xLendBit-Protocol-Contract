@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import {LibAppStorage} from "../libraries/LibAppStorage.sol";
+import "../model/Protocol.sol";
+
 /**
  * @title Getters
  * @author LendBit Finance
@@ -9,6 +12,8 @@ pragma solidity ^0.8.20;
  */
 
 contract Getters {
+    LibAppStorage.Layout internal _appStorage;
+
     /**
      * @notice This gets the USD value of amount of the token passsed.
      * @dev This uses chainlinks AggregatorV3Interface to get the price with the pricefeed address.
