@@ -169,4 +169,15 @@ contract Getters {
         address _user,
         uint96 _requestId
     ) external view returns (Request memory _request) {}
+
+    /**
+     * @notice Gets all the active requests a user have
+     *
+     * @param _user the user you want to get their active requests
+     *
+     * @return _requests An array of active requests
+     */
+    function getUserActiveRequests(
+        address _user
+    ) public view returns (Request[] memory _requests) {}
 }
