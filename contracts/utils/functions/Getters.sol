@@ -141,8 +141,19 @@ contract Getters {
      *
      * @return _value The amount that as been used to back the loan
      */
-    function getRequestToColateral(
+    function getRequestToCollateral(
         uint96 _requestId,
         address _token
     ) external view returns (uint256 _value) {}
+
+    /**
+     * @notice For getting all the assets that are loanable
+     *
+     * @return _assets An array of all loanable assets
+     */
+    function getLoanableAssets()
+        external
+        view
+        returns (address[] memory _assets)
+    {}
 }
