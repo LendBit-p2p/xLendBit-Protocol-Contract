@@ -180,4 +180,15 @@ contract Getters {
     function getUserActiveRequests(
         address _user
     ) public view returns (Request[] memory _requests) {}
+
+    /**
+     * @notice Gets all requests that has been serviced by a particular lender
+     *
+     * @param _lender The lender that services the request.
+     *
+     * @return _requests An array of all request serviced by the lender
+     */
+    function getServicedRequestByLender(
+        address _lender
+    ) public view returns (Request[] memory _requests) {}
 }
