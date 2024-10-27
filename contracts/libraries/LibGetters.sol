@@ -211,7 +211,7 @@ library LibGettersImpl {
     }
 
     /**
-     * @notice Gets a request from a user
+     * @dev Returns the request if it exists, otherwise reverts if the request's author is the zero address
      *
      * @param _appStorage The storage Layout of the contract.
      * @param _user the addresss of the user
@@ -227,5 +227,43 @@ library LibGettersImpl {
         Request memory _request = _appStorage.request[_requestId];
         if (_request.author != _user) revert Protocol__NotOwner();
         return _request;
+    }
+
+    /**
+     * @dev Retrieves all active requests created by a specific user with `Status.SERVICED`.
+     *      This function uses a single loop to count matching requests, allocates an exact-sized
+     *      array for efficiency, and then populates it with the matching requests.
+     *
+     * @param _appStorage The storage Layout of the contract.
+     * @param _user the user you want to get their active requests
+     *
+     * @return _requests An array of active requests
+     */
+    function _getUserActiveRequests(
+        LibAppStorage.Layout storage _appStorage,
+        address _user
+    ) internal view returns (Request[] memory _requests) {
+        uint96 requestId = _appStorage.requestId;
+        uint64 count;
+
+        for (uint96 i = 1; i < requestId; i++) {
+            Request request = _appStorage.request[i];
+
+            if (request.author == _user && request.status == Status.SERVICED) {
+                count++;
+            }
+        }
+
+        _requests = new Request[](count);
+        uint64 requestLength;
+
+        for (uint i = 0; i < requestId; i++) {
+            Request request = _appStorage.request[i];
+
+            if (request.author == _user && request.status == Status.SERVICED) {
+                _requests[requestLength] = request;
+                requestLength++;
+            }
+        }
     }
 }
