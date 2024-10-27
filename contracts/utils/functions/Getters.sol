@@ -119,4 +119,17 @@ contract Getters {
         address _sender,
         address _tokenAddr
     ) external view returns (uint256 _value) {}
+
+    /**
+     * @notice Gets the amount of token balance available to the user
+     *
+     * @param _sender the user who has the balance
+     * @param _tokenAddr the user who has the balance
+     *
+     * @return _value the amount of token available
+     */
+    function getAddressToAvailableBalance(
+        address _sender,
+        address _tokenAddr
+    ) external view returns (uint256 _value) {}
 }
