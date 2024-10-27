@@ -27,7 +27,7 @@ contract Getters {
         address _token,
         uint256 _amount,
         uint8 _decimal
-    ) public view returns (uint256 _value) {
+    ) external view returns (uint256 _value) {
         _value = LibGettersImpl._getUsdValue(_token, _amount, _decimal);
     }
 
@@ -38,26 +38,31 @@ contract Getters {
      * @param _to the address of the token you are converting to.
      * @param _amount the amount of `_from` tokens you are trying to convert.
      *
-     * @return _value the amount of `_to` tokens you are expected to get
+     * @return _value the amount of `_to` tokens you are expected to get.
      */
     function getConvertValue(
         address _from,
         address _to,
         uint256 _amount
-    ) public view returns (uint256 _value) {
+    ) external view returns (uint256 _value) {
         _value = LibGettersImpl._getConvertValue(_from, _to, _amount);
     }
 
     /**
-     * @notice This gets the amount of collateral a user has deposited in USD
+     * @notice This gets the amount of collateral a user has deposited in USD.
      *
-     * @param _user the address of the user you want to get their collateral value
+     * @param _user the address of the user you want to get their collateral value.
      *
-     * @return _totalCollateralValueInUsd returns the value of the user deposited collateral in USD
+     * @return _totalCollateralValueInUsd returns the value of the user deposited collateral in USD.
      */
     function getAccountCollateralValue(
         address _user
-    ) public view returns (uint256 _totalCollateralValueInUsd) {}
+    ) external view returns (uint256 _totalCollateralValueInUsd) {
+        _totalCollateralValueInUsd = LibGettersImpl._getAccountCollateralValue(
+            _appStorage,
+            _user
+        );
+    }
 
     /**
      * @notice This gets the amount of available balance a user has in USD

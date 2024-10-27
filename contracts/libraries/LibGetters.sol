@@ -48,4 +48,34 @@ library LibGettersImpl {
         value = (((fromUsd * 10) / _getUsdValue(_to, 10, 0)) *
             (10 ** toDecimal));
     }
+
+    /**
+     * @dev This uses Chainlink pricefeed and ERC20 Standard in getting the Token/USD price and Token decimals.
+     *
+     * @param _appStorage The storage Layout of the contract.
+     * @param _user The address of the user you want to get their collateral value.
+     *
+     * @return _totalCollateralValueInUsd returns the value of the user deposited collateral in USD.
+     */
+    function _getAccountCollateralValue(
+        LibAppStorage.Layout storage _appStorage,
+        address _user
+    ) internal view returns (uint256 _totalCollateralValueInUsd) {
+        for (
+            uint256 index = 0;
+            index < _appStorage.s_collateralToken.length;
+            index++
+        ) {
+            address _token = _appStorage.s_collateralToken[index];
+            uint256 _amount = _appStorage.s_addressToCollateralDeposited[_user][
+                _token
+            ];
+            uint8 _tokenDecimal = _getTokenDecimal(_token);
+            _totalCollateralValueInUsd += _getUsdValue(
+                _token,
+                _amount,
+                _tokenDecimal
+            );
+        }
+    }
 }
