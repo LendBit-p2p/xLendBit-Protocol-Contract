@@ -249,7 +249,9 @@ contract Getters {
      */
     function getLoanCollectedInUsd(
         address _user
-    ) public view returns (uint256 _value) {}
+    ) public view returns (uint256 _value) {
+        _value = LibGettersImpl._getLoanCollectedInUsd(_appStorage, _user);
+    }
 
     /**
      * @notice Gets all the tokens a user has collateral in.
