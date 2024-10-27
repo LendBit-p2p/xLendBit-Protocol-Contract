@@ -209,4 +209,23 @@ library LibGettersImpl {
             _decimal = ERC20(_token).decimals();
         }
     }
+
+    /**
+     * @notice Gets a request from a user
+     *
+     * @param _appStorage The storage Layout of the contract.
+     * @param _user the addresss of the user
+     * @param _requestId the id of the request that was created by the user
+     *
+     * @return _request The request of the user
+     */
+    function _getUserRequest(
+        LibAppStorage.Layout storage _appStorage,
+        address _user,
+        uint96 _requestId
+    ) internal view returns (Request memory) {
+        Request memory _request = _appStorage.request[_requestId];
+        if (_request.author != _user) revert Protocol__NotOwner();
+        return _request;
+    }
 }
