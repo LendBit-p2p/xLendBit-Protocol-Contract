@@ -191,4 +191,15 @@ contract Getters {
     function getServicedRequestByLender(
         address _lender
     ) public view returns (Request[] memory _requests) {}
+
+    /**
+     * @notice Get USD value of the total loan a user as collected.
+     *
+     * @param _user The user loan value you want to get.
+     *
+     * @return _value the total amount of collateral in USD.
+     */
+    function getLoanCollectedInUsd(
+        address _user
+    ) public view returns (uint256 _value) {}
 }
