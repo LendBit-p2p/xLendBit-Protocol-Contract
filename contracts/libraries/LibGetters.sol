@@ -78,4 +78,34 @@ library LibGettersImpl {
             );
         }
     }
+
+    /**
+     * @dev This uses Chainlink pricefeed and ERC20 Standard in getting the Token/USD price and Token decimals.
+     *
+     * @param _appStorage The storage Layout of the contract.
+     * @param _user the address of the user you want to get their available balance value
+     *
+     * @return _totalAvailableValueInUsd returns the value of the user available balance in USD
+     */
+    function _getAccountAvailableValue(
+        LibAppStorage.Layout storage _appStorage,
+        address _user
+    ) internal view returns (uint256 _totalAvailableValueInUsd) {
+        for (
+            uint256 index = 0;
+            index < _appStorage.s_collateralToken.length;
+            index++
+        ) {
+            address _token = _appStorage.s_collateralToken[index];
+            uint256 _amount = _appStorage.s_addressToAvailableBalance[_user][
+                _token
+            ];
+            uint8 _tokenDecimal = _getTokenDecimal(_token);
+            _totalAvailableValueInUsd += _getUsdValue(
+                _token,
+                _amount,
+                _tokenDecimal
+            );
+        }
+    }
 }

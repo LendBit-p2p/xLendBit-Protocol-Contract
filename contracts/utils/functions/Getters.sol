@@ -73,7 +73,12 @@ contract Getters {
      */
     function getAccountAvailableValue(
         address _user
-    ) public view returns (uint256 _totalAvailableValueInUsd) {}
+    ) external view returns (uint256 _totalAvailableValueInUsd) {
+        _totalAvailableValueInUsd = LibGettersImpl._getAccountAvailableValue(
+            _appStorage,
+            _user
+        );
+    }
 
     /**
      * @notice Retrieves the details of a specific loan listing by its ID
