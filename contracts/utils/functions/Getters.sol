@@ -72,4 +72,16 @@ contract Getters {
     function getLoanListing(
         uint96 _listingId
     ) external view returns (LoanListing memory) {}
+
+    /**
+     * @notice Retrieves the details of a specific request by its ID
+     * @dev Returns the request if it exists, otherwise reverts if the request's author is the zero address
+     *
+     * @param _requestId The ID of the request to retrieve
+     *
+     * @return The `Request` struct containing details of the specified request
+     */
+    function getRequest(
+        uint96 _requestId
+    ) external view returns (Request memory) {}
 }
