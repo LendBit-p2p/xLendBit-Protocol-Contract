@@ -177,7 +177,7 @@ library LibGettersImpl {
         LibAppStorage.Layout storage _appStorage,
         address _user,
         uint256 _borrowValue
-    ) private view returns (uint256) {
+    ) internal view returns (uint256) {
         (
             uint256 _totalBurrowInUsd,
             uint256 _collateralValueInUsd
@@ -191,5 +191,22 @@ library LibGettersImpl {
         return
             (_collateralAdjustedForThreshold * Constants.PRECISION) /
             (_totalBurrowInUsd + _borrowValue);
+    }
+
+    /**
+     * @dev This uses the openZeppelin ERC20 standard to get the decimals of token, but if the token is the blockchain native token(ETH) it returns 18.
+     *
+     * @param _token The token address.
+     *
+     * @return _decimal The token decimal.
+     */
+    function _getTokenDecimal(
+        address _token
+    ) internal view returns (uint8 _decimal) {
+        if (_token == Constants.NATIVE_TOKEN) {
+            _decimal = 18;
+        } else {
+            _decimal = ERC20(_token).decimals();
+        }
     }
 }
