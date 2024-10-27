@@ -257,10 +257,48 @@ library LibGettersImpl {
         _requests = new Request[](count);
         uint64 requestLength;
 
-        for (uint i = 0; i < requestId; i++) {
+        for (uint96 i = 1; i < requestId; i++) {
             Request request = _appStorage.request[i];
 
             if (request.author == _user && request.status == Status.SERVICED) {
+                _requests[requestLength] = request;
+                requestLength++;
+            }
+        }
+    }
+
+    /**
+     * @dev Retrieves all requests serviced by a specific user with `Request.lender == user`.
+     *      This function uses a single loop to count matching requests, allocates an exact-sized
+     *      array for efficiency, and then populates it with the matching requests.
+     *
+     * @param _appStorage The storage Layout of the contract.
+     * @param _lender The lender that services the request.
+     *
+     * @return _requests An array of all request serviced by the lender
+     */
+    function _getServicedRequestByLender(
+        LibAppStorage.Layout storage _appStorage,
+        address _lender
+    ) internal view returns (Request[] memory _requests) {
+        uint96 requestId = _appStorage.requestId;
+        uint64 count;
+
+        for (uint96 i = 1; i < requestId; i++) {
+            Request request = _appStorage.request[i];
+
+            if (request.lender == _lender) {
+                count++;
+            }
+        }
+
+        _requests = new Request[](requestLength);
+        uint64 requestLength;
+
+        for (uint96 i = 1; i < requestId; i++) {
+            Request request = _appStorage.request[i];
+
+            if (request.lender == _lender) {
                 _requests[requestLength] = request;
                 requestLength++;
             }
