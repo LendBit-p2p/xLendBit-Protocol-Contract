@@ -304,4 +304,39 @@ library LibGettersImpl {
             }
         }
     }
+
+    /**
+     * @dev Calculates the total loan amount collected by a user in USD by summing up
+     *      the USD-equivalent values of all active loan requests created by the user.
+     *
+     * @param _appStorage The application storage layout containing request and token data.
+     * @param _user The address of the user whose loan collections are being calculated.
+     *
+     * @return _value The total value of the user's active loan requests, converted to USD.
+     *
+     * The function first retrieves all active requests for `_user` via `_getUserActiveRequests`.
+     * It then iterates over each request, calculates its USD-equivalent value based on its
+     * `loanRequestAddr` and `totalRepayment`, and accumulates the total into `_value`.
+     */
+    function _getLoanCollectedInUsd(
+        LibAppStorage.Layout storage _appStorage,
+        address _user
+    ) internal view returns (uint256 _value) {
+        Request[] memory userActiveRequest = _getUserActiveRequests(
+            _appStorage,
+            _user
+        );
+        uint256 loans = 0;
+        for (uint i = 0; i < userActiveRequest.length; i++) {
+            uint8 tokenDecimal = _getTokenDecimal(
+                userActiveRequest[i].loanRequestAddr
+            );
+            loans += _getUsdValue(
+                userActiveRequest[i].loanRequestAddr,
+                userActiveRequest[i].totalRepayment,
+                tokenDecimal
+            );
+        }
+        _value = loans;
+    }
 }
