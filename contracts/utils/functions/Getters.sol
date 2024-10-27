@@ -38,4 +38,15 @@ contract Getters {
         address _to,
         uint256 _amount
     ) public view returns (uint256 _value) {}
+
+    /**
+     * @notice This gets the amount of collateral a user has deposited in USD
+     *
+     * @param _user the address of the user you want to get their collateral value
+     *
+     * @return _totalCollateralValueInUsd returns the value of the user deposited collateral in USD
+     */
+    function getAccountCollateralValue(
+        address _user
+    ) public view returns (uint256 _totalCollateralValueInUsd) {}
 }
