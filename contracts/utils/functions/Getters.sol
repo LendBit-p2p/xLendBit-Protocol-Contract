@@ -262,5 +262,10 @@ contract Getters {
      */
     function getUserCollateralTokens(
         address _user
-    ) public view returns (address[] memory _collaterals) {}
+    ) public view returns (address[] memory _collaterals) {
+        _collaterals = LibGettersImpl._getUserCollateralTokens(
+            _appStorage,
+            _user
+        );
+    }
 }
