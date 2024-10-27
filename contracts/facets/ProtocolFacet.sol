@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 import {LibAppStorage} from "../libraries/LibAppStorage.sol";
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
-import {Constants} from "../utils/constants/constant.sol";
+import {Constants} from "../utils/constants/Constant.sol";
 import {Validator} from "../utils/validators/Validator.sol";
 import {LibDiamond} from "../libraries/LibDiamond.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
