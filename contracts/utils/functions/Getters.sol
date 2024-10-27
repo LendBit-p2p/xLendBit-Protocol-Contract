@@ -90,7 +90,20 @@ contract Getters {
      *
      * @param _user a parameter for the address to check
      *
-     * @return uint256 returns the health factor which is supoose to be >= 1
+     * @return _value the health factor which is supoose to be >= 1
      */
-    function getHealthFactor(address _user) external view returns (uint256) {}
+    function getHealthFactor(
+        address _user
+    ) external view returns (uint256 _value) {}
+
+    /**
+     * @notice Gets the collection of all collateral token
+     *
+     * @return _tokens the collection of collateral addresses
+     */
+    function getAllCollateralToken()
+        external
+        view
+        returns (address[] memory _tokens)
+    {}
 }
