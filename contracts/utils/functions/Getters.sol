@@ -156,4 +156,17 @@ contract Getters {
         view
         returns (address[] memory _assets)
     {}
+
+    /**
+     * @notice Gets a request from a user
+     *
+     * @param _user the addresss of the user
+     * @param _requestId the id of the request that was created by the user
+     *
+     * @return _request The request of the user
+     */
+    function getUserRequest(
+        address _user,
+        uint96 _requestId
+    ) external view returns (Request memory _request) {}
 }
