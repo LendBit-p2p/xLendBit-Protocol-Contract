@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {LibAppStorage} from "../libraries/LibAppStorage.sol";
+import {LibGettersImpl} from "../../libraries/LibGetters.sol";
 import "../model/Protocol.sol";
 
 /**
@@ -16,7 +17,6 @@ contract Getters {
 
     /**
      * @notice This gets the USD value of amount of the token passsed.
-     * @dev This uses chainlinks AggregatorV3Interface to get the price with the pricefeed address.
      *
      * @param _token a collateral token address that is allowed in our Smart Contract
      * @param _amount the amount of that token you want to get the USD equivalent of.
@@ -27,7 +27,9 @@ contract Getters {
         address _token,
         uint256 _amount,
         uint8 _decimal
-    ) public view returns (uint256 _value) {}
+    ) public view returns (uint256 _value) {
+        _value = LibGettersImpl._getUsdValue(_token, _amount, _decimal);
+    }
 
     /**
      * @notice Calculates The value of converting one token to another using current market price e.g ETH -> USDC
