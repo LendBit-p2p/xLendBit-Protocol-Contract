@@ -143,7 +143,11 @@ contract Getters {
     function getAddressToCollateralDeposited(
         address _sender,
         address _tokenAddr
-    ) external view returns (uint256 _value) {}
+    ) external view returns (uint256 _value) {
+        _value = _appStorage.s_addressToCollateralDeposited[_sender][
+            _tokenAddr
+        ];
+    }
 
     /**
      * @notice Gets the amount of token balance available to the user
