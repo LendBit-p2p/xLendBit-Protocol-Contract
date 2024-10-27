@@ -163,4 +163,33 @@ library LibGettersImpl {
         _totalBurrowInUsd = _getLoanCollectedInUsd(_appStorage, _user);
         _collateralValueInUsd = _getAccountCollateralValue(_appStorage, _user);
     }
+
+    /**
+     * @dev Checks the health Factor which is a way to check if the user has enough collateral to mint
+     *
+     * @param _appStorage The storage Layout of the contract.
+     * @param _user a parameter for the address to check
+     * @param _borrowValue amount the user wants to borrow in usd
+     *
+     * @return uint256 returns the health factor which is supoose to be >= 1
+     */
+    function _healthFactor(
+        LibAppStorage.Layout storage _appStorage,
+        address _user,
+        uint256 _borrowValue
+    ) private view returns (uint256) {
+        (
+            uint256 _totalBurrowInUsd,
+            uint256 _collateralValueInUsd
+        ) = _getAccountInfo(_appStorage, _user);
+        uint256 _collateralAdjustedForThreshold = (_collateralValueInUsd *
+            Constants.LIQUIDATION_THRESHOLD) / 100;
+
+        if ((_totalBurrowInUsd == 0) && (_borrowValue == 0))
+            return (_collateralAdjustedForThreshold * Constants.PRECISION);
+
+        return
+            (_collateralAdjustedForThreshold * Constants.PRECISION) /
+            (_totalBurrowInUsd + _borrowValue);
+    }
 }
