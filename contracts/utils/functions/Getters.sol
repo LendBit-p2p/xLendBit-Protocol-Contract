@@ -132,4 +132,17 @@ contract Getters {
         address _sender,
         address _tokenAddr
     ) external view returns (uint256 _value) {}
+
+    /**
+     * @notice This gets the amount of a token that has been used to back a serviced request
+     *
+     * @param _requestId The Id of the serviced request.
+     * @param _token The token in which was used to back the request
+     *
+     * @return _value The amount that as been used to back the loan
+     */
+    function getRequestToColateral(
+        uint96 _requestId,
+        address _token
+    ) external view returns (uint256 _value) {}
 }
