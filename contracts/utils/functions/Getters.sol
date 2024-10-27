@@ -106,4 +106,17 @@ contract Getters {
         view
         returns (address[] memory _tokens)
     {}
+
+    /**
+     * @notice Gets the amount of collateral token a user has deposited
+     *
+     * @param _sender the user who has the collateral
+     * @param _tokenAddr the user who has the collateral
+     *
+     * @return _value the amount of token deposited.
+     */
+    function getAddressToCollateralDeposited(
+        address _sender,
+        address _tokenAddr
+    ) external view returns (uint256 _value) {}
 }
