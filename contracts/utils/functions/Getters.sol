@@ -233,7 +233,12 @@ contract Getters {
      */
     function getServicedRequestByLender(
         address _lender
-    ) public view returns (Request[] memory _requests) {}
+    ) public view returns (Request[] memory _requests) {
+        _requests = LibGettersImpl._getServicedRequestByLender(
+            _appStorage,
+            _lender
+        );
+    }
 
     /**
      * @notice Get USD value of the total loan a user as collected.
