@@ -203,7 +203,13 @@ contract Getters {
     function getUserRequest(
         address _user,
         uint96 _requestId
-    ) external view returns (Request memory _request) {}
+    ) external view returns (Request memory _request) {
+        _request = LibGettersImpl._getUserRequest(
+            _appStorage,
+            _user,
+            _requestId
+        );
+    }
 
     /**
      * @notice Gets all the active requests a user have
