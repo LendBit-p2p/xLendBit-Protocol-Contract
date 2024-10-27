@@ -44,7 +44,9 @@ contract Getters {
         address _from,
         address _to,
         uint256 _amount
-    ) public view returns (uint256 _value) {}
+    ) public view returns (uint256 _value) {
+        _value = LibGettersImpl._getConvertValue(_from, _to, _amount);
+    }
 
     /**
      * @notice This gets the amount of collateral a user has deposited in USD
