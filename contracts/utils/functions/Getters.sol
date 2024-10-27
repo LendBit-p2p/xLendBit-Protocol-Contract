@@ -49,4 +49,15 @@ contract Getters {
     function getAccountCollateralValue(
         address _user
     ) public view returns (uint256 _totalCollateralValueInUsd) {}
+
+    /**
+     * @notice This gets the amount of available balance a user has in USD
+     *
+     * @param _user the address of the user you want to get their available balance value
+     *
+     * @return _totalAvailableValueInUsd returns the value of the user available balance in USD
+     */
+    function getAccountAvailableValue(
+        address _user
+    ) public view returns (uint256 _totalAvailableValueInUsd) {}
 }
