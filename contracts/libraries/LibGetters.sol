@@ -339,4 +339,46 @@ library LibGettersImpl {
         }
         _value = loans;
     }
+
+    /**
+     * @dev Retrieves a list of collateral token addresses for a specific user.
+     *      Only tokens with a positive available balance or collateral deposited
+     *      by the user are included in the returned array.
+     *
+     * @param _appStorage The application storage layout containing collateral and balance data.
+     * @param _user The address of the user whose collateral tokens are being retrieved.
+     *
+     * @return _collaterals An array of addresses representing the collateral tokens held by `_user`.
+     *
+     * The function first iterates through all collateral tokens to count the tokens
+     * with a positive balance for `_user`, then initializes an array of exact size.
+     * It populates this array in a second loop, storing tokens where the user has
+     * a positive collateral deposit.
+     */
+    function _getUserCollateralTokens(
+        LibAppStorage.Layout storage _appStorage,
+        address _user
+    ) internal view returns (address[] memory _collaterals) {
+        address[] memory tokens = _appStorage.s_collateralToken;
+        uint8 userLength = 0;
+
+        for (uint256 i = 0; i < tokens.length; i++) {
+            if (_appStorage.s_addressToAvailableBalance[_user][tokens[i]] > 0) {
+                userLength++;
+            }
+        }
+
+        address[] memory userTokens = new address[](userLength);
+
+        for (uint256 i = 0; i < tokens.length; i++) {
+            if (
+                _appStorage.s_addressToCollateralDeposited[_user][tokens[i]] > 0
+            ) {
+                userTokens[userLength - 1] = tokens[i];
+                userLength--;
+            }
+        }
+
+        return userTokens;
+    }
 }
