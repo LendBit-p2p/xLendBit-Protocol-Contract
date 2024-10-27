@@ -188,7 +188,9 @@ contract Getters {
         external
         view
         returns (address[] memory _assets)
-    {}
+    {
+        _assets = _appStorage.s_loanableToken;
+    }
 
     /**
      * @notice Gets a request from a user
