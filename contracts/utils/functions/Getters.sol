@@ -220,7 +220,9 @@ contract Getters {
      */
     function getUserActiveRequests(
         address _user
-    ) public view returns (Request[] memory _requests) {}
+    ) public view returns (Request[] memory _requests) {
+        _requests = LibGettersImpl._getUserActiveRequests(_appStorage, _user);
+    }
 
     /**
      * @notice Gets all requests that has been serviced by a particular lender
