@@ -60,4 +60,16 @@ contract Getters {
     function getAccountAvailableValue(
         address _user
     ) public view returns (uint256 _totalAvailableValueInUsd) {}
+
+    /**
+     * @notice Retrieves the details of a specific loan listing by its ID
+     * @dev Returns the listing if it exists, otherwise reverts if the listing's author is the zero address
+     *
+     * @param _listingId The ID of the listing to retrieve
+     *
+     * @return The `LoanListing` struct containing details of the specified listing
+     */
+    function getLoanListing(
+        uint96 _listingId
+    ) external view returns (LoanListing memory) {}
 }
