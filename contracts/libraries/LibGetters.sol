@@ -108,4 +108,20 @@ library LibGettersImpl {
             );
         }
     }
+
+    /**
+     * @dev Returns the listing if it exists, otherwise reverts if the listing's author is the zero address
+     *
+     * @param _listingId The ID of the listing to retrieve
+     *
+     * @return The `LoanListing` struct containing details of the specified listing
+     */
+    function _getLoanListing(
+        LibAppStorage.Layout storage _appStorage,
+        uint96 _listingId
+    ) internal view returns (LoanListing memory) {
+        LoanListing memory _listing = _appStorage.loanListings[_listingId];
+        if (_listing.author == address(0)) revert Protocol__IdNotExist();
+        return _listing;
+    }
 }

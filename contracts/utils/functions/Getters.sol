@@ -82,15 +82,16 @@ contract Getters {
 
     /**
      * @notice Retrieves the details of a specific loan listing by its ID
-     * @dev Returns the listing if it exists, otherwise reverts if the listing's author is the zero address
      *
      * @param _listingId The ID of the listing to retrieve
      *
-     * @return The `LoanListing` struct containing details of the specified listing
+     * @return _listing The `LoanListing` struct containing details of the specified listing
      */
     function getLoanListing(
         uint96 _listingId
-    ) external view returns (LoanListing memory) {}
+    ) external view returns (LoanListing memory _listing) {
+        _listing = LibGettersImpl._getLoanListing(_appStorage, _listingId);
+    }
 
     /**
      * @notice Retrieves the details of a specific request by its ID
