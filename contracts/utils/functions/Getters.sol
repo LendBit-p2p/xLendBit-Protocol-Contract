@@ -175,7 +175,9 @@ contract Getters {
     function getRequestToCollateral(
         uint96 _requestId,
         address _token
-    ) external view returns (uint256 _value) {}
+    ) external view returns (uint256 _value) {
+        _value = _appStorage.s_idToCollateralTokenAmount[_requestId][_token];
+    }
 
     /**
      * @notice For getting all the assets that are loanable
