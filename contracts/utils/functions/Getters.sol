@@ -160,7 +160,9 @@ contract Getters {
     function getAddressToAvailableBalance(
         address _sender,
         address _tokenAddr
-    ) external view returns (uint256 _value) {}
+    ) external view returns (uint256 _value) {
+        _value = _appStorage.s_addressToAvailableBalance[_sender][_tokenAddr];
+    }
 
     /**
      * @notice This gets the amount of a token that has been used to back a serviced request
