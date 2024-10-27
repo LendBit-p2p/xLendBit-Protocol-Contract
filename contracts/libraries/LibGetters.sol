@@ -112,6 +112,7 @@ library LibGettersImpl {
     /**
      * @dev Returns the listing if it exists, otherwise reverts if the listing's author is the zero address
      *
+     * @param _appStorage The storage Layout of the contract.
      * @param _listingId The ID of the listing to retrieve
      *
      * @return The `LoanListing` struct containing details of the specified listing
@@ -128,6 +129,7 @@ library LibGettersImpl {
     /**
      * @dev Returns the request if it exists, otherwise reverts if the request's author is the zero address
      *
+     * @param _appStorage The storage Layout of the contract.
      * @param _requestId The ID of the request to retrieve
      *
      * @return _request The `Request` struct containing details of the specified request
@@ -139,5 +141,26 @@ library LibGettersImpl {
         Request memory _request = _appStorage.request[_requestId];
         if (_request.author == address(0)) revert Protocol__NotOwner();
         return _request;
+    }
+
+    /**
+     * @dev This gets the account info of any account.
+     *
+     * @param _appStorage The storage Layout of the contract.
+     * @param _user a parameter for the user account info you want to get.
+     *
+     * @return _totalBurrowInUsd returns the total amount of SC the  user has minted.
+     * @return _collateralValueInUsd returns the total collateral the user has deposited in USD.
+     */
+    function _getAccountInfo(
+        LibAppStorage.Layout storage _appStorage,
+        address _user
+    )
+        internal
+        view
+        returns (uint256 _totalBurrowInUsd, uint256 _collateralValueInUsd)
+    {
+        _totalBurrowInUsd = _getLoanCollectedInUsd(_appStorage, _user);
+        _collateralValueInUsd = _getAccountCollateralValue(_appStorage, _user);
     }
 }
