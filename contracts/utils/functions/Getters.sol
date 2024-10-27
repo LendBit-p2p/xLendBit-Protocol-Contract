@@ -84,4 +84,13 @@ contract Getters {
     function getRequest(
         uint96 _requestId
     ) external view returns (Request memory) {}
+
+    /**
+     * @notice Checks the health Factor which is a way to check if the user has enough collateral
+     *
+     * @param _user a parameter for the address to check
+     *
+     * @return uint256 returns the health factor which is supoose to be >= 1
+     */
+    function getHealthFactor(address _user) external view returns (uint256) {}
 }
