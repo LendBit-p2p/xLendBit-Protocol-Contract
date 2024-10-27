@@ -202,4 +202,15 @@ contract Getters {
     function getLoanCollectedInUsd(
         address _user
     ) public view returns (uint256 _value) {}
+
+    /**
+     * @notice Gets all the tokens a user has collateral in.
+     *
+     * @param _user The user you want to check for.
+     *
+     * @return _collaterals An array of address for the collateral tokens.
+     */
+    function getUserCollateralTokens(
+        address _user
+    ) public view returns (address[] memory _collaterals) {}
 }
