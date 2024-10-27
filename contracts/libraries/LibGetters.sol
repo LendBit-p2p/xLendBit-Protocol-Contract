@@ -4,17 +4,28 @@ pragma solidity ^0.8.9;
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import {LibAppStorage} from "./LibAppStorage.sol";
 import {Constants} from "../utils/constants/constant.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "../model/Protocol.sol";
+import "../utils/validators/Error.sol";
 
 library LibGettersImpl {
     /**
-     * @dev This uses chainlinks AggregatorV3Interface to get the price with the pricefeed address.
+     * @dev Converts a specified token amount to its USD-equivalent value based on
+     *      the latest price from the token's price feed.
      *
-     * @param _token a collateral token address that is allowed in our Smart Contract
-     * @param _amount the amount of that token you want to get the USD equivalent of.
+     * @param _appStorage The application storage layout containing the price feed data.
+     * @param _token The address of the token to be converted.
+     * @param _amount The amount of the token to convert to USD.
+     * @param _decimal The decimal precision of the token.
      *
-     * @return {uint256} returns the equivalent amount in USD.
+     * @return The USD-equivalent value of the specified token amount, adjusted to a standard precision.
+     *
+     * The function retrieves the latest price for `_token` from its price feed, scales it
+     * to a common precision using `Constants.NEW_PRECISION`, and returns the USD-equivalent
+     * value by factoring in the token's decimal precision.
      */
     function _getUsdValue(
+        LibAppStorage.Layout storage _appStorage,
         address _token,
         uint256 _amount,
         uint8 _decimal
@@ -29,23 +40,36 @@ library LibGettersImpl {
     }
 
     /**
-     * @dev This uses chainlink pricefeed underneth to get the prices and the ERC20 Standard to get the decimals for each Token.
+     * @dev Converts an amount of one token (`_from`) to its equivalent amount in another token (`_to`),
+     *      based on their USD values and decimal precision.
      *
-     * @param _from the address of the token you are trying to convert.
-     * @param _to the address of the token you are converting to.
-     * @param _amount the amount of `_from` tokens you are trying to convert.
+     * @param _appStorage The application storage layout containing price feed and token data.
+     * @param _from The address of the token being converted from.
+     * @param _to The address of the token being converted to.
+     * @param _amount The amount of the `_from` token to convert.
      *
-     * @return value the amount of `_to` tokens you are expected to get
+     * @return value The equivalent amount of the `_to` token.
+     *
+     * The function first retrieves the decimal precision of both tokens, then calculates
+     * the USD value of `_amount` in `_from` tokens. It converts this USD value to the
+     * equivalent `_to` token amount, adjusting for decimal precision, and returns the result.
      */
+
     function _getConvertValue(
+        LibAppStorage.Layout storage _appStorage,
         address _from,
         address _to,
         uint256 _amount
     ) internal view returns (uint256 value) {
         uint8 fromDecimal = _getTokenDecimal(_from);
         uint8 toDecimal = _getTokenDecimal(_to);
-        uint256 fromUsd = _getUsdValue(_from, _amount, fromDecimal);
-        value = (((fromUsd * 10) / _getUsdValue(_to, 10, 0)) *
+        uint256 fromUsd = _getUsdValue(
+            _appStorage,
+            _from,
+            _amount,
+            fromDecimal
+        );
+        value = (((fromUsd * 10) / _getUsdValue(_appStorage, _to, 10, 0)) *
             (10 ** toDecimal));
     }
 
@@ -72,6 +96,7 @@ library LibGettersImpl {
             ];
             uint8 _tokenDecimal = _getTokenDecimal(_token);
             _totalCollateralValueInUsd += _getUsdValue(
+                _appStorage,
                 _token,
                 _amount,
                 _tokenDecimal
@@ -102,6 +127,7 @@ library LibGettersImpl {
             ];
             uint8 _tokenDecimal = _getTokenDecimal(_token);
             _totalAvailableValueInUsd += _getUsdValue(
+                _appStorage,
                 _token,
                 _amount,
                 _tokenDecimal
@@ -247,7 +273,7 @@ library LibGettersImpl {
         uint64 count;
 
         for (uint96 i = 1; i < requestId; i++) {
-            Request request = _appStorage.request[i];
+            Request memory request = _appStorage.request[i];
 
             if (request.author == _user && request.status == Status.SERVICED) {
                 count++;
@@ -258,7 +284,7 @@ library LibGettersImpl {
         uint64 requestLength;
 
         for (uint96 i = 1; i < requestId; i++) {
-            Request request = _appStorage.request[i];
+            Request memory request = _appStorage.request[i];
 
             if (request.author == _user && request.status == Status.SERVICED) {
                 _requests[requestLength] = request;
@@ -285,18 +311,18 @@ library LibGettersImpl {
         uint64 count;
 
         for (uint96 i = 1; i < requestId; i++) {
-            Request request = _appStorage.request[i];
+            Request memory request = _appStorage.request[i];
 
             if (request.lender == _lender) {
                 count++;
             }
         }
 
-        _requests = new Request[](requestLength);
+        _requests = new Request[](count);
         uint64 requestLength;
 
         for (uint96 i = 1; i < requestId; i++) {
-            Request request = _appStorage.request[i];
+            Request memory request = _appStorage.request[i];
 
             if (request.lender == _lender) {
                 _requests[requestLength] = request;
@@ -332,6 +358,7 @@ library LibGettersImpl {
                 userActiveRequest[i].loanRequestAddr
             );
             loans += _getUsdValue(
+                _appStorage,
                 userActiveRequest[i].loanRequestAddr,
                 userActiveRequest[i].totalRepayment,
                 tokenDecimal

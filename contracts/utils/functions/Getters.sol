@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {LibAppStorage} from "../libraries/LibAppStorage.sol";
+import {LibAppStorage} from "../../libraries/LibAppStorage.sol";
 import {LibGettersImpl} from "../../libraries/LibGetters.sol";
-import "../model/Protocol.sol";
+import "../../model/Protocol.sol";
 
 /**
  * @title Getters
@@ -28,7 +28,12 @@ contract Getters {
         uint256 _amount,
         uint8 _decimal
     ) external view returns (uint256 _value) {
-        _value = LibGettersImpl._getUsdValue(_token, _amount, _decimal);
+        _value = LibGettersImpl._getUsdValue(
+            _appStorage,
+            _token,
+            _amount,
+            _decimal
+        );
     }
 
     /**
@@ -45,7 +50,12 @@ contract Getters {
         address _to,
         uint256 _amount
     ) external view returns (uint256 _value) {
-        _value = LibGettersImpl._getConvertValue(_from, _to, _amount);
+        _value = LibGettersImpl._getConvertValue(
+            _appStorage,
+            _from,
+            _to,
+            _amount
+        );
     }
 
     /**
