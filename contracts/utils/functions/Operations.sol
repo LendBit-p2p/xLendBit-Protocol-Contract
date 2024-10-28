@@ -507,25 +507,48 @@ contract Operations {
         emit UpdateLoanableToken(_token, _priceFeed, msg.sender);
     }
 
+    /**
+     * @dev Closes a listing advertisement and transfers the remaining amount to the author.
+     * @param _listingId The ID of the listing advertisement to be closed.
+     *
+     * Requirements:
+     * - The listing must be in an OPEN status.
+     * - Only the author of the listing can close it.
+     * - The amount of the listing must be greater than zero.
+     *
+     * Emits a `withdrawnAdsToken` event indicating the author, listing ID, status, and amount withdrawn.
+     */
     function closeListingAd(uint96 _listingId) external {
+        // Retrieve the loan listing associated with the given listing ID
         LoanListing storage _newListing = _appStorage.loanListings[_listingId];
+
+        // Check if the listing is OPEN; revert if it's not
         if (_newListing.listingStatus != ListingStatus.OPEN)
             revert Protocol__OrderNotOpen();
+
+        // Ensure that the caller is the author of the listing; revert if not
         if (_newListing.author != msg.sender)
             revert Protocol__OwnerCreatedOrder();
+
+        // Ensure the amount is greater than zero; revert if it is zero
         if (_newListing.amount == 0) revert Protocol__MustBeMoreThanZero();
 
+        // Store the amount to be transferred and reset the listing amount to zero
         uint256 _amount = _newListing.amount;
-        _newListing.amount = 0;
-        _newListing.listingStatus = ListingStatus.CLOSED;
+        _newListing.amount = 0; // Prevent re-entrancy by setting amount to zero
+        _newListing.listingStatus = ListingStatus.CLOSED; // Update listing status to CLOSED
 
+        // Handle the transfer of funds based on whether the token is native or ERC20
         if (_newListing.tokenAddress == Constants.NATIVE_TOKEN) {
+            // Transfer native tokens (ETH) to the author
             (bool sent, ) = payable(msg.sender).call{value: _amount}("");
-            if (!sent) revert Protocol__TransferFailed();
+            if (!sent) revert Protocol__TransferFailed(); // Revert if the transfer fails
         } else {
+            // Transfer ERC20 tokens to the author
             IERC20(_newListing.tokenAddress).safeTransfer(msg.sender, _amount);
         }
 
+        // Emit an event to notify that the listing has been closed and tokens have been withdrawn
         emit withdrawnAdsToken(
             msg.sender,
             _listingId,
