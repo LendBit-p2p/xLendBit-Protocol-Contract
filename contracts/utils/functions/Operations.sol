@@ -404,19 +404,36 @@ contract Operations {
         emit CollateralWithdrawn(msg.sender, _tokenCollateralAddress, _amount);
     }
 
+    /**
+     * @dev Adds new collateral tokens along with their respective price feeds to the protocol.
+     * @param _tokens An array of token addresses to add as collateral.
+     * @param _priceFeeds An array of corresponding price feed addresses for the tokens.
+     *
+     * Requirements:
+     * - Only the contract owner can call this function.
+     * - The `_tokens` and `_priceFeeds` arrays must have the same length.
+     *
+     * Emits an `UpdatedCollateralTokens` event with the total number of collateral tokens added.
+     */
     function addCollateralTokens(
         address[] memory _tokens,
         address[] memory _priceFeeds
     ) external {
+        // Ensure only the contract owner can add collateral tokens
         LibDiamond.enforceIsContractOwner();
 
+        // Validate that the tokens and price feeds arrays have the same length
         if (_tokens.length != _priceFeeds.length) {
             revert Protocol__tokensAndPriceFeedsArrayMustBeSameLength();
         }
+
+        // Loop through each token to set its price feed and add it to the collateral list
         for (uint8 i = 0; i < _tokens.length; i++) {
-            _appStorage.s_priceFeeds[_tokens[i]] = _priceFeeds[i];
-            _appStorage.s_collateralToken.push(_tokens[i]);
+            _appStorage.s_priceFeeds[_tokens[i]] = _priceFeeds[i]; // Map token to price feed
+            _appStorage.s_collateralToken.push(_tokens[i]); // Add token to collateral array
         }
+
+        // Emit an event indicating the updated number of collateral tokens
         emit UpdatedCollateralTokens(
             msg.sender,
             uint8(_appStorage.s_collateralToken.length)
