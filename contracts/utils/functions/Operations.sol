@@ -222,4 +222,110 @@ contract Operations {
             _interest
         );
     }
+
+    function serviceRequest(
+        uint96 _requestId,
+        address _tokenAddress
+    ) external payable {
+        Validator._nativeMoreThanZero(_tokenAddress, msg.value);
+
+        Request storage _foundRequest = _appStorage.request[_requestId];
+
+        if (_foundRequest.status != Status.OPEN)
+            revert Protocol__RequestNotOpen();
+        if (_foundRequest.loanRequestAddr != _tokenAddress)
+            revert Protocol__InvalidToken();
+        if (_foundRequest.author == msg.sender) {
+            revert Protocol__CantFundSelf();
+        }
+        if (_foundRequest.returnDate <= block.timestamp) {
+            revert Protocol__RequestExpired();
+        }
+
+        _foundRequest.lender = msg.sender;
+        _foundRequest.status = Status.SERVICED;
+        uint256 amountToLend = _foundRequest.amount;
+
+        if (_tokenAddress == Constants.NATIVE_TOKEN) {
+            if (msg.value < amountToLend) {
+                revert Protocol__InsufficientAmount();
+            }
+        } else {
+            if (IERC20(_tokenAddress).balanceOf(msg.sender) < amountToLend)
+                revert Protocol__InsufficientBalance();
+            if (
+                IERC20(_tokenAddress).allowance(msg.sender, address(this)) <
+                amountToLend
+            ) revert Protocol__InsufficientAllowance();
+        }
+
+        uint8 _decimalToken = LibGettersImpl._getTokenDecimal(_tokenAddress);
+
+        uint256 _loanUsdValue = LibGettersImpl._getUsdValue(
+            _appStorage,
+            _tokenAddress,
+            amountToLend,
+            _decimalToken
+        );
+
+        uint256 _totalRepayment = amountToLend +
+            Utils.calculateLoanInterest(
+                _foundRequest.returnDate,
+                _foundRequest.amount,
+                _foundRequest.interest
+            );
+        _foundRequest.totalRepayment = _totalRepayment;
+
+        _appStorage
+            .addressToUser[_foundRequest.author]
+            .totalLoanCollected += LibGettersImpl._getUsdValue(
+            _appStorage,
+            _tokenAddress,
+            _totalRepayment,
+            _decimalToken
+        );
+
+        if (
+            LibGettersImpl._healthFactor(
+                _appStorage,
+                _foundRequest.author,
+                _loanUsdValue
+            ) < 1
+        ) {
+            revert Protocol__InsufficientCollateral();
+        }
+
+        for (uint i = 0; i < _foundRequest.collateralTokens.length; i++) {
+            _appStorage.s_addressToAvailableBalance[_foundRequest.author][
+                _foundRequest.collateralTokens[i]
+            ] =
+                _appStorage.s_addressToAvailableBalance[_foundRequest.author][
+                    _foundRequest.collateralTokens[i]
+                ] -
+                _appStorage.s_idToCollateralTokenAmount[_requestId][
+                    _foundRequest.collateralTokens[i]
+                ];
+        }
+
+        if (_tokenAddress != Constants.NATIVE_TOKEN) {
+            IERC20(_tokenAddress).safeTransferFrom(
+                msg.sender,
+                _foundRequest.author,
+                amountToLend
+            );
+        } else {
+            (bool sent, ) = payable(_foundRequest.author).call{
+                value: amountToLend
+            }("");
+
+            if (!sent) revert Protocol__TransferFailed();
+        }
+
+        emit RequestServiced(
+            _requestId,
+            msg.sender,
+            _foundRequest.author,
+            amountToLend
+        );
+    }
 }
