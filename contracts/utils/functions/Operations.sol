@@ -87,24 +87,49 @@ contract Operations {
         );
     }
 
+    /**
+     * @dev Creates a new lending request by validating input parameters, calculating loanable amounts,
+     *      and locking collateral proportional to the loan request.
+     *
+     * @param _amount The amount of loan requested by the borrower.
+     * @param _interest The interest rate for the loan.
+     * @param _returnDate The expected return date for the loan.
+     * @param _loanCurrency The token address for the currency in which the loan is requested.
+     *
+     * Requirements:
+     * - `_amount` must be greater than zero.
+     * - `_loanCurrency` must be an approved loanable token.
+     * - `_returnDate` must be at least 1 day in the future.
+     * - The calculated USD value of `_amount` should meet the minimum loan amount requirement.
+     * - Borrower must have sufficient collateral based on their collateral value and `_loanUsdValue`.
+     *
+     * The function locks collateral based on the proportional USD value of each token in the borrower’s
+     * collateral, calculates the total repayment including interest, and stores loan request data.
+     * Emits a `RequestCreated` event on successful request creation.
+     */
     function createLendingRequest(
         uint128 _amount,
         uint16 _interest,
         uint256 _returnDate,
         address _loanCurrency
     ) external {
+        // Validate that the loan amount is greater than zero
         Validator._moreThanZero(_amount);
 
+        // Check if the loan currency is allowed by validating it against allowed loanable tokens
         if (!_appStorage.s_isLoanable[_loanCurrency]) {
             revert Protocol__TokenNotLoanable();
         }
 
+        // Ensure the return date is at least 1 day in the future
         if ((_returnDate - block.timestamp) < 1 days) {
             revert Protocol__DateMustBeInFuture();
         }
 
+        // Retrieve the loan currency's decimal precision
         uint8 decimal = LibGettersImpl._getTokenDecimal(_loanCurrency);
 
+        // Calculate the USD equivalent of the loan amount
         uint256 _loanUsdValue = LibGettersImpl._getUsdValue(
             _appStorage,
             _loanCurrency,
@@ -112,15 +137,19 @@ contract Operations {
             decimal
         );
 
+        // Ensure that the USD value of the loan is valid and meets minimum requirements
         if (_loanUsdValue < 1) revert Protocol__InvalidAmount();
 
+        // Get the total USD collateral value for the borrower
         uint256 collateralValueInLoanCurrency = LibGettersImpl
             ._getAccountCollateralValue(_appStorage, msg.sender);
 
+        // Calculate the maximum loanable amount based on available collateral
         uint256 maxLoanableAmount = Utils.maxLoanableAmount(
             collateralValueInLoanCurrency
         );
 
+        // Check if the loan exceeds the user's collateral allowance
         if (
             _appStorage.addressToUser[msg.sender].totalLoanCollected +
                 _loanUsdValue >=
@@ -129,9 +158,11 @@ contract Operations {
             revert Protocol__InsufficientCollateral();
         }
 
+        // Retrieve collateral tokens associated with the borrower
         address[] memory _collateralTokens = LibGettersImpl
             ._getUserCollateralTokens(_appStorage, msg.sender);
 
+        // Increment the request ID and initialize the new loan request
         _appStorage.requestId = _appStorage.requestId + 1;
         Request storage _newRequest = _appStorage.request[
             _appStorage.requestId
@@ -150,11 +181,13 @@ contract Operations {
         _newRequest.collateralTokens = _collateralTokens;
         _newRequest.status = Status.OPEN;
 
+        // Calculate the amount of collateral to lock based on the loan value
         uint256 collateralToLock = Utils.calculateColateralToLock(
             _loanUsdValue,
             maxLoanableAmount
         );
 
+        // For each collateral token, lock an appropriate amount based on its USD value
         for (uint256 i = 0; i < _collateralTokens.length; i++) {
             address token = _collateralTokens[i];
             uint8 _decimalToken = LibGettersImpl._getTokenDecimal(token);
@@ -162,7 +195,7 @@ contract Operations {
                 msg.sender
             ][token];
 
-            // Calculate the amount to lock for each token based on its proportion of the total collateral
+            // Calculate the amount to lock in USD for each token based on the proportional collateral
             uint256 amountToLockUSD = (LibGettersImpl._getUsdValue(
                 _appStorage,
                 token,
@@ -170,15 +203,18 @@ contract Operations {
                 _decimalToken
             ) * collateralToLock) / 100;
 
+            // Convert USD amount to token amount and apply the correct decimal scaling
             uint256 amountToLock = ((((amountToLockUSD) * 10) /
                 LibGettersImpl._getUsdValue(_appStorage, token, 10, 0)) *
                 (10 ** _decimalToken)) / (Constants.PRECISION);
 
+            // Store the locked amount for each collateral token
             _appStorage.s_idToCollateralTokenAmount[_appStorage.requestId][
                 token
             ] = amountToLock;
         }
 
+        // Emit an event for the created loan request
         emit RequestCreated(
             msg.sender,
             _appStorage.requestId,
