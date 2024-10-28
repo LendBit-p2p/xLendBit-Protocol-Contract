@@ -1022,7 +1022,7 @@ contract Operations {
         }
 
         // Define the swap path from collateral to loan currency
-        address;
+        address[] memory path = new address[](2);
         path[0] = collateralToken;
         path[1] = loanCurrency;
 
@@ -1073,5 +1073,38 @@ contract Operations {
 
         // Return the output amount in the target loan currency
         return amountsOut;
+    }
+
+    /**
+     * @notice Sets the bot address for the protocol.
+     * @dev This function allows the contract owner to set an address for automated bot actions within the protocol,
+     *      such as monitoring and liquidating undercollateralized loans. Only callable by the contract owner.
+     * @param _botAddress The address designated as the bot for handling automated protocol tasks.
+     *        It should be a valid external or contract address with necessary permissions.
+     * @custom:access Only callable by the contract owner.
+     */
+    function setBotAddress(address _botAddress) external {
+        // Ensures only the contract owner can call this function
+        LibDiamond.enforceIsContractOwner();
+
+        // Sets the bot address in storage, enabling bot actions within the protocol
+        _appStorage.botAddress = _botAddress;
+    }
+
+    /**
+     * @notice Sets the swap router address for handling token exchanges within the protocol.
+     * @dev This function allows the contract owner to set the router address used for token swaps
+     *      (e.g., using Uniswap or a compatible DEX) as part of the protocol's operations.
+     *      Only callable by the contract owner.
+     * @param _swapRouter The address of the swap router, typically a Uniswap or similar DEX router
+     *        that supports token exchange functionality required by the protocol.
+     * @custom:access Only callable by the contract owner.
+     */
+    function setSwapRouter(address _swapRouter) external {
+        // Ensures only the contract owner can call this function
+        LibDiamond.enforceIsContractOwner();
+
+        // Sets the swap router address in storage, enabling token swaps within the protocol
+        _appStorage.swapRouter = _swapRouter;
     }
 }
