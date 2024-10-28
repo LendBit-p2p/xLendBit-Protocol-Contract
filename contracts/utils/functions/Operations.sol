@@ -440,21 +440,40 @@ contract Operations {
         );
     }
 
+    /**
+     * @dev Removes specified collateral tokens and their associated price feeds from the protocol.
+     * @param _tokens An array of token addresses to be removed as collateral.
+     *
+     * Requirements:
+     * - Only the contract owner can call this function.
+     *
+     * Emits an `UpdatedCollateralTokens` event with the updated total number of collateral tokens.
+     */
     function removeCollateralTokens(address[] memory _tokens) external {
+        // Ensure only the contract owner can remove collateral tokens
         LibDiamond.enforceIsContractOwner();
 
+        // Loop through each token to remove it from collateral and reset its price feed
         for (uint8 i = 0; i < _tokens.length; i++) {
-            _appStorage.s_priceFeeds[_tokens[i]] = address(0);
+            _appStorage.s_priceFeeds[_tokens[i]] = address(0); // Remove the price feed for the token
+
+            // Search for the token in the collateral array
             for (uint8 j = 0; j < _appStorage.s_collateralToken.length; j++) {
                 if (_appStorage.s_collateralToken[j] == _tokens[i]) {
+                    // Replace the token to be removed with the last token in the array
                     _appStorage.s_collateralToken[j] = _appStorage
                         .s_collateralToken[
                             _appStorage.s_collateralToken.length - 1
                         ];
+
+                    // Remove the last token from the array
                     _appStorage.s_collateralToken.pop();
+                    break; // Stop searching once the token is found and removed
                 }
             }
         }
+
+        // Emit an event indicating the updated count of collateral tokens
         emit UpdatedCollateralTokens(
             msg.sender,
             uint8(_appStorage.s_collateralToken.length)
