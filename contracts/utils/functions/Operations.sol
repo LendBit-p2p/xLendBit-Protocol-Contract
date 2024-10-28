@@ -479,4 +479,12 @@ contract Operations {
             uint8(_appStorage.s_collateralToken.length)
         );
     }
+
+    function addLoanableToken(address _token, address _priceFeed) external {
+        LibDiamond.enforceIsContractOwner();
+        _appStorage.s_isLoanable[_token] = true;
+        _appStorage.s_priceFeeds[_token] = _priceFeed;
+        _appStorage.s_loanableToken.push(_token);
+        emit UpdateLoanableToken(_token, _priceFeed, msg.sender);
+    }
 }
