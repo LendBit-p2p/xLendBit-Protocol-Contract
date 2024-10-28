@@ -349,23 +349,39 @@ contract Operations {
         );
     }
 
+    /**
+     * @dev Allows a user to withdraw a specified amount of collateral.
+     * @param _tokenCollateralAddress The address of the collateral token to withdraw.
+     * @param _amount The amount of collateral to withdraw.
+     *
+     * Requirements:
+     * - The token address must be valid and allowed by the protocol.
+     * - The withdrawal amount must be greater than zero.
+     * - User must have at least the specified amount of collateral deposited.
+     *
+     * Emits a `CollateralWithdrawn` event on successful withdrawal.
+     */
     function withdrawCollateral(
         address _tokenCollateralAddress,
         uint128 _amount
     ) external {
+        // Validate that the token is allowed and the amount is greater than zero
         Validator._isTokenAllowed(
             _appStorage.s_priceFeeds[_tokenCollateralAddress]
         );
         Validator._moreThanZero(_amount);
 
+        // Retrieve the user's deposited amount for the specified token
         uint256 depositedAmount = _appStorage.s_addressToAvailableBalance[
             msg.sender
         ][_tokenCollateralAddress];
 
+        // Check if the user has sufficient collateral to withdraw the requested amount
         if (depositedAmount < _amount) {
             revert Protocol__InsufficientCollateralDeposited();
         }
 
+        // Update storage to reflect the withdrawal of collateral
         _appStorage.s_addressToCollateralDeposited[msg.sender][
             _tokenCollateralAddress
         ] -= _amount;
@@ -373,16 +389,17 @@ contract Operations {
             _tokenCollateralAddress
         ] -= _amount;
 
+        // Handle withdrawal for native token vs ERC20 tokens
         if (_tokenCollateralAddress == Constants.NATIVE_TOKEN) {
+            // Transfer native token to the user
             (bool sent, ) = payable(msg.sender).call{value: _amount}("");
             if (!sent) revert Protocol__TransferFailed();
         } else {
-            bool success = IERC20(_tokenCollateralAddress).safeTransfer(
-                msg.sender,
-                _amount
-            );
-            require(success, "Protocol__TransferFailed");
+            // Transfer ERC20 token to the user
+            IERC20(_tokenCollateralAddress).safeTransfer(msg.sender, _amount);
         }
+
+        // Emit an event indicating successful collateral withdrawal
         emit CollateralWithdrawn(msg.sender, _tokenCollateralAddress, _amount);
     }
 }
