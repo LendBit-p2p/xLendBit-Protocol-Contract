@@ -276,4 +276,13 @@ contract Getters is AppStorage {
             _user
         );
     }
+
+    /**
+     * @notice Retrieves all the requests stored in the system
+     *
+     * @dev Returns an array of all requests
+     *
+     * @return An array of `Request` structs representing all stored requests
+     */
+    function getAllRequest() external view returns (Request[] memory) {}
 }
