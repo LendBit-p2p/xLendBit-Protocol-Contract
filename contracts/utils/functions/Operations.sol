@@ -348,4 +348,41 @@ contract Operations {
             amountToLend
         );
     }
+
+    function withdrawCollateral(
+        address _tokenCollateralAddress,
+        uint128 _amount
+    ) external {
+        Validator._isTokenAllowed(
+            _appStorage.s_priceFeeds[_tokenCollateralAddress]
+        );
+        Validator._moreThanZero(_amount);
+
+        uint256 depositedAmount = _appStorage.s_addressToAvailableBalance[
+            msg.sender
+        ][_tokenCollateralAddress];
+
+        if (depositedAmount < _amount) {
+            revert Protocol__InsufficientCollateralDeposited();
+        }
+
+        _appStorage.s_addressToCollateralDeposited[msg.sender][
+            _tokenCollateralAddress
+        ] -= _amount;
+        _appStorage.s_addressToAvailableBalance[msg.sender][
+            _tokenCollateralAddress
+        ] -= _amount;
+
+        if (_tokenCollateralAddress == Constants.NATIVE_TOKEN) {
+            (bool sent, ) = payable(msg.sender).call{value: _amount}("");
+            if (!sent) revert Protocol__TransferFailed();
+        } else {
+            bool success = IERC20(_tokenCollateralAddress).safeTransfer(
+                msg.sender,
+                _amount
+            );
+            require(success, "Protocol__TransferFailed");
+        }
+        emit CollateralWithdrawn(msg.sender, _tokenCollateralAddress, _amount);
+    }
 }
