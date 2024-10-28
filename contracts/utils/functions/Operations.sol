@@ -823,4 +823,75 @@ contract Operations {
             _amount
         );
     }
+
+    function repayLoan(uint96 _requestId, uint256 _amount) external payable {
+        Validator._moreThanZero(_amount);
+
+        Request storage _request = _appStorage.request[_requestId];
+
+        if (_request.status != Status.SERVICED)
+            revert Protocol__RequestNotServiced();
+
+        if (msg.sender != _request.author) revert Protocol__NotOwner();
+
+        if (_request.loanRequestAddr == Constants.NATIVE_TOKEN) {
+            _amount = msg.value;
+        } else {
+            IERC20 _token = IERC20(_request.loanRequestAddr);
+            if (_token.balanceOf(msg.sender) < _amount) {
+                revert Protocol__InsufficientBalance();
+            }
+            if (_token.allowance(msg.sender, address(this)) < _amount)
+                revert Protocol__InsufficientAllowance();
+
+            _token.safeTransferFrom(msg.sender, address(this), _amount);
+        }
+
+        if (_amount >= _request.totalRepayment) {
+            _amount = _request.totalRepayment;
+            _request.totalRepayment = 0;
+            _request.status = Status.CLOSED;
+
+            for (uint i = 0; i < _request.collateralTokens.length; i++) {
+                _appStorage.s_addressToAvailableBalance[_request.author][
+                    _request.collateralTokens[i]
+                ] += _appStorage.s_idToCollateralTokenAmount[_requestId][
+                    _request.collateralTokens[i]
+                ];
+            }
+        } else {
+            _request.totalRepayment -= _amount;
+        }
+
+        uint8 decimal = LibGettersImpl._getTokenDecimal(
+            _request.loanRequestAddr
+        );
+        uint256 _loanUsdValue = LibGettersImpl._getUsdValue(
+            _appStorage,
+            _request.loanRequestAddr,
+            _amount,
+            decimal
+        );
+        uint256 loanCollected = LibGettersImpl._getLoanCollectedInUsd(
+            _appStorage,
+            msg.sender
+        );
+
+        _appStorage.s_addressToCollateralDeposited[_request.lender][
+            _request.loanRequestAddr
+        ] += _amount;
+        _appStorage.s_addressToAvailableBalance[_request.lender][
+            _request.loanRequestAddr
+        ] += _amount;
+
+        if (loanCollected > _loanUsdValue) {
+            _appStorage.addressToUser[msg.sender].totalLoanCollected =
+                loanCollected -
+                _loanUsdValue;
+        } else {
+            _appStorage.addressToUser[msg.sender].totalLoanCollected = 0;
+        }
+
+        emit LoanRepayment(msg.sender, _requestId, _amount);
+    }
 }
