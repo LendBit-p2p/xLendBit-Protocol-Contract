@@ -480,11 +480,30 @@ contract Operations {
         );
     }
 
+    /**
+     * @dev Adds a new token as a loanable token and associates it with a price feed.
+     * @param _token The address of the token to be added as loanable.
+     * @param _priceFeed The address of the price feed for the loanable token.
+     *
+     * Requirements:
+     * - Only the contract owner can call this function.
+     *
+     * Emits an `UpdateLoanableToken` event indicating the new loanable token and its price feed.
+     */
     function addLoanableToken(address _token, address _priceFeed) external {
+        // Ensure only the contract owner can add loanable tokens
         LibDiamond.enforceIsContractOwner();
+
+        // Mark the token as loanable
         _appStorage.s_isLoanable[_token] = true;
+
+        // Associate the token with its price feed
         _appStorage.s_priceFeeds[_token] = _priceFeed;
+
+        // Add the loanable token to the list of loanable tokens
         _appStorage.s_loanableToken.push(_token);
+
+        // Emit an event to notify that a loanable token has been added
         emit UpdateLoanableToken(_token, _priceFeed, msg.sender);
     }
 }
