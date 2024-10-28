@@ -584,4 +584,89 @@ contract Operations {
         // Emit an event to notify that the request has been closed
         emit RequestClosed(_requestId, msg.sender);
     }
+
+    /**
+     * @dev Creates a loan listing for lenders to fund.
+     * @param _amount The total amount being loaned.
+     * @param _min_amount The minimum amount a lender can fund.
+     * @param _max_amount The maximum amount a lender can fund.
+     * @param _returnDate The date by which the loan should be repaid.
+     * @param _interest The interest rate to be applied on the loan.
+     * @param _loanCurrency The currency in which the loan is issued (token address).
+     *
+     * Requirements:
+     * - The loan amount must be greater than zero.
+     * - The currency must be a loanable token.
+     * - If using a token, the sender must have sufficient balance and allowance.
+     * - If using the native token, the amount must be sent as part of the transaction.
+     *
+     * Emits a `LoanListingCreated` event indicating the listing ID, author, and loan currency.
+     */
+    function createLoanListing(
+        uint256 _amount,
+        uint256 _min_amount,
+        uint256 _max_amount,
+        uint256 _returnDate,
+        uint16 _interest,
+        address _loanCurrency
+    ) external payable {
+        // Validate that the amount is greater than zero and that a value has been sent if using native token
+        Validator._valueMoreThanZero(_amount, _loanCurrency, msg.value);
+        Validator._moreThanZero(_amount);
+
+        // Ensure the specified loan currency is a loanable token
+        if (!_appStorage.s_isLoanable[_loanCurrency]) {
+            revert Protocol__TokenNotLoanable();
+        }
+
+        // Check for sufficient balance and allowance if using a token other than native
+        if (_loanCurrency != Constants.NATIVE_TOKEN) {
+            if (IERC20(_loanCurrency).balanceOf(msg.sender) < _amount)
+                revert Protocol__InsufficientBalance();
+
+            if (
+                IERC20(_loanCurrency).allowance(msg.sender, address(this)) <
+                _amount
+            ) revert Protocol__InsufficientAllowance();
+        }
+
+        // If using the native token, set the amount to the value sent with the transaction
+        if (_loanCurrency == Constants.NATIVE_TOKEN) {
+            _amount = msg.value;
+        }
+
+        // Transfer the specified amount from the user to the contract if using a token
+        if (_loanCurrency != Constants.NATIVE_TOKEN) {
+            IERC20(_loanCurrency).safeTransferFrom(
+                msg.sender,
+                address(this),
+                _amount
+            );
+        }
+
+        // Increment the listing ID to create a new loan listing
+        _appStorage.listingId = _appStorage.listingId + 1;
+        LoanListing storage _newListing = _appStorage.loanListings[
+            _appStorage.listingId
+        ];
+
+        // Populate the loan listing struct with the provided details
+        _newListing.listingId = _appStorage.listingId;
+        _newListing.author = msg.sender;
+        _newListing.amount = _amount;
+        _newListing.min_amount = _min_amount;
+        _newListing.max_amount = _max_amount;
+        _newListing.interest = _interest;
+        _newListing.returnDate = _returnDate;
+        _newListing.tokenAddress = _loanCurrency;
+        _newListing.listingStatus = ListingStatus.OPEN;
+
+        // Emit an event to notify that a new loan listing has been created
+        emit LoanListingCreated(
+            _appStorage.listingId,
+            msg.sender,
+            _loanCurrency,
+            _amount
+        );
+    }
 }

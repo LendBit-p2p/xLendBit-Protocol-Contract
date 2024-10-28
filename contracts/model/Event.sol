@@ -25,6 +25,7 @@ event RequestServiced(
     address indexed _borrower,
     uint256 _amount
 );
+event RequestClosed(uint96 indexed _requestId, address indexed _borrower);
 event CollateralWithdrawn(
     address indexed sender,
     address indexed _tokenCollateralAddress,
@@ -63,4 +64,8 @@ event LoanListingCreated(
     uint256 amount
 );
 
-event RequestLiquidated(uint96 indexed requestId, address indexed lenderAddress,uint256 indexed totalRepayment);
+event RequestLiquidated(
+    uint96 indexed requestId,
+    address indexed lenderAddress,
+    uint256 indexed totalRepayment
+);
