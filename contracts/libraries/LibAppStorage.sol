@@ -18,22 +18,19 @@ library LibAppStorage {
         mapping(uint96 requestId => Request) request;
         ///@dev mapping a requestId to the collaterals used in a request
         mapping(uint96 requestId => mapping(address => uint256)) s_idToCollateralTokenAmount;
-        ///@dev mapping of id to orders
-        mapping(uint96 orderId => Order) order;
         ///@dev mapping of id to loanListing
         mapping(uint96 listingId => LoanListing) loanListings;
         /// @dev Collection of all colleteral Adresses
         address[] s_collateralToken;
         /// @dev all loanable assets
         address[] s_loanableToken;
-        /// @dev Collection of all all the resquest;
-        Request[] s_requests;
-        Order[] s_order;
         /// @dev request id;
         uint96 requestId;
-        uint96 s_orderId;
+        /// @dev the number of listings created
         uint96 listingId;
+        /// @dev address of the bot that calls the liquidate function
         address botAddress;
+        /// @dev uniswap router address
         address swapRouter;
     }
 }

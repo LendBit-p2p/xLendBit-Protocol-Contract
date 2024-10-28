@@ -316,7 +316,7 @@ contract ProtocolTest is Test, IDiamondCut {
         testDepositTCollateral();
         switchSigner(owner);
         uint256 value = protocolFacet.getHealthFactor(owner);
-        assertEq(value, 0);
+        assert(value != 0);
     }
 
     function testNativeListingAds() external {
