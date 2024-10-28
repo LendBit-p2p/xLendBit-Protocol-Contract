@@ -272,7 +272,7 @@ library LibGettersImpl {
         uint96 requestId = _appStorage.requestId;
         uint64 count;
 
-        for (uint96 i = 1; i < requestId; i++) {
+        for (uint96 i = 1; i <= requestId; i++) {
             Request memory request = _appStorage.request[i];
 
             if (request.author == _user && request.status == Status.SERVICED) {
@@ -283,7 +283,7 @@ library LibGettersImpl {
         _requests = new Request[](count);
         uint64 requestLength;
 
-        for (uint96 i = 1; i < requestId; i++) {
+        for (uint96 i = 1; i <= requestId; i++) {
             Request memory request = _appStorage.request[i];
 
             if (request.author == _user && request.status == Status.SERVICED) {
@@ -310,7 +310,7 @@ library LibGettersImpl {
         uint96 requestId = _appStorage.requestId;
         uint64 count;
 
-        for (uint96 i = 1; i < requestId; i++) {
+        for (uint96 i = 1; i <= requestId; i++) {
             Request memory request = _appStorage.request[i];
 
             if (request.lender == _lender) {
@@ -321,7 +321,7 @@ library LibGettersImpl {
         _requests = new Request[](count);
         uint64 requestLength;
 
-        for (uint96 i = 1; i < requestId; i++) {
+        for (uint96 i = 1; i <= requestId; i++) {
             Request memory request = _appStorage.request[i];
 
             if (request.lender == _lender) {
@@ -407,5 +407,16 @@ library LibGettersImpl {
         }
 
         return userTokens;
+    }
+
+    function _getAllRequest(
+        LibAppStorage.Layout storage _appStorage
+    ) internal view returns (Request[] memory _requests) {
+        uint96 requestId = _appStorage.requestId;
+        _requests = new Request[](requestId);
+
+        for (uint96 i = 1; i <= requestId; i++) {
+            _requests[i - 1] = _appStorage.request[i];
+        }
     }
 }

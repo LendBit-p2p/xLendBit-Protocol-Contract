@@ -282,7 +282,13 @@ contract Getters is AppStorage {
      *
      * @dev Returns an array of all requests
      *
-     * @return An array of `Request` structs representing all stored requests
+     * @return _requests An array of `Request` structs representing all stored requests
      */
-    function getAllRequest() external view returns (Request[] memory) {}
+    function getAllRequest()
+        external
+        view
+        returns (Request[] memory _requests)
+    {
+        _requests = LibGettersImpl._getAllRequest(_appStorage);
+    }
 }

@@ -10,6 +10,9 @@ import "../contracts/Diamond.sol";
 import "../contracts/facets/ProtocolFacet.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../contracts/model/Protocol.sol";
+import "../contracts/model/Event.sol";
+import "../contracts/utils/constants/Constant.sol";
+import "../contracts/utils/validators/Validator.sol";
 
 contract ProtocolTest is Test, IDiamondCut {
     //contract types of facets to be deployed
