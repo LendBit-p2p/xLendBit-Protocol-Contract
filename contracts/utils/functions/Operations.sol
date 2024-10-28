@@ -824,45 +824,63 @@ contract Operations {
         );
     }
 
+    /**
+     * @dev Allows a borrower to repay a loan in part or in full.
+     * @param _requestId The unique identifier of the loan request.
+     * @param _amount The repayment amount.
+     *
+     * Requirements:
+     * - `_amount` must be greater than zero.
+     * - The loan request must be in the SERVICED status.
+     * - The caller must be the borrower who created the loan request.
+     * - If repaying in a token, the borrower must have sufficient balance and allowance.
+     *
+     * Emits:
+     * - `LoanRepayment` upon successful repayment.
+     */
     function repayLoan(uint96 _requestId, uint256 _amount) external payable {
         Validator._moreThanZero(_amount);
 
         Request storage _request = _appStorage.request[_requestId];
 
+        // Ensure that the loan request is currently serviced and the caller is the original borrower
         if (_request.status != Status.SERVICED)
             revert Protocol__RequestNotServiced();
-
         if (msg.sender != _request.author) revert Protocol__NotOwner();
 
+        // Process repayment amount based on the token type
         if (_request.loanRequestAddr == Constants.NATIVE_TOKEN) {
             _amount = msg.value;
         } else {
             IERC20 _token = IERC20(_request.loanRequestAddr);
-            if (_token.balanceOf(msg.sender) < _amount) {
+            if (_token.balanceOf(msg.sender) < _amount)
                 revert Protocol__InsufficientBalance();
-            }
             if (_token.allowance(msg.sender, address(this)) < _amount)
                 revert Protocol__InsufficientAllowance();
 
             _token.safeTransferFrom(msg.sender, address(this), _amount);
         }
 
+        // If full repayment is made, close the request and release the collateral
         if (_amount >= _request.totalRepayment) {
             _amount = _request.totalRepayment;
             _request.totalRepayment = 0;
             _request.status = Status.CLOSED;
 
             for (uint i = 0; i < _request.collateralTokens.length; i++) {
+                address collateralToken = _request.collateralTokens[i];
                 _appStorage.s_addressToAvailableBalance[_request.author][
-                    _request.collateralTokens[i]
+                    collateralToken
                 ] += _appStorage.s_idToCollateralTokenAmount[_requestId][
-                    _request.collateralTokens[i]
+                    collateralToken
                 ];
             }
         } else {
+            // Reduce the outstanding repayment amount for partial payments
             _request.totalRepayment -= _amount;
         }
 
+        // Update borrower’s loan collected metrics in USD
         uint8 decimal = LibGettersImpl._getTokenDecimal(
             _request.loanRequestAddr
         );
@@ -877,6 +895,7 @@ contract Operations {
             msg.sender
         );
 
+        // Deposit the repayment amount to the lender's available balance
         _appStorage.s_addressToCollateralDeposited[_request.lender][
             _request.loanRequestAddr
         ] += _amount;
@@ -884,6 +903,7 @@ contract Operations {
             _request.loanRequestAddr
         ] += _amount;
 
+        // Adjust the borrower's total loan collected
         if (loanCollected > _loanUsdValue) {
             _appStorage.addressToUser[msg.sender].totalLoanCollected =
                 loanCollected -
@@ -892,6 +912,7 @@ contract Operations {
             _appStorage.addressToUser[msg.sender].totalLoanCollected = 0;
         }
 
+        // Emit event to notify of loan repayment
         emit LoanRepayment(msg.sender, _requestId, _amount);
     }
 }
