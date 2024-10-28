@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {LibAppStorage} from "../../libraries/LibAppStorage.sol";
+import {AppStorage} from "./AppStorage.sol";
 import {LibGettersImpl} from "../../libraries/LibGetters.sol";
 import "../../model/Protocol.sol";
 
@@ -12,9 +12,7 @@ import "../../model/Protocol.sol";
  * Public read-only functions that allow transparency into the state of LendBit
  */
 
-contract Getters {
-    LibAppStorage.Layout internal _appStorage;
-
+contract Getters is AppStorage {
     /**
      * @notice This gets the USD value of amount of the token passsed.
      *

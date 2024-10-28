@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {LibAppStorage} from "../../libraries/LibAppStorage.sol";
+import {AppStorage} from "./AppStorage.sol";
 import {LibGettersImpl} from "../../libraries/LibGetters.sol";
 import {LibDiamond} from "../../libraries/LibDiamond.sol";
 import {Validator} from "../validators/Validator.sol";
@@ -20,10 +20,8 @@ import "../validators/Error.sol";
  *
  * Public write-only functions that allows writing into the state of LendBit
  */
-contract Operations {
+contract Operations is AppStorage {
     using SafeERC20 for IERC20;
-
-    LibAppStorage.Layout internal _appStorage;
 
     /**
      * @dev Allows users to deposit collateral of a specified token into the protocol. Supports both

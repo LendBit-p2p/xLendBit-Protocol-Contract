@@ -140,7 +140,7 @@ contract ProtocolTest is Test, IDiamondCut {
         switchSigner(owner);
         protocolFacet.depositCollateral(USDT_CONTRACT_ADDRESS, 100 * (10 ** 6));
         uint256 _amountQualaterized = protocolFacet
-            .gets_addressToCollateralDeposited(owner, USDT_CONTRACT_ADDRESS);
+            .getAddressToCollateralDeposited(owner, USDT_CONTRACT_ADDRESS);
         assertEq(_amountQualaterized, (100 * 10 ** 6));
     }
 
@@ -152,7 +152,7 @@ contract ProtocolTest is Test, IDiamondCut {
             100 ether
         );
         uint256 _amountQualaterized = protocolFacet
-            .gets_addressToCollateralDeposited(owner, ETH_CONTRACT_ADDRESS);
+            .getAddressToCollateralDeposited(owner, ETH_CONTRACT_ADDRESS);
         assertEq(_amountQualaterized, 100 ether);
     }
 
@@ -271,7 +271,7 @@ contract ProtocolTest is Test, IDiamondCut {
         switchSigner(owner);
         protocolFacet.withdrawCollateral(ETH_CONTRACT_ADDRESS, 90 ether);
         uint256 _amountQualaterized = protocolFacet
-            .gets_addressToCollateralDeposited(owner, ETH_CONTRACT_ADDRESS);
+            .getAddressToCollateralDeposited(owner, ETH_CONTRACT_ADDRESS);
         assertEq(_amountQualaterized, 10 ether);
     }
 
@@ -299,7 +299,7 @@ contract ProtocolTest is Test, IDiamondCut {
 
         protocolFacet.withdrawCollateral(ETH_CONTRACT_ADDRESS, 250 ether);
         uint256 _amountCollaterized = protocolFacet
-            .gets_addressToCollateralDeposited(owner, ETH_CONTRACT_ADDRESS);
+            .getAddressToCollateralDeposited(owner, ETH_CONTRACT_ADDRESS);
         assertEq(_amountCollaterized, 150 ether);
         assertEq(address(owner).balance, 350 ether);
     }
@@ -415,7 +415,7 @@ contract ProtocolTest is Test, IDiamondCut {
             LINK_CONTRACT_ADDRESS
         );
 
-        uint256 bal = protocolFacet.gets_addressToAvailableBalance(
+        uint256 bal = protocolFacet.getAddressToAvailableBalance(
             owner,
             USDT_CONTRACT_ADDRESS
         );
@@ -446,7 +446,7 @@ contract ProtocolTest is Test, IDiamondCut {
 
         protocolFacet.depositCollateral(LINK_CONTRACT_ADDRESS, 1 ether);
         uint256 _amountQualaterized = protocolFacet
-            .gets_addressToCollateralDeposited(owner, LINK_CONTRACT_ADDRESS);
+            .getAddressToCollateralDeposited(owner, LINK_CONTRACT_ADDRESS);
 
         uint128 requestAmount = 0.5 ether;
         uint16 interestRate = 500;
@@ -459,7 +459,7 @@ contract ProtocolTest is Test, IDiamondCut {
             LINK_CONTRACT_ADDRESS
         );
 
-        uint256 tokenBal = protocolFacet.getRequestToColateral(
+        uint256 tokenBal = protocolFacet.getRequestToCollateral(
             1,
             LINK_CONTRACT_ADDRESS
         );
@@ -470,7 +470,7 @@ contract ProtocolTest is Test, IDiamondCut {
             requestAmount
         );
         protocolFacet.serviceRequest(1, LINK_CONTRACT_ADDRESS);
-        uint256 bal = protocolFacet.gets_addressToAvailableBalance(
+        uint256 bal = protocolFacet.getAddressToAvailableBalance(
             owner,
             LINK_CONTRACT_ADDRESS
         );
@@ -654,11 +654,11 @@ contract ProtocolTest is Test, IDiamondCut {
         Request[] memory _requestAfterRepay = protocolFacet
             .getUserActiveRequests(owner);
 
-        uint256 loanerCA = protocolFacet.gets_addressToCollateralDeposited(
+        uint256 loanerCA = protocolFacet.getAddressToCollateralDeposited(
             _request.lender,
             _request.loanRequestAddr
         );
-        uint256 loanerAB = protocolFacet.gets_addressToAvailableBalance(
+        uint256 loanerAB = protocolFacet.getAddressToAvailableBalance(
             _request.lender,
             _request.loanRequestAddr
         );
