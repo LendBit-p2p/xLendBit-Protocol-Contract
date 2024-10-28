@@ -439,4 +439,25 @@ contract Operations {
             uint8(_appStorage.s_collateralToken.length)
         );
     }
+
+    function removeCollateralTokens(address[] memory _tokens) external {
+        LibDiamond.enforceIsContractOwner();
+
+        for (uint8 i = 0; i < _tokens.length; i++) {
+            _appStorage.s_priceFeeds[_tokens[i]] = address(0);
+            for (uint8 j = 0; j < _appStorage.s_collateralToken.length; j++) {
+                if (_appStorage.s_collateralToken[j] == _tokens[i]) {
+                    _appStorage.s_collateralToken[j] = _appStorage
+                        .s_collateralToken[
+                            _appStorage.s_collateralToken.length - 1
+                        ];
+                    _appStorage.s_collateralToken.pop();
+                }
+            }
+        }
+        emit UpdatedCollateralTokens(
+            msg.sender,
+            uint8(_appStorage.s_collateralToken.length)
+        );
+    }
 }
