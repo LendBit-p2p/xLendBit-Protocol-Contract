@@ -556,4 +556,14 @@ contract Operations {
             _amount
         );
     }
+
+    function closeRequest(uint96 _requestId) external {
+        Request storage _foundRequest = _appStorage.request[_requestId];
+
+        if (_foundRequest.status != Status.OPEN)
+            revert Protocol__RequestNotOpen();
+        if (_foundRequest.author != msg.sender) revert Protocol__NotOwner();
+
+        _foundRequest.status = Status.CLOSED;
+    }
 }
