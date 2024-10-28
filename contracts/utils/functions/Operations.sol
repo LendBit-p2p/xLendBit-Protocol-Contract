@@ -506,4 +506,31 @@ contract Operations {
         // Emit an event to notify that a loanable token has been added
         emit UpdateLoanableToken(_token, _priceFeed, msg.sender);
     }
+
+    function closeListingAd(uint96 _listingId) external {
+        LoanListing storage _newListing = _appStorage.loanListings[_listingId];
+        if (_newListing.listingStatus != ListingStatus.OPEN)
+            revert Protocol__OrderNotOpen();
+        if (_newListing.author != msg.sender)
+            revert Protocol__OwnerCreatedOrder();
+        if (_newListing.amount == 0) revert Protocol__MustBeMoreThanZero();
+
+        uint256 _amount = _newListing.amount;
+        _newListing.amount = 0;
+        _newListing.listingStatus = ListingStatus.CLOSED;
+
+        if (_newListing.tokenAddress == Constants.NATIVE_TOKEN) {
+            (bool sent, ) = payable(msg.sender).call{value: _amount}("");
+            if (!sent) revert Protocol__TransferFailed();
+        } else {
+            IERC20(_newListing.tokenAddress).safeTransfer(msg.sender, _amount);
+        }
+
+        emit withdrawnAdsToken(
+            msg.sender,
+            _listingId,
+            uint8(_newListing.listingStatus),
+            _amount
+        );
+    }
 }
