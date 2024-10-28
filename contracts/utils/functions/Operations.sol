@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import {LibAppStorage} from "../../libraries/LibAppStorage.sol";
 import {LibGettersImpl} from "../../libraries/LibGetters.sol";
+import {LibDiamond} from "../../libraries/LibDiamond.sol";
 import {Validator} from "../validators/Validator.sol";
 import {Constants} from "../constants/Constant.sol";
 import {Utils} from "./Utils.sol";
@@ -401,5 +402,24 @@ contract Operations {
 
         // Emit an event indicating successful collateral withdrawal
         emit CollateralWithdrawn(msg.sender, _tokenCollateralAddress, _amount);
+    }
+
+    function addCollateralTokens(
+        address[] memory _tokens,
+        address[] memory _priceFeeds
+    ) external {
+        LibDiamond.enforceIsContractOwner();
+
+        if (_tokens.length != _priceFeeds.length) {
+            revert Protocol__tokensAndPriceFeedsArrayMustBeSameLength();
+        }
+        for (uint8 i = 0; i < _tokens.length; i++) {
+            _appStorage.s_priceFeeds[_tokens[i]] = _priceFeeds[i];
+            _appStorage.s_collateralToken.push(_tokens[i]);
+        }
+        emit UpdatedCollateralTokens(
+            msg.sender,
+            uint8(_appStorage.s_collateralToken.length)
+        );
     }
 }
