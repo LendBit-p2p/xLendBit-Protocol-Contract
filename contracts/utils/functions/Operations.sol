@@ -557,13 +557,31 @@ contract Operations {
         );
     }
 
+    /**
+     * @dev Closes a lending request, updating its status to CLOSED.
+     * @param _requestId The ID of the request to be closed.
+     *
+     * Requirements:
+     * - The request must be in an OPEN status.
+     * - Only the author of the request can close it.
+     *
+     * Emits a `RequestClosed` event indicating the request ID and the author of the request.
+     */
     function closeRequest(uint96 _requestId) external {
+        // Retrieve the lending request associated with the given request ID
         Request storage _foundRequest = _appStorage.request[_requestId];
 
+        // Check if the request is OPEN; revert if it's not
         if (_foundRequest.status != Status.OPEN)
             revert Protocol__RequestNotOpen();
+
+        // Ensure that the caller is the author of the request; revert if not
         if (_foundRequest.author != msg.sender) revert Protocol__NotOwner();
 
+        // Update the request status to CLOSED
         _foundRequest.status = Status.CLOSED;
+
+        // Emit an event to notify that the request has been closed
+        emit RequestClosed(_requestId, msg.sender);
     }
 }
