@@ -223,14 +223,30 @@ contract Operations {
         );
     }
 
+    /**
+     * @dev Services a lending request by transferring funds from the lender to the borrower and updating request status.
+     * @param _requestId The ID of the lending request to service.
+     * @param _tokenAddress The address of the token to be used for funding.
+     *
+     * Requirements:
+     * - `_tokenAddress` must be the native token or the lender must have approved sufficient balance of the specified token.
+     * - Request must be open, not expired, and authored by someone other than the lender.
+     * - Lender must have sufficient balance and allowance for ERC20 tokens, or sufficient msg.value for native tokens.
+     * - The borrower's collateral must have a healthy factor after the loan is funded.
+     *
+     * Emits a `RequestServiced` event upon successful funding.
+     */
     function serviceRequest(
         uint96 _requestId,
         address _tokenAddress
     ) external payable {
+        // Validate if native token is being used and msg.value is non-zero
         Validator._nativeMoreThanZero(_tokenAddress, msg.value);
 
+        // Load the request from storage
         Request storage _foundRequest = _appStorage.request[_requestId];
 
+        // Ensure the request status is open and has not expired
         if (_foundRequest.status != Status.OPEN)
             revert Protocol__RequestNotOpen();
         if (_foundRequest.loanRequestAddr != _tokenAddress)
@@ -242,10 +258,12 @@ contract Operations {
             revert Protocol__RequestExpired();
         }
 
+        // Update lender and request status to indicate servicing
         _foundRequest.lender = msg.sender;
         _foundRequest.status = Status.SERVICED;
         uint256 amountToLend = _foundRequest.amount;
 
+        // Validate lender's balance and allowance if using ERC20 token, or msg.value if using native token
         if (_tokenAddress == Constants.NATIVE_TOKEN) {
             if (msg.value < amountToLend) {
                 revert Protocol__InsufficientAmount();
@@ -259,8 +277,8 @@ contract Operations {
             ) revert Protocol__InsufficientAllowance();
         }
 
+        // Get token's decimal value and calculate the loan's USD equivalent
         uint8 _decimalToken = LibGettersImpl._getTokenDecimal(_tokenAddress);
-
         uint256 _loanUsdValue = LibGettersImpl._getUsdValue(
             _appStorage,
             _tokenAddress,
@@ -268,6 +286,7 @@ contract Operations {
             _decimalToken
         );
 
+        // Calculate the total repayment amount including interest
         uint256 _totalRepayment = amountToLend +
             Utils.calculateLoanInterest(
                 _foundRequest.returnDate,
@@ -276,6 +295,7 @@ contract Operations {
             );
         _foundRequest.totalRepayment = _totalRepayment;
 
+        // Update total loan collected in USD for the borrower
         _appStorage
             .addressToUser[_foundRequest.author]
             .totalLoanCollected += LibGettersImpl._getUsdValue(
@@ -285,6 +305,7 @@ contract Operations {
             _decimalToken
         );
 
+        // Validate borrower's collateral health factor after loan
         if (
             LibGettersImpl._healthFactor(
                 _appStorage,
@@ -295,18 +316,16 @@ contract Operations {
             revert Protocol__InsufficientCollateral();
         }
 
+        // Lock collateral amounts in the specified tokens for the request
         for (uint i = 0; i < _foundRequest.collateralTokens.length; i++) {
             _appStorage.s_addressToAvailableBalance[_foundRequest.author][
                 _foundRequest.collateralTokens[i]
-            ] =
-                _appStorage.s_addressToAvailableBalance[_foundRequest.author][
-                    _foundRequest.collateralTokens[i]
-                ] -
-                _appStorage.s_idToCollateralTokenAmount[_requestId][
-                    _foundRequest.collateralTokens[i]
-                ];
+            ] -= _appStorage.s_idToCollateralTokenAmount[_requestId][
+                _foundRequest.collateralTokens[i]
+            ];
         }
 
+        // Transfer loan amount to borrower based on token type
         if (_tokenAddress != Constants.NATIVE_TOKEN) {
             IERC20(_tokenAddress).safeTransferFrom(
                 msg.sender,
@@ -321,6 +340,7 @@ contract Operations {
             if (!sent) revert Protocol__TransferFailed();
         }
 
+        // Emit an event indicating successful servicing of the request
         emit RequestServiced(
             _requestId,
             msg.sender,
