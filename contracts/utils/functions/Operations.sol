@@ -7,6 +7,7 @@ import {LibDiamond} from "../../libraries/LibDiamond.sol";
 import {Validator} from "../validators/Validator.sol";
 import {Constants} from "../constants/Constant.sol";
 import {Utils} from "./Utils.sol";
+import "../../interfaces/IUniswapV2Router02.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../../model/Protocol.sol";
@@ -914,5 +915,163 @@ contract Operations {
 
         // Emit event to notify of loan repayment
         emit LoanRepayment(msg.sender, _requestId, _amount);
+    }
+
+    /**
+     * @dev Liquidates the collateral associated with a loan request and compensates the lender.
+     * @param requestId The unique identifier of the loan request to be liquidated.
+     *
+     * Requirements:
+     * - Only a designated bot can execute this function.
+     * - The loan must be in a state eligible for liquidation.
+     *
+     * Emits:
+     * - `RequestLiquidated` after successfully liquidating the collateral and transferring the repayment.
+     */
+    function liquidateUserRequest(uint96 requestId) external {
+        Validator._onlyBot(_appStorage.botAddress, msg.sender);
+
+        Request memory _activeRequest = _appStorage.request[requestId];
+        address loanCurrency = _activeRequest.loanRequestAddr;
+        address lenderAddress = _activeRequest.lender;
+        uint256 swappedAmount = 0;
+
+        // Loop through each collateral token and swap to loan currency if applicable
+        for (
+            uint96 index = 0;
+            index < _activeRequest.collateralTokens.length;
+            index++
+        ) {
+            address collateralToken = _activeRequest.collateralTokens[index];
+            uint256 amountOfCollateralToken = _appStorage
+                .s_idToCollateralTokenAmount[requestId][collateralToken];
+
+            if (amountOfCollateralToken > 0) {
+                // Attempt to swap collateral token to loan currency
+                uint256[] memory loanCurrencyAmount = swapToLoanCurrency(
+                    collateralToken,
+                    amountOfCollateralToken,
+                    loanCurrency
+                );
+
+                // Update the collateral deposited for the user
+                _appStorage.s_addressToCollateralDeposited[
+                    _activeRequest.author
+                ][collateralToken] -= amountOfCollateralToken;
+
+                // Add swapped amount to the total; if swap failed, fallback to using collateral amount
+                if (loanCurrencyAmount.length > 0) {
+                    swappedAmount += loanCurrencyAmount[1];
+                } else {
+                    swappedAmount += amountOfCollateralToken;
+                }
+
+                // Mark collateral as fully used
+                _appStorage.s_idToCollateralTokenAmount[requestId][
+                    collateralToken
+                ] = 0;
+            }
+        }
+
+        // Transfer loan currency to the lender, ensuring not to exceed total repayment
+        if (swappedAmount >= _activeRequest.totalRepayment) {
+            IERC20(loanCurrency).safeTransfer(
+                lenderAddress,
+                _activeRequest.totalRepayment
+            );
+        } else {
+            IERC20(loanCurrency).safeTransfer(lenderAddress, swappedAmount);
+        }
+
+        // Mark request as closed post liquidation
+        _activeRequest.status = Status.CLOSED;
+
+        emit RequestLiquidated(
+            requestId,
+            lenderAddress,
+            _activeRequest.totalRepayment
+        );
+    }
+
+    /**
+     * @dev Swaps a specified collateral token into the loan currency using Uniswap.
+     * @param collateralToken The token used as collateral.
+     * @param collateralAmount The amount of collateral to swap.
+     * @param loanCurrency The target currency for the loan.
+     * @return loanCurrencyAmount Array containing amounts received for each token in the path.
+     */
+    function swapToLoanCurrency(
+        address collateralToken,
+        uint256 collateralAmount,
+        address loanCurrency
+    ) public returns (uint256[] memory loanCurrencyAmount) {
+        uint256 amountOfTokenOut_ = 0;
+        uint[] memory amountsOut;
+
+        // Early exit if collateral and loan currencies are the same
+        if (loanCurrency == collateralToken) {
+            return amountsOut;
+        }
+
+        // Ensure ETH tokens are wrapped as WETH for compatibility with Uniswap
+        if (collateralToken == Constants.NATIVE_TOKEN) {
+            collateralToken = Constants.WETH;
+        }
+        if (loanCurrency == Constants.NATIVE_TOKEN) {
+            loanCurrency = Constants.WETH;
+        }
+
+        // Define the swap path from collateral to loan currency
+        address;
+        path[0] = collateralToken;
+        path[1] = loanCurrency;
+
+        // Handle ETH to ERC20 swap
+        if (collateralToken == Constants.WETH) {
+            amountsOut = IUniswapV2Router02(_appStorage.swapRouter)
+                .swapExactETHForTokens{value: collateralAmount}(
+                amountOfTokenOut_,
+                path,
+                address(this),
+                block.timestamp + 300
+            );
+
+            // Handle ERC20 to ETH swap
+        } else if (loanCurrency == Constants.WETH) {
+            // Approve Uniswap router to transfer collateral tokens
+            IERC20(collateralToken).approve(
+                _appStorage.swapRouter,
+                collateralAmount
+            );
+
+            amountsOut = IUniswapV2Router02(_appStorage.swapRouter)
+                .swapExactTokensForETH(
+                    collateralAmount,
+                    amountOfTokenOut_,
+                    path,
+                    address(this),
+                    block.timestamp + 300
+                );
+
+            // Handle ERC20 to ERC20 swap
+        } else {
+            // Approve Uniswap router to transfer collateral tokens
+            IERC20(collateralToken).approve(
+                _appStorage.swapRouter,
+                collateralAmount
+            );
+
+            amountsOut = IUniswapV2Router02(_appStorage.swapRouter)
+                .swapExactTokensForTokens(
+                    collateralAmount,
+                    amountOfTokenOut_,
+                    path,
+                    address(this),
+                    block.timestamp + 300
+                );
+        }
+
+        // Return the output amount in the target loan currency
+        return amountsOut;
     }
 }
