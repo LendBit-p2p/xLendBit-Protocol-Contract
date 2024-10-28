@@ -670,20 +670,37 @@ contract Operations {
         );
     }
 
+    /**
+     * @dev Allows a borrower to request a loan from an open listing.
+     * @param _listingId The unique identifier of the loan listing.
+     * @param _amount The requested loan amount.
+     *
+     * Requirements:
+     * - `_amount` must be greater than zero.
+     * - The listing must be open, not created by the borrower, and within min/max constraints.
+     * - The borrower must have sufficient collateral to meet the health factor.
+     *
+     * Emits:
+     * - `RequestCreated` when a loan request is successfully created.
+     * - `RequestServiced` when the loan request is successfully serviced.
+     */
     function requestLoanFromListing(uint96 _listingId, uint256 _amount) public {
         Validator._moreThanZero(_amount);
 
         LoanListing storage _listing = _appStorage.loanListings[_listingId];
+
+        // Check if the listing is open and the borrower is not the listing creator
         if (_listing.listingStatus != ListingStatus.OPEN)
             revert Protocol__ListingNotOpen();
-
         if (_listing.author == msg.sender)
             revert Protocol__OwnerCreatedListing();
 
+        // Validate that the requested amount is within the listing's constraints
         if ((_amount < _listing.min_amount) || (_amount > _listing.max_amount))
             revert Protocol__InvalidAmount();
         if (_amount > _listing.amount) revert Protocol__InvalidAmount();
 
+        // Fetch token decimal and calculate USD value of the loan amount
         uint8 _decimalToken = LibGettersImpl._getTokenDecimal(
             _listing.tokenAddress
         );
@@ -694,6 +711,7 @@ contract Operations {
             _decimalToken
         );
 
+        // Ensure borrower meets the health factor threshold for collateralization
         if (
             LibGettersImpl._healthFactor(
                 _appStorage,
@@ -704,30 +722,25 @@ contract Operations {
             revert Protocol__InsufficientCollateral();
         }
 
+        // Calculate max loanable amount based on collateral value
         uint256 collateralValueInLoanCurrency = LibGettersImpl
             ._getAccountCollateralValue(_appStorage, msg.sender);
-
         uint256 maxLoanableAmount = Utils.maxLoanableAmount(
             collateralValueInLoanCurrency
         );
 
+        // Update the listing's available amount, adjusting min/max amounts as necessary
         _listing.amount = _listing.amount - _amount;
-
-        if (_listing.amount <= _listing.max_amount) {
+        if (_listing.amount <= _listing.max_amount)
             _listing.max_amount = _listing.amount;
-        }
+        if (_listing.amount <= _listing.min_amount) _listing.min_amount = 0;
+        if (_listing.amount == 0) _listing.listingStatus = ListingStatus.CLOSED;
 
-        if (_listing.amount <= _listing.min_amount) {
-            _listing.min_amount = 0;
-        }
-
-        if (_listing.amount == 0) {
-            _listing.listingStatus = ListingStatus.CLOSED;
-        }
-
+        // Retrieve the borrower's collateral tokens for collateralization
         address[] memory _collateralTokens = LibGettersImpl
             ._getUserCollateralTokens(_appStorage, msg.sender);
 
+        // Create a new loan request with a unique ID
         _appStorage.requestId = _appStorage.requestId + 1;
         Request storage _newRequest = _appStorage.request[
             _appStorage.requestId
@@ -747,11 +760,11 @@ contract Operations {
         _newRequest.collateralTokens = _collateralTokens;
         _newRequest.status = Status.SERVICED;
 
+        // Calculate collateral to lock for each token, proportional to its USD value
         uint256 collateralToLock = Utils.calculateColateralToLock(
             _loanUsdValue,
             maxLoanableAmount
         );
-
         for (uint256 i = 0; i < _collateralTokens.length; i++) {
             address token = _collateralTokens[i];
             uint8 decimal = LibGettersImpl._getTokenDecimal(token);
@@ -759,13 +772,13 @@ contract Operations {
                 msg.sender
             ][token];
 
-            // Calculate the amount to lock for each token based on its proportion of the total collateral
             uint256 amountToLockUSD = (LibGettersImpl._getUsdValue(
                 _appStorage,
                 token,
                 userBalance,
                 decimal
             ) * collateralToLock) / 100;
+
             uint256 amountToLock = ((((amountToLockUSD) * 10) /
                 LibGettersImpl._getUsdValue(_appStorage, token, 10, 0)) *
                 (10 ** _decimalToken)) / (Constants.PRECISION);
@@ -778,6 +791,7 @@ contract Operations {
             ] -= amountToLock;
         }
 
+        // Update borrower's total loan collected in USD
         _appStorage
             .addressToUser[msg.sender]
             .totalLoanCollected += LibGettersImpl._getUsdValue(
@@ -787,6 +801,7 @@ contract Operations {
             _decimalToken
         );
 
+        // Transfer the loan amount to the borrower
         if (_listing.tokenAddress == Constants.NATIVE_TOKEN) {
             (bool sent, ) = payable(msg.sender).call{value: _amount}("");
             if (!sent) revert Protocol__TransferFailed();
@@ -794,13 +809,13 @@ contract Operations {
             IERC20(_listing.tokenAddress).safeTransfer(msg.sender, _amount);
         }
 
+        // Emit events to notify the loan request creation and servicing
         emit RequestCreated(
             msg.sender,
             _appStorage.requestId,
             _amount,
             _listing.interest
         );
-
         emit RequestServiced(
             _newRequest.requestId,
             _newRequest.lender,
