@@ -28,7 +28,7 @@ contract Message {
      * - `payload.assetAddress` as the address of the asset involved.
      * - `payload.assetAmount` as the amount of the asset involved in the action.
      */
-    function encodeActionPayload(
+    function _encodeActionPayload(
         ActionPayload memory payload
     ) internal pure returns (bytes memory) {
         return
@@ -53,7 +53,7 @@ contract Message {
      * - `assetAddress` as the address of the asset.
      * - `assetAmount` as the amount of the asset.
      */
-    function decodeActionPayload(
+    function _decodeActionPayload(
         bytes memory serialized
     ) internal pure returns (ActionPayload memory params) {
         uint256 index = 0;
