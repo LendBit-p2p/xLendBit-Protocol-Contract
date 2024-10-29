@@ -77,6 +77,25 @@ struct Provider {
     address tokenBridge;
 }
 
+enum Action {
+    Deposit,
+    CreateRequest,
+    Withdraw,
+    ServiceRequest,
+    CreateListing,
+    RequestFromLoan,
+    Repay,
+    DepositNative,
+    RepayNative
+}
+
+struct ActionPayload {
+    Action action;
+    address sender;
+    address assetAddress;
+    uint256 assetAmount;
+}
+
 /**
  * @dev Enum representing the status of a loan request.
  * OPEN - The loan request is open and waiting for a lender.
