@@ -91,52 +91,51 @@ contract XOperations is WormholeUtilities, Message, Operations {
         );
         Action action = Action(params.action);
 
-        //     checkValidAddress(params.assetAddress);
-        //     completed = true;
-        //     bool transferTokensToSender = false;
+        checkValidAddress(params.assetAddress);
+        completed = true;
+        bool transferTokensToSender = false;
 
-        //     if (action == Action.Withdraw) {
-        //         transferTokensToSender = true;
-        //     } else if (action == Action.CreateRequest) {
-        //         checkAllowedToBorrow(
-        //             params.sender,
-        //             params.assetAddress,
-        //             params.assetAmount
-        //         );
-        //         transferTokensToSender = true;
-        //     } else if (action == Action.ServiceRequest) {} else if (
-        //         action == Action.CreateListing
-        //     ) {} else if (action == Action.RequestFromLoan) {} else if (
-        //         action == Action.Repay
-        //     ) {
-        //         completed = allowedToRepay(
-        //             params.sender,
-        //             params.assetAddress,
-        //             params.assetAmount
-        //         );
-        //         if (!completed) {
-        //             transferTokensToSender = true;
-        //         }
-        //     }
+        if (action == Action.Withdraw) {
+            transferTokensToSender = true;
+        } else if (action == Action.CreateRequest) {
+            checkAllowedToBorrow(
+                params.sender,
+                params.assetAddress,
+                params.assetAmount
+            );
+            transferTokensToSender = true;
+        } else if (action == Action.ServiceRequest) {} else if (
+            action == Action.CreateListing
+        ) {} else if (action == Action.RequestFromLoan) {} else if (
+            action == Action.Repay
+        ) {
+            completed = allowedToRepay(
+                params.sender,
+                params.assetAddress,
+                params.assetAmount
+            );
+            if (!completed) {
+                transferTokensToSender = true;
+            }
+        }
 
-        //     if (completed) {
-        //         logActionOnHub(
-        //             action,
-        //             params.sender,
-        //             params.assetAddress,
-        //             params.assetAmount
-        //         );
-        //     }
+        if (completed) {
+            logActionOnHub(
+                action,
+                params.sender,
+                params.assetAddress,
+                params.assetAmount
+            );
+        }
 
-        //     if (transferTokensToSender) {
-        //         sequence = transferTokens(
-        //             params.sender,
-        //             params.assetAddress,
-        //             params.assetAmount,
-        //             parsed.emitterChainId
-        //         );
-        //     }
-        // }
+        if (transferTokensToSender) {
+            sequence = transferTokens(
+                params.sender,
+                params.assetAddress,
+                params.assetAmount,
+                parsed.emitterChainId
+            );
+        }
     }
 
     // /**

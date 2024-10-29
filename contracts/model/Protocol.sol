@@ -37,6 +37,7 @@ struct Request {
     address loanRequestAddr;
     address[] collateralTokens;
     Status status;
+    uint16 chainId;
 }
 
 /**
@@ -84,9 +85,7 @@ enum Action {
     ServiceRequest,
     CreateListing,
     RequestFromLoan,
-    Repay,
-    DepositNative,
-    RepayNative
+    Repay
 }
 
 enum Round {
