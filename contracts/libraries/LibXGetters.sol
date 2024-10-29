@@ -2,6 +2,8 @@
 pragma solidity ^0.8.9;
 
 import {LibAppStorage} from "./LibAppStorage.sol";
+import "../interfaces/IWormhole.sol";
+import "../interfaces/ITokenBridge.sol";
 
 library LibXGetters {
     function _chainId(
@@ -32,5 +34,19 @@ library LibXGetters {
         LibAppStorage.Layout storage _appStorage
     ) internal view returns (uint8) {
         return _appStorage.consistencyLevel;
+    }
+
+    function _getSpokeContract(
+        LibAppStorage.Layout storage _appStorage,
+        uint16 chainId
+    ) internal view returns (address) {
+        return _appStorage.s_spokeProtocols[chainId];
+    }
+
+    function _messageHashConsumed(
+        LibAppStorage.Layout storage _appStorage,
+        bytes32 vmHash
+    ) internal view returns (bool) {
+        return _appStorage.s_consumedMessages[vmHash];
     }
 }
