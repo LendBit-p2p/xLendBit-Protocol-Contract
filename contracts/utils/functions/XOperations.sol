@@ -53,10 +53,6 @@ contract XOperations is WormholeUtilities, Message, Operations {
         completeAction(encodedMessage, false);
     }
 
-    function completeWithdraw(bytes memory encodedMessage) public {
-        completeAction(encodedMessage, false);
-    }
-
     function completeRequestFromLoan(bytes memory encodedMessage) public {
         completeAction(encodedMessage, false);
     }
