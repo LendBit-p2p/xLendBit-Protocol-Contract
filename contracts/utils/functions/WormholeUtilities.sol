@@ -1,25 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {LibBytes} from "../../libraries/LibBytes.sol";
 import {LibXGetters} from "../../libraries/LibXGetters.sol";
-import {AppStorage} from "./AppStorage.sol";
+import {XSetters} from "./XSetters.sol";
 import {IWormhole} from "../../interfaces/IWormhole.sol";
 import "../../model/Protocol.sol";
 
-contract WormholeUtilities is AppStorage {
+contract WormholeUtilities is XSetters {
     using LibBytes for bytes;
 
-    function transferTokens(
+    function _transferTokens(
         address receiver,
         address assetAddress,
         uint256 amount,
         uint16 recipientChain
     ) internal returns (uint64 sequence) {
-        SafeERC20.safeApprove(
-            IERC20(assetAddress),
+        IERC20(assetAddress).approve(
             LibXGetters._tokenBridgeAddress(_appStorage),
             amount
         );
@@ -33,7 +31,7 @@ contract WormholeUtilities is AppStorage {
         );
     }
 
-    function sendWormholeMessage(
+    function _sendWormholeMessage(
         bytes memory payload
     ) internal returns (uint64 sequence) {
         sequence = LibXGetters._wormhole(_appStorage).publishMessage(
@@ -43,14 +41,14 @@ contract WormholeUtilities is AppStorage {
         );
     }
 
-    function getTransferPayload(
+    function _getTransferPayload(
         bytes memory encodedMessage
     ) internal returns (bytes memory payload) {
         (IWormhole.VM memory parsed, , ) = LibXGetters
             ._wormhole(_appStorage)
             .parseAndVerifyVM(encodedMessage);
 
-        verifySenderIsSpoke(
+        _verifySenderIsSpoke(
             parsed.emitterChainId,
             address(
                 uint160(
@@ -64,7 +62,7 @@ contract WormholeUtilities is AppStorage {
             .completeTransferWithPayload(encodedMessage);
     }
 
-    function getWormholeParsed(
+    function _getWormholeParsed(
         bytes memory encodedMessage
     ) internal returns (IWormhole.VM memory) {
         (
@@ -78,12 +76,12 @@ contract WormholeUtilities is AppStorage {
             !LibXGetters._messageHashConsumed(_appStorage, parsed.hash),
             "message already consumed"
         );
-        consumeMessageHash(parsed.hash);
+        _consumeMessageHash(parsed.hash);
 
         return parsed;
     }
 
-    function extractPayloadFromTransferPayload(
+    function _extractPayloadFromTransferPayload(
         bytes memory encodedVM
     ) internal pure returns (bytes memory serialized) {
         uint256 index = 0;
@@ -95,7 +93,10 @@ contract WormholeUtilities is AppStorage {
         return encodedVM.slice(index, end - index);
     }
 
-    function verifySenderIsSpoke(uint16 chainId, address sender) internal view {
+    function _verifySenderIsSpoke(
+        uint16 chainId,
+        address sender
+    ) internal view {
         require(
             LibXGetters._getSpokeContract(_appStorage, chainId) == sender,
             "Invalid spoke"
@@ -110,7 +111,7 @@ contract WormholeUtilities is AppStorage {
      * @param round - Whether to round up or round down, in case the remainder is nonzero
      * @return {uint256} The normalized amount of the asset
      */
-    function normalizeAmountTokenBridge(
+    function _normalizeAmountTokenBridge(
         uint256 amount,
         uint8 decimals,
         Round round
@@ -132,7 +133,7 @@ contract WormholeUtilities is AppStorage {
      * @param decimals - The decimals of the asset
      * @return {uint256} The denormalized amount of the asset
      */
-    function denormalizeAmountTokenBridge(
+    function _denormalizeAmountTokenBridge(
         uint256 amount,
         uint8 decimals
     ) internal pure returns (uint256) {
