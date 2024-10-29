@@ -89,6 +89,11 @@ enum Action {
     RepayNative
 }
 
+enum Round {
+    UP,
+    DOWN
+}
+
 struct ActionPayload {
     Action action;
     address sender;
