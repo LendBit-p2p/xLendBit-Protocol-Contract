@@ -5,6 +5,7 @@ import {WormholeUtilities} from "./WormholeUtilities.sol";
 import {Message} from "./Message.sol";
 import {Operations} from "./Operations.sol";
 import {LibDiamond} from "../../libraries/LibDiamond.sol";
+import {IWormhole} from "../../interfaces/IWormhole.sol";
 import "../../model/Protocol.sol";
 
 contract XOperations is WormholeUtilities, Message, Operations {
