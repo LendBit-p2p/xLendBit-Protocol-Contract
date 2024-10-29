@@ -8,9 +8,27 @@ import {XSetters} from "./XSetters.sol";
 import {IWormhole} from "../../interfaces/IWormhole.sol";
 import "../../model/Protocol.sol";
 
+/**
+ * @title WormholeUtilities
+ * @author Lendbit Finance
+ *
+ * @dev Utility contract for facilitating interactions with the Wormhole protocol and Token Bridge.
+ * Contains internal functions for token transfers, message publishing, payload handling, and
+ * asset amount normalization for cross-chain token transfers.
+ */
 contract WormholeUtilities is XSetters {
     using LibBytes for bytes;
 
+    /**
+     * @dev Transfers tokens across chains using the Wormhole Token Bridge.
+     * Approves and initiates a token transfer to the specified receiver on a different chain.
+     *
+     * @param receiver The address on the recipient chain to receive the tokens.
+     * @param assetAddress The address of the token contract.
+     * @param amount The amount of tokens to be transferred.
+     * @param recipientChain The chain ID of the recipient chain.
+     * @return sequence The sequence number of the transfer transaction.
+     */
     function _transferTokens(
         address receiver,
         address assetAddress,
@@ -31,6 +49,13 @@ contract WormholeUtilities is XSetters {
         );
     }
 
+    /**
+     * @dev Publishes a message to the Wormhole network.
+     * This function allows sending arbitrary payloads across chains via Wormhole.
+     *
+     * @param payload The data payload to be sent in the message.
+     * @return sequence The sequence number of the message.
+     */
     function _sendWormholeMessage(
         bytes memory payload
     ) internal returns (uint64 sequence) {
@@ -41,6 +66,13 @@ contract WormholeUtilities is XSetters {
         );
     }
 
+    /**
+     * @dev Extracts the action payload from an encoded transfer message.
+     * Parses and verifies the Wormhole VM message and checks if the sender is the correct spoke contract.
+     *
+     * @param encodedMessage The encoded message to parse and verify.
+     * @return payload The extracted action payload.
+     */
     function _getTransferPayload(
         bytes memory encodedMessage
     ) internal returns (bytes memory payload) {
@@ -62,6 +94,13 @@ contract WormholeUtilities is XSetters {
             .completeTransferWithPayload(encodedMessage);
     }
 
+    /**
+     * @dev Parses and verifies an encoded message to retrieve the Wormhole VM data.
+     * Ensures the message is valid and has not been previously consumed.
+     *
+     * @param encodedMessage The encoded message to parse and verify.
+     * @return parsed The parsed and verified VM data.
+     */
     function _getWormholeParsed(
         bytes memory encodedMessage
     ) internal returns (IWormhole.VM memory) {
@@ -81,18 +120,31 @@ contract WormholeUtilities is XSetters {
         return parsed;
     }
 
+    /**
+     * @dev Extracts the payload from the TransferWithPayload message for further processing.
+     * Skips metadata and focuses on the serialized data in the message.
+     *
+     * @param encodedVM The encoded VM message containing the transfer payload.
+     * @return serialized The extracted serialized payload data.
+     */
     function _extractPayloadFromTransferPayload(
         bytes memory encodedVM
     ) internal pure returns (bytes memory serialized) {
         uint256 index = 0;
         uint256 end = encodedVM.length;
 
-        // pass through TransferWithPayload metadata to arbitrary serialized bytes
+        // Pass through TransferWithPayload metadata to arbitrary serialized bytes
         index += 1 + 32 + 32 + 2 + 32 + 2 + 32;
 
         return encodedVM.slice(index, end - index);
     }
 
+    /**
+     * @dev Verifies that the sender of the message is the authorized spoke contract on the given chain.
+     *
+     * @param chainId The chain ID of the sender's network.
+     * @param sender The address of the sender to verify.
+     */
     function _verifySenderIsSpoke(
         uint16 chainId,
         address sender
@@ -104,12 +156,13 @@ contract WormholeUtilities is XSetters {
     }
 
     /**
-     * @notice Normalize the amount passed into Token Bridge to get the mantissa outputted. Token Bridge filters all tokens to decimals no larger than 8.
+     * @dev Normalizes the token amount to meet the Wormhole Token Bridge standard of 8 decimals.
+     * Adjusts the asset's amount to 8 decimals for compatibility with Token Bridge.
      *
-     * @param amount - The amount of an asset intended to be transferred via the Token Bridge
-     * @param decimals - The decimals of the asset
-     * @param round - Whether to round up or round down, in case the remainder is nonzero
-     * @return {uint256} The normalized amount of the asset
+     * @param amount The amount of the asset.
+     * @param decimals The decimals of the asset.
+     * @param round Determines rounding direction in case of remainder.
+     * @return The normalized amount with up to 8 decimals.
      */
     function _normalizeAmountTokenBridge(
         uint256 amount,
@@ -127,11 +180,12 @@ contract WormholeUtilities is XSetters {
     }
 
     /**
-     * @notice Denormalize the amount passed into Token Bridge by converting from decimals=8 to true decimals of the asset.
+     * @dev Denormalizes a normalized token amount from 8 decimals to the asset's true decimals.
+     * Converts from Token Bridge’s standardized 8 decimals to the original decimals.
      *
-     * @param amount - The amount of an asset normalized by the Token Bridge
-     * @param decimals - The decimals of the asset
-     * @return {uint256} The denormalized amount of the asset
+     * @param amount The normalized amount.
+     * @param decimals The original decimals of the asset.
+     * @return The denormalized amount.
      */
     function _denormalizeAmountTokenBridge(
         uint256 amount,
