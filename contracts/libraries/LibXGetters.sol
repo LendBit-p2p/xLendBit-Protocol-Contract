@@ -5,6 +5,8 @@ import {LibAppStorage} from "./LibAppStorage.sol";
 import "../interfaces/IWormhole.sol";
 import "../interfaces/IWormholeRelayer.sol";
 import "../interfaces/ITokenBridge.sol";
+import "../interfaces/ITokenMessenger.sol";
+import "../interfaces/IMessageTransmitter.sol";
 
 library LibXGetters {
     function _chainId(
@@ -29,6 +31,19 @@ library LibXGetters {
         LibAppStorage.Layout storage _appStorage
     ) public view returns (IWormholeRelayer) {
         return IWormholeRelayer(_appStorage.provider.wormholeRelayer);
+    }
+
+    function _circleTokenMessenger(
+        LibAppStorage.Layout storage _appStorage
+    ) public view returns (ITokenMessenger) {
+        return ITokenMessenger(_appStorage.provider.circleTokenMessenger);
+    }
+
+    function _circleMessageTransmitter(
+        LibAppStorage.Layout storage _appStorage
+    ) public view returns (IMessageTransmitter) {
+        return
+            IMessageTransmitter(_appStorage.provider.circleMessageTransmitter);
     }
 
     function _tokenBridgeAddress(

@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import {AppStorage} from "../AppStorage.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {LibXGetters} from "../../../libraries/LibXGetters.sol";
+import {LibDiamond} from "../../../libraries/LibDiamond.sol";
 import {Constants} from "../../constants.sol";
 import "../../../interfaces/IWormholeReceiver.sol";
 import "../../../interfaces/IWormholeRelayer.sol";
@@ -33,27 +34,7 @@ library CCTPMessageLib {
     }
 }
 
-abstract contract CCTPBase is AppStorage {
-    ITokenMessenger immutable circleTokenMessenger;
-    IMessageTransmitter immutable circleMessageTransmitter;
-    address immutable USDC;
-    address cctpConfigurationOwner;
-
-    constructor(
-        address _wormholeRelayer,
-        address _wormhole,
-        address _circleMessageTransmitter,
-        address _circleTokenMessenger,
-        address _USDC
-    ) Base(_wormholeRelayer, _wormhole) {
-        circleTokenMessenger = ITokenMessenger(_circleTokenMessenger);
-        circleMessageTransmitter = IMessageTransmitter(
-            _circleMessageTransmitter
-        );
-        USDC = _USDC;
-        cctpConfigurationOwner = msg.sender;
-    }
-}
+abstract contract CCTPBase is AppStorage {}
 
 abstract contract CCTPSender is CCTPBase {
     using CCTPMessageLib for *;
@@ -79,10 +60,7 @@ abstract contract CCTPSender is CCTPBase {
      * setCCTPDomain(30, 6);
      */
     function setCCTPDomain(uint16 chain, uint32 cctpDomain) public {
-        require(
-            msg.sender == cctpConfigurationOwner,
-            "Not allowed to set CCTP Domain"
-        );
+        LibDiamond.enforceIsContractOwner();
         chainIdToCCTPDomain[chain] = cctpDomain;
     }
 
@@ -105,6 +83,10 @@ abstract contract CCTPSender is CCTPBase {
         uint16 targetChain,
         address targetAddress
     ) internal returns (MessageKey memory) {
+        ITokenMessenger circleTokenMessenger = LibXGetters
+            ._circleTokenMessenger(_appStorage);
+        address USDC = Constants.USDC;
+
         IERC20(USDC).approve(address(circleTokenMessenger), amount);
         bytes32 targetAddressBytes32 = addressToBytes32CCTP(targetAddress);
         uint64 nonce = circleTokenMessenger.depositForBurnWithCaller(
@@ -136,6 +118,10 @@ abstract contract CCTPSender is CCTPBase {
         uint256 gasLimit,
         uint256 amount
     ) internal returns (uint64 sequence) {
+        IWormholeRelayer wormholeRelayer = LibXGetters._wormholeRelayer(
+            _appStorage
+        );
+
         MessageKey[] memory messageKeys = new MessageKey[](1);
         messageKeys[0] = transferUSDC(amount, targetChain, targetAddress);
 
@@ -160,7 +146,7 @@ abstract contract CCTPSender is CCTPBase {
             address(0x0),
             defaultDeliveryProvider,
             messageKeys,
-            CONSISTENCY_LEVEL_FINALIZED
+            Constants.CONSISTENCY_LEVEL_FINALIZED
         );
     }
 
@@ -173,6 +159,10 @@ abstract contract CCTPReceiver is CCTPBase {
     function redeemUSDC(
         bytes memory cctpMessage
     ) internal returns (uint256 amount) {
+        IMessageTransmitter circleMessageTransmitter = LibXGetters
+            ._circleMessageTransmitter(_appStorage);
+        address USDC = Constants.USDC;
+
         (bytes memory message, bytes memory signature) = abi.decode(
             cctpMessage,
             (bytes, bytes)

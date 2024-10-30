@@ -77,6 +77,8 @@ struct Provider {
     address payable wormhole;
     address tokenBridge;
     address wormholeRelayer;
+    address circleTokenMessenger;
+    address circleMessageTransmitter;
 }
 
 enum Action {
