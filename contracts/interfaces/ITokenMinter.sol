@@ -5,8 +5,8 @@
 
 pragma solidity ^0.8.0;
 
-import {IOwnable2Step} from "./shared/IOwnable2Step.sol";
-import {IPausable} from "./shared/IPausable.sol";
+import {IOwnable2Step} from "./IOwnable2Step.sol";
+import {IPausable} from "./IPausable.sol";
 
 interface ITokenController {
     event TokenPairLinked(

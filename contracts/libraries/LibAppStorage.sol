@@ -23,7 +23,7 @@ library LibAppStorage {
         /// @dev wormhole message hashes
         mapping(bytes32 => bool) s_consumedMessages;
         /// @dev cctp domains
-        mapping(uint16 => uint32) public s_chainIdToCCTPDomain;
+        mapping(uint16 => uint32) s_chainIdToCCTPDomain;
         /// @dev mapping of id to loanListing
         mapping(uint96 listingId => LoanListing) loanListings;
         /// @dev Collection of all colleteral Adresses

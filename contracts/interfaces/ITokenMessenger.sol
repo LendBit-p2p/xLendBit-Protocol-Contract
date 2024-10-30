@@ -6,7 +6,7 @@
 
 pragma solidity ^0.8.0;
 
-import {IOwnable2Step} from "./shared/IOwnable2Step.sol";
+import {IOwnable2Step} from "./IOwnable2Step.sol";
 
 import {IMessageTransmitter} from "./IMessageTransmitter.sol";
 import {ITokenMinter} from "./ITokenMinter.sol";

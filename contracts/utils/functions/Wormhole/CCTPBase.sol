@@ -5,7 +5,6 @@ import {AppStorage} from "../AppStorage.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {LibXGetters} from "../../../libraries/LibXGetters.sol";
 import {LibDiamond} from "../../../libraries/LibDiamond.sol";
-import {Constants} from "../../constants.sol";
 import "../../../interfaces/IWormholeReceiver.sol";
 import "../../../interfaces/IWormholeRelayer.sol";
 import "../../../interfaces/IWormhole.sol";
@@ -61,11 +60,11 @@ abstract contract CCTPSender is CCTPBase {
      */
     function setCCTPDomain(uint16 chain, uint32 cctpDomain) public {
         LibDiamond.enforceIsContractOwner();
-        chainIdToCCTPDomain[chain] = cctpDomain;
+        _appStorage.s_chainIdToCCTPDomain[chain] = cctpDomain;
     }
 
     function getCCTPDomain(uint16 chain) internal view returns (uint32) {
-        return chainIdToCCTPDomain[chain];
+        return _appStorage.s_chainIdToCCTPDomain[chain];
     }
 
     /**
@@ -86,6 +85,7 @@ abstract contract CCTPSender is CCTPBase {
         ITokenMessenger circleTokenMessenger = LibXGetters
             ._circleTokenMessenger(_appStorage);
         address USDC = Constants.USDC;
+        IWormhole wormhole = LibXGetters._wormhole(_appStorage);
 
         IERC20(USDC).approve(address(circleTokenMessenger), amount);
         bytes32 targetAddressBytes32 = addressToBytes32CCTP(targetAddress);
