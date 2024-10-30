@@ -46,6 +46,8 @@ error Protocol__ListingNotOpen();
 error Protocol__OwnerCreatedListing();
 error Protocol__InsufficientAmount();
 error Protocol__OnlyBotCanAccess();
+error Protocol__InvalidCaller();
+error Protocol__InvalidAction();
 
 // Error From Wormhole
 error NotAnEvmAddress(bytes32);

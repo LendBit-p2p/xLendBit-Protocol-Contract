@@ -32,7 +32,7 @@ contract Message {
         ActionPayload memory payload
     ) internal pure returns (bytes memory) {
         return
-            abi.encodePacked(
+            abi.encode(
                 uint8(payload.action),
                 payload.sender,
                 payload.assetAddress,

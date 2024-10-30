@@ -11,6 +11,7 @@ import {Utils} from "./Utils.sol";
 import "../../interfaces/IUniswapV2Router02.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "./Wormhole/TokenBase.sol";
 import "../../model/Protocol.sol";
 import "../../model/Event.sol";
 import "../validators/Error.sol";
@@ -21,7 +22,7 @@ import "../validators/Error.sol";
  *
  * Internal write-only functions that allows writing into the state of LendBit
  */
-contract XOperationsImpl is AppStorage, WormholeUtilities {
+contract XOperationsImpl is TokenReceiver, WormholeUtilities {
     using SafeERC20 for IERC20;
 
     /**
@@ -210,19 +211,19 @@ contract XOperationsImpl is AppStorage, WormholeUtilities {
         );
     }
 
-    /**
-     * @dev Services a lending request by transferring funds from the lender to the borrower and updating request status.
-     * @param _requestId The ID of the lending request to service.
-     * @param _tokenAddress The address of the token to be used for funding.
-     *
-     * Requirements:
-     * - `_tokenAddress` must be the native token or the lender must have approved sufficient balance of the specified token.
-     * - Request must be open, not expired, and authored by someone other than the lender.
-     * - Lender must have sufficient balance and allowance for ERC20 tokens, or sufficient msg.value for native tokens.
-     * - The borrower's collateral must have a healthy factor after the loan is funded.
-     *
-     * Emits a `RequestServiced` event upon successful funding.
-     */
+    // /**
+    //  * @dev Services a lending request by transferring funds from the lender to the borrower and updating request status.
+    //  * @param _requestId The ID of the lending request to service.
+    //  * @param _tokenAddress The address of the token to be used for funding.
+    //  *
+    //  * Requirements:
+    //  * - `_tokenAddress` must be the native token or the lender must have approved sufficient balance of the specified token.
+    //  * - Request must be open, not expired, and authored by someone other than the lender.
+    //  * - Lender must have sufficient balance and allowance for ERC20 tokens, or sufficient msg.value for native tokens.
+    //  * - The borrower's collateral must have a healthy factor after the loan is funded.
+    //  *
+    //  * Emits a `RequestServiced` event upon successful funding.
+    //  */
     // function _serviceRequest(
     //     uint96 _requestId,
     //     address _tokenAddress,
@@ -1064,20 +1065,17 @@ contract XOperationsImpl is AppStorage, WormholeUtilities {
     //     _appStorage.botAddress = _botAddress;
     // }
 
-    // /**
-    //  * @notice Sets the swap router address for handling token exchanges within the protocol.
-    //  * @dev This function allows the contract owner to set the router address used for token swaps
-    //  *      (e.g., using Uniswap or a compatible DEX) as part of the protocol's operations.
-    //  *      Only callable by the contract owner.
-    //  * @param _swapRouter The address of the swap router, typically a Uniswap or similar DEX router
-    //  *        that supports token exchange functionality required by the protocol.
-    //  * @custom:access Only callable by the contract owner.
-    //  */
-    // function setSwapRouter(address _swapRouter) external {
-    //     // Ensures only the contract owner can call this function
-    //     LibDiamond.enforceIsContractOwner();
+    function _vetTokenAndUnwrap(
+        TokenReceived[] memory _tokenReceived
+    ) internal returns (TokenReceived memory _token) {
+        if (_tokenReceived.length != 1) {
+            revert Protocol__InvalidAction();
+        }
+        _token = _tokenReceived[0];
 
-    //     // Sets the swap router address in storage, enabling token swaps within the protocol
-    //     _appStorage.swapRouter = _swapRouter;
-    // }
+        if (_token.tokenAddress == Constants.WETH) {
+            IWETH(Constants.WETH).withdraw(_token.amount);
+            _token.tokenAddress = Constants.NATIVE_TOKEN;
+        }
+    }
 }
