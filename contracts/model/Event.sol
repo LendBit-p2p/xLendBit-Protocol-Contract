@@ -24,7 +24,8 @@ event RequestServiced(
     uint96 indexed _requestId,
     address indexed _lender,
     address indexed _borrower,
-    uint256 _amount
+    uint256 _amount,
+    uint16 _chainId
 );
 event RequestClosed(uint96 indexed _requestId, address indexed _borrower);
 event CollateralWithdrawn(

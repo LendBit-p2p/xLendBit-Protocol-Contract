@@ -88,7 +88,8 @@ enum Action {
     ServiceRequest,
     CreateListing,
     RequestFromLoan,
-    Repay
+    Repay,
+    Credit
 }
 
 enum Round {

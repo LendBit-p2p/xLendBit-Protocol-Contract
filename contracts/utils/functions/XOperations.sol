@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-import {Message} from "./Message.sol";
 import {XOperationsImpl} from "./XOperationsImpl.sol";
 import {LibDiamond} from "../../libraries/LibDiamond.sol";
 import {IWormhole} from "../../interfaces/IWormhole.sol";
 import {Validator} from "../validators/Validator.sol";
 import "../../model/Protocol.sol";
 
-contract XOperations is Message, XOperationsImpl {
+contract XOperations is XOperationsImpl {
     /**
      * @notice Registers a spoke contract. Only wormhole messages from registered spoke contracts are allowed.
      *
@@ -48,6 +47,9 @@ contract XOperations is Message, XOperationsImpl {
             );
         } else if (action == Action.CreateRequest) {
             _createLendingRequest(payload, _sourceChain);
+        } esle if (action == Action.ServiceRequest) {
+            TokenReceived memory token = _vetTokenAndUnwrap(_receivedTokens);
+            _serviceRequest(payload.id, token.tokenAddress, payload.sender, _sourceChain, token.amount);
         }
     }
 }

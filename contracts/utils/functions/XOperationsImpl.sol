@@ -200,106 +200,131 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
     //  *
     //  * Emits a `RequestServiced` event upon successful funding.
     //  */
-    // function _serviceRequest(
-    //     uint96 _requestId,
-    //     address _tokenAddress,
-    //     address _msgSender,
-    //     uint16 _chainId,
-    //     uint256 _amount
-    // ) internal {
-    //     // Validate if native token is being used and msg.value is non-zero
-    //     Validator._nativeMoreThanZero(_tokenAddress, msg.value);
+    function _serviceRequest(
+        uint96 _requestId,
+        address _tokenAddress,
+        address _msgSender,
+        uint16 _chainId,
+        uint256 _amount
+    ) internal {
+        // Validate if native token is being used and msg.value is non-zero
+        Validator._nativeMoreThanZero(_tokenAddress, _amount);
 
-    //     // Load the request from storage
-    //     Request storage _foundRequest = _appStorage.request[_requestId];
+        // Load the request from storage
+        Request storage _foundRequest = _appStorage.request[_requestId];
 
-    //     // Ensure the request status is open and has not expired
-    //     if (_foundRequest.status != Status.OPEN)
-    //         revert Protocol__RequestNotOpen();
-    //     if (_foundRequest.loanRequestAddr != _tokenAddress)
-    //         revert Protocol__InvalidToken();
-    //     if (_foundRequest.author == msg.sender) {
-    //         revert Protocol__CantFundSelf();
-    //     }
-    //     if (_foundRequest.returnDate <= block.timestamp) {
-    //         revert Protocol__RequestExpired();
-    //     }
+        // Ensure the request status is open and has not expired
+        if (_foundRequest.status != Status.OPEN)
+            revert Protocol__RequestNotOpen();
+        if (_foundRequest.loanRequestAddr != _tokenAddress)
+            revert Protocol__InvalidToken();
+        if (_foundRequest.author == msg.sender) {
+            revert Protocol__CantFundSelf();
+        }
+        if (_foundRequest.returnDate <= block.timestamp) {
+            revert Protocol__RequestExpired();
+        }
 
-    //     // Update lender and request status to indicate servicing
-    //     _foundRequest.lender = msg.sender;
-    //     _foundRequest.status = Status.SERVICED;
-    //     uint256 amountToLend = _foundRequest.amount;
+        // Update lender and request status to indicate servicing
+        _foundRequest.lender = msg.sender;
+        _foundRequest.status = Status.SERVICED;
+        uint256 amountToLend = _foundRequest.amount;
 
-    //     // Validate lender's balance and allowance if using ERC20 token, or msg.value if using native token
-    //     if (_tokenAddress == Constants.NATIVE_TOKEN) {
-    //         if (msg.value < amountToLend) {
-    //             revert Protocol__InsufficientAmount();
-    //         }
-    //     } else {
-    //         if (IERC20(_tokenAddress).balanceOf(msg.sender) < amountToLend)
-    //             revert Protocol__InsufficientBalance();
-    //         if (
-    //             IERC20(_tokenAddress).allowance(msg.sender, address(this)) <
-    //             amountToLend
-    //         ) revert Protocol__InsufficientAllowance();
-    //     }
+        // Validate lender's balance and allowance if using ERC20 token, or msg.value if using native token
+        if (_amount < amountToLend) {
+            revert Protocol__InsufficientAmount();
+        }
 
-    //     // Get token's decimal value and calculate the loan's USD equivalent
-    //     uint8 _decimalToken = LibGettersImpl._getTokenDecimal(_tokenAddress);
-    //     uint256 _loanUsdValue = LibGettersImpl._getUsdValue(
-    //         _appStorage,
-    //         _tokenAddress,
-    //         amountToLend,
-    //         _decimalToken
-    //     );
+        // Get token's decimal value and calculate the loan's USD equivalent
+        uint8 _decimalToken = LibGettersImpl._getTokenDecimal(_tokenAddress);
+        uint256 _loanUsdValue = LibGettersImpl._getUsdValue(
+            _appStorage,
+            _tokenAddress,
+            amountToLend,
+            _decimalToken
+        );
 
-    //     // Calculate the total repayment amount including interest
-    //     uint256 _totalRepayment = amountToLend +
-    //         Utils.calculateLoanInterest(
-    //             _foundRequest.returnDate,
-    //             _foundRequest.amount,
-    //             _foundRequest.interest
-    //         );
-    //     _foundRequest.totalRepayment = _totalRepayment;
+        // Calculate the total repayment amount including interest
+        uint256 _totalRepayment = amountToLend +
+            Utils.calculateLoanInterest(
+                _foundRequest.returnDate,
+                _foundRequest.amount,
+                _foundRequest.interest
+            );
+        _foundRequest.totalRepayment = _totalRepayment;
 
-    //     // Update total loan collected in USD for the borrower
-    //     _appStorage
-    //         .addressToUser[_foundRequest.author]
-    //         .totalLoanCollected += LibGettersImpl._getUsdValue(
-    //         _appStorage,
-    //         _tokenAddress,
-    //         _totalRepayment,
-    //         _decimalToken
-    //     );
+        // Update total loan collected in USD for the borrower
+        _appStorage
+            .addressToUser[_foundRequest.author]
+            .totalLoanCollected += LibGettersImpl._getUsdValue(
+            _appStorage,
+            _tokenAddress,
+            _totalRepayment,
+            _decimalToken
+        );
 
-    //     // Validate borrower's collateral health factor after loan
-    //     if (
-    //         LibGettersImpl._healthFactor(
-    //             _appStorage,
-    //             _foundRequest.author,
-    //             _loanUsdValue
-    //         ) < 1
-    //     ) {
-    //         revert Protocol__InsufficientCollateral();
-    //     }
+        // Validate borrower's collateral health factor after loan
+        if (
+            LibGettersImpl._healthFactor(
+                _appStorage,
+                _foundRequest.author,
+                _loanUsdValue
+            ) < 1
+        ) {
+            revert Protocol__InsufficientCollateral();
+        }
 
-    //     // Lock collateral amounts in the specified tokens for the request
-    //     for (uint i = 0; i < _foundRequest.collateralTokens.length; i++) {
-    //         _appStorage.s_addressToAvailableBalance[_foundRequest.author][
-    //             _foundRequest.collateralTokens[i]
-    //         ] -= _appStorage.s_idToCollateralTokenAmount[_requestId][
-    //             _foundRequest.collateralTokens[i]
-    //         ];
-    //     }
+        // Lock collateral amounts in the specified tokens for the request
+        for (uint i = 0; i < _foundRequest.collateralTokens.length; i++) {
+            _appStorage.s_addressToAvailableBalance[_foundRequest.author][
+                _foundRequest.collateralTokens[i]
+            ] -= _appStorage.s_idToCollateralTokenAmount[_requestId][
+                _foundRequest.collateralTokens[i]
+            ];
+        }
 
-    //     // Emit an event indicating successful servicing of the request
-    //     emit RequestServiced(
-    //         _requestId,
-    //         msg.sender,
-    //         _foundRequest.author,
-    //         amountToLend
-    //     );
-    // }
+        // Emit an event indicating successful servicing of the request
+        emit RequestServiced(
+            _requestId,
+            msg.sender,
+            _foundRequest.author,
+            amountToLend,
+            _chainId
+        );
+
+        if (_foundRequest.chainId == _appStorage.provider.chainId) {
+            if (_tokenAddress != Constants.NATIVE_TOKEN) {
+                IERC20(_tokenAddress).safeTransfer(
+                    _foundRequest.author,
+                    amountToLend
+                );
+            } else {
+                (bool sent, ) = payable(_foundRequest.author).call{
+                    value: amountToLend
+                }("");
+
+                if (!sent) revert Protocol__TransferFailed();
+            }
+        } else {
+            ActionPayload memory payload = ActionPayload(
+                Action.Credit,
+                0,
+                _requestId,
+                _msgSender,
+                _tokenAddress,
+                _amount,
+                0
+            );
+            bytes memory _payload = _encodeActionPayload(payload);
+            _handleTokenTransfer(
+                _foundRequest.chainId,
+                _appStorage.s_spokeProtocols[_foundRequest.chainId],
+                _payload,
+                _tokenAddress,
+                _amount
+            );
+        }
+    }
 
     // /**
     //  * @dev Allows a user to withdraw a specified amount of collateral.
