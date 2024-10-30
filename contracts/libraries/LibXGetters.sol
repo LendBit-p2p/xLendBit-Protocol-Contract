@@ -3,6 +3,7 @@ pragma solidity ^0.8.9;
 
 import {LibAppStorage} from "./LibAppStorage.sol";
 import "../interfaces/IWormhole.sol";
+import "../interfaces/IWormholeRelayer.sol";
 import "../interfaces/ITokenBridge.sol";
 
 library LibXGetters {
@@ -22,6 +23,12 @@ library LibXGetters {
         LibAppStorage.Layout storage _appStorage
     ) public view returns (ITokenBridge) {
         return ITokenBridge(payable(_appStorage.provider.tokenBridge));
+    }
+
+    function _wormholeRelayer(
+        LibAppStorage.Layout storage _appStorage
+    ) public view returns (IWormholeRelayer) {
+        return IWormholeRelayer(_appStorage.provider.wormholeRelayer);
     }
 
     function _tokenBridgeAddress(

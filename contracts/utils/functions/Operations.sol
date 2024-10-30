@@ -815,7 +815,8 @@ contract Operations is AppStorage {
             msg.sender,
             _appStorage.requestId,
             _amount,
-            _listing.interest
+            _listing.interest,
+            _appStorage.provider.chainId
         );
         emit RequestServiced(
             _newRequest.requestId,

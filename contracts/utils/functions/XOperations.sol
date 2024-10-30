@@ -24,7 +24,7 @@ contract XOperations is Message, XOperationsImpl {
 
     /**
      * @notice Completes a deposit that was initiated on a spoke
-     * @param encodedMessage: encoded Wormhole message with a TokenBridge message as the payload
+     * @param _encodedMessage: encoded Wormhole message with a TokenBridge message as the payload
      * The TokenBridge message is used to complete a TokenBridge transfer of tokens to the Hub,
      * and contains a payload of the deposit information
      */
@@ -85,52 +85,50 @@ contract XOperations is Message, XOperationsImpl {
             encodedActionPayload = parsed.payload;
         }
 
-        ActionPayload memory params = _decodeActionPayload(
-            encodedActionPayload
-        );
-        Action action = Action(params.action);
+        // ActionPayload memory params = _decodeActionPayload(
+        //     encodedActionPayload
+        // );
+        // Action action = Action(params.action);
 
-        checkValidAddress(params.assetAddress);
-        completed = true;
-        bool transferTokensToSender = false;
+        // checkValidAddress(params.assetAddress);
+        // completed = true;
+        // bool transferTokensToSender = false;
 
-        if (action == Action.Withdraw) {
-            transferTokensToSender = true;
-        } else if (action == Action.ServiceRequest) {
-            _serviceRequest();
-        } else if (
-            action == Action.CreateListing
-        ) {} else if (action == Action.RequestFromLoan) {} else if (
-            action == Action.Repay
-        ) {
-            completed = allowedToRepay(
-                params.sender,
-                params.assetAddress,
-                params.assetAmount
-            );
-            if (!completed) {
-                transferTokensToSender = true;
-            }
-        }
+        // if (action == Action.Withdraw) {
+        //     transferTokensToSender = true;
+        // } else if (action == Action.ServiceRequest) {
+        //     _serviceRequest();
+        // } else if (action == Action.CreateListing) {} else if (
+        //     action == Action.RequestFromLoan
+        // ) {} else if (action == Action.Repay) {
+        //     completed = allowedToRepay(
+        //         params.sender,
+        //         params.assetAddress,
+        //         params.assetAmount
+        //     );
+        //     if (!completed) {
+        //         transferTokensToSender = true;
+        //     }
+        // }
 
-        if (completed) {
-            logActionOnHub(
-                action,
-                params.sender,
-                params.assetAddress,
-                params.assetAmount,
-                parsed.emitterChainId
-            );
-        }
+        // if (completed) {
+        //     logActionOnHub(
+        //         action,
+        //         params.sender,
+        //         params.assetAddress,
+        //         params.assetAmount,
+        //         parsed.emitterChainId
+        //     );
+        // }
 
-        if (transferTokensToSender) {
-            sequence = transferTokens(
-                params.sender,
-                params.assetAddress,
-                params.assetAmount,
-                parsed.emitterChainId
-            );
-        }
+        // if (transferTokensToSender) {
+        //     sequence = transferTokens(
+        //         params.sender,
+        //         params.assetAddress,
+        //         params.assetAmount,
+        //         parsed.emitterChainId
+        //     );
+        // }
     }
 
     /**
@@ -141,45 +139,45 @@ contract XOperations is Message, XOperationsImpl {
      * @param assetAddress - the address of the relevant asset being logged
      * @param amount - the amount of the asset assetAddress being logged
      */
-    function logActionOnHub(
-        Action action,
-        address _msgSender,
-        address _assetAddress,
-        uint256 _amount,
-        uint16 _chainId,
-        uint16 _interest,
-        uint256 _returnDate
-    ) internal {
-        if (action == Action.Deposit) {
-            _depositCollateral(_assetAddress, _amount, _msgSender, _chainId);
-        } else if (action == Action.CreateRequest) {
-            _createLendingRequest(
-        uint128 _amount,
-        uint16 _interest,
-        uint256 _returnDate,
-        address _assetAddress,
-        address _msgSender,
-        uint16 _chainId
-    );
-        } else if (action == Action.Borrow) {
-            uint256 normalizedBorrow = normalizeAmount(
-                amount,
-                indices.borrowed,
-                Round.UP
-            );
-            vaultAmounts.borrowed += normalizedBorrow;
-            globalAmounts.borrowed += normalizedBorrow;
-        } else if (action == Action.Repay) {
-            uint256 normalizedRepay = normalizeAmount(
-                amount,
-                indices.borrowed,
-                Round.DOWN
-            );
-            if (normalizedRepay > vaultAmounts.borrowed) {
-                normalizedRepay = vaultAmounts.borrowed;
-            }
-            vaultAmounts.borrowed -= normalizedRepay;
-            globalAmounts.borrowed -= normalizedRepay;
-        }
-    }
+    // function logActionOnHub(
+    //     Action action,
+    //     address _msgSender,
+    //     address _assetAddress,
+    //     uint256 _amount,
+    //     uint16 _chainId,
+    //     uint16 _interest,
+    //     uint256 _returnDate
+    // ) internal {
+    //     if (action == Action.Deposit) {
+    //         _depositCollateral(_assetAddress, _amount, _msgSender, _chainId);
+    //     } else if (action == Action.CreateRequest) {
+    //         _createLendingRequest(
+    //             _amount,
+    //             _interest,
+    //             _returnDate,
+    //             _assetAddress,
+    //             _msgSender,
+    //             _chainId
+    //         );
+    //     } else if (action == Action.Borrow) {
+    //         uint256 normalizedBorrow = normalizeAmount(
+    //             amount,
+    //             indices.borrowed,
+    //             Round.UP
+    //         );
+    //         vaultAmounts.borrowed += normalizedBorrow;
+    //         globalAmounts.borrowed += normalizedBorrow;
+    //     } else if (action == Action.Repay) {
+    //         uint256 normalizedRepay = normalizeAmount(
+    //             amount,
+    //             indices.borrowed,
+    //             Round.DOWN
+    //         );
+    //         if (normalizedRepay > vaultAmounts.borrowed) {
+    //             normalizedRepay = vaultAmounts.borrowed;
+    //         }
+    //         vaultAmounts.borrowed -= normalizedRepay;
+    //         globalAmounts.borrowed -= normalizedRepay;
+    //     }
+    // }
 }

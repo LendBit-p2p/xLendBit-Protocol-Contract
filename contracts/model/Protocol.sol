@@ -76,6 +76,7 @@ struct Provider {
     uint16 chainId;
     address payable wormhole;
     address tokenBridge;
+    address wormholeRelayer;
 }
 
 enum Action {

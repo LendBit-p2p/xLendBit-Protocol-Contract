@@ -6,7 +6,7 @@ event RequestCreated(
     uint96 indexed requestId,
     uint _amount,
     uint16 _interest,
-    uint16 indexed _chainId,
+    uint16 indexed _chainId
 );
 event OrderCreated(
     address indexed _lender,
