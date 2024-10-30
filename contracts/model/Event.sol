@@ -47,7 +47,8 @@ event UpdateLoanableToken(
 event CollateralDeposited(
     address indexed _sender,
     address indexed _token,
-    uint256 _value
+    uint256 _value,
+    uint16 _chainId
 );
 
 event withdrawnAdsToken(

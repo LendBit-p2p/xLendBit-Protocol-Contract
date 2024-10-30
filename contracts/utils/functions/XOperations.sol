@@ -3,12 +3,12 @@ pragma solidity ^0.8.9;
 
 import {WormholeUtilities} from "./WormholeUtilities.sol";
 import {Message} from "./Message.sol";
-import {Operations} from "./Operations.sol";
+import {XOperationsImpl} from "./XOperationsImpl.sol";
 import {LibDiamond} from "../../libraries/LibDiamond.sol";
 import {IWormhole} from "../../interfaces/IWormhole.sol";
 import "../../model/Protocol.sol";
 
-contract XOperations is WormholeUtilities, Message, Operations {
+contract XOperations is WormholeUtilities, Message, XOperationsImpl {
     /**
      * @notice Registers a spoke contract. Only wormhole messages from registered spoke contracts are allowed.
      *
@@ -29,8 +29,8 @@ contract XOperations is WormholeUtilities, Message, Operations {
      * The TokenBridge message is used to complete a TokenBridge transfer of tokens to the Hub,
      * and contains a payload of the deposit information
      */
-    function completeDeposit(bytes memory encodedMessage) public {
-        completeAction(encodedMessage, true);
+    function completeDeposit(bytes memory _encodedMessage) public {
+        completeAction(_encodedMessage, true);
     }
 
     function completeCreateRequest(bytes memory encodedMessage) public {
@@ -68,15 +68,15 @@ contract XOperations is WormholeUtilities, Message, Operations {
     }
 
     function completeAction(
-        bytes memory encodedMessage,
-        bool isTokenBridgePayload
+        bytes memory _encodedMessage,
+        bool _isTokenBridgePayload
     ) internal returns (bool completed, uint64 sequence) {
         bytes memory encodedActionPayload;
-        IWormhole.VM memory parsed = _getWormholeParsed(encodedMessage);
+        IWormhole.VM memory parsed = _getWormholeParsed(_encodedMessage);
 
-        if (isTokenBridgePayload) {
+        if (_isTokenBridgePayload) {
             encodedActionPayload = _extractPayloadFromTransferPayload(
-                _getTransferPayload(encodedMessage)
+                _getTransferPayload(_encodedMessage)
             );
         } else {
             _verifySenderIsSpoke(
@@ -124,7 +124,8 @@ contract XOperations is WormholeUtilities, Message, Operations {
                 action,
                 params.sender,
                 params.assetAddress,
-                params.assetAmount
+                params.assetAmount,
+                parsed.emitterChainId
             );
         }
 
@@ -138,52 +139,50 @@ contract XOperations is WormholeUtilities, Message, Operations {
         }
     }
 
-    // /**
-    //  * @notice Updates the vault's state to log either a deposit, borrow, withdraw, or repay
-    //  *
-    //  * @param action - the action (either Deposit, Borrow, Withdraw, or Repay)
-    //  * @param vault - the address of the vault
-    //  * @param assetAddress - the address of the relevant asset being logged
-    //  * @param amount - the amount of the asset assetAddress being logged
-    //  */
-    // function logActionOnHub(
-    //     Action action,
-    //     address vault,
-    //     address assetAddress,
-    //     uint256 amount
-    // ) internal {
-    //     if (action == Action.Deposit) {
-    //         depositCollateral(_tokenCollateralAddress, _amountOfCollateral);
-    //     } else if (action == Action.Withdraw) {
-    //         uint256 normalizedWithdraw = normalizeAmount(
-    //             amount,
-    //             indices.deposited,
-    //             Round.UP
-    //         );
-    //         vaultAmounts.deposited -= normalizedWithdraw;
-    //         globalAmounts.deposited -= normalizedWithdraw;
-    //     } else if (action == Action.Borrow) {
-    //         uint256 normalizedBorrow = normalizeAmount(
-    //             amount,
-    //             indices.borrowed,
-    //             Round.UP
-    //         );
-    //         vaultAmounts.borrowed += normalizedBorrow;
-    //         globalAmounts.borrowed += normalizedBorrow;
-    //     } else if (action == Action.Repay) {
-    //         uint256 normalizedRepay = normalizeAmount(
-    //             amount,
-    //             indices.borrowed,
-    //             Round.DOWN
-    //         );
-    //         if (normalizedRepay > vaultAmounts.borrowed) {
-    //             normalizedRepay = vaultAmounts.borrowed;
-    //         }
-    //         vaultAmounts.borrowed -= normalizedRepay;
-    //         globalAmounts.borrowed -= normalizedRepay;
-    //     }
-
-    //     setVaultAmounts(vault, assetAddress, vaultAmounts);
-    //     setGlobalAmounts(assetAddress, globalAmounts);
-    // }
+    /**
+     * @notice Updates the vault's state to log either a deposit, borrow, withdraw, or repay
+     *
+     * @param action - the action (either Deposit, Borrow, Withdraw, or Repay)
+     * @param vault - the address of the vault
+     * @param assetAddress - the address of the relevant asset being logged
+     * @param amount - the amount of the asset assetAddress being logged
+     */
+    function logActionOnHub(
+        Action action,
+        address _msgSender,
+        address _assetAddress,
+        uint256 _amount,
+        uint16 _chainId
+    ) internal {
+        if (action == Action.Deposit) {
+            _depositCollateral(_assetAddress, _amount, _msgSender, _chainId);
+        } else if (action == Action.Withdraw) {
+            uint256 normalizedWithdraw = normalizeAmount(
+                amount,
+                indices.deposited,
+                Round.UP
+            );
+            vaultAmounts.deposited -= normalizedWithdraw;
+            globalAmounts.deposited -= normalizedWithdraw;
+        } else if (action == Action.Borrow) {
+            uint256 normalizedBorrow = normalizeAmount(
+                amount,
+                indices.borrowed,
+                Round.UP
+            );
+            vaultAmounts.borrowed += normalizedBorrow;
+            globalAmounts.borrowed += normalizedBorrow;
+        } else if (action == Action.Repay) {
+            uint256 normalizedRepay = normalizeAmount(
+                amount,
+                indices.borrowed,
+                Round.DOWN
+            );
+            if (normalizedRepay > vaultAmounts.borrowed) {
+                normalizedRepay = vaultAmounts.borrowed;
+            }
+            vaultAmounts.borrowed -= normalizedRepay;
+            globalAmounts.borrowed -= normalizedRepay;
+        }
+    }
 }

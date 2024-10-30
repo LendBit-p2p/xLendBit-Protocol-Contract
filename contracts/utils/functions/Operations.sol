@@ -83,7 +83,8 @@ contract Operations is AppStorage {
         emit CollateralDeposited(
             msg.sender,
             _tokenCollateralAddress,
-            _amountOfCollateral
+            _amountOfCollateral,
+            _appStorage.provider.chainId
         );
     }
 

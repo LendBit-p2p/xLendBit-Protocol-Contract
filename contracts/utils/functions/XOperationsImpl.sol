@@ -42,7 +42,8 @@ contract XOperationsImpl is AppStorage {
     function _depositCollateral(
         address _tokenCollateralAddress,
         uint256 _amountOfCollateral,
-        address _msgSender
+        address _msgSender,
+        uint16 _chainId
     ) internal {
         // Validate the input parameters: `_amountOfCollateral` must be greater than zero,
         // and `_tokenCollateralAddress` must have a valid price feed (non-zero address).
@@ -65,7 +66,8 @@ contract XOperationsImpl is AppStorage {
         emit CollateralDeposited(
             _msgSender,
             _tokenCollateralAddress,
-            _amountOfCollateral
+            _amountOfCollateral,
+            _chainId
         );
     }
 
