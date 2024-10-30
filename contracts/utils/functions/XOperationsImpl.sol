@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {AppStorage} from "./AppStorage.sol";
+import {WormholeUtilities} from "./WormholeUtilities.sol";
 import {LibGettersImpl} from "../../libraries/LibGetters.sol";
 import {LibDiamond} from "../../libraries/LibDiamond.sol";
 import {Validator} from "../validators/Validator.sol";
@@ -20,7 +21,7 @@ import "../validators/Error.sol";
  *
  * Internal write-only functions that allows writing into the state of LendBit
  */
-contract XOperationsImpl is AppStorage {
+contract XOperationsImpl is AppStorage, WormholeUtilities {
     using SafeERC20 for IERC20;
 
     /**
@@ -166,6 +167,7 @@ contract XOperationsImpl is AppStorage {
         _newRequest.loanRequestAddr = _loanCurrency;
         _newRequest.collateralTokens = _collateralTokens;
         _newRequest.status = Status.OPEN;
+        _newRequest.chainId = _chainId;
 
         // Calculate the amount of collateral to lock based on the loan value
         uint256 collateralToLock = Utils.calculateColateralToLock(
@@ -223,10 +225,13 @@ contract XOperationsImpl is AppStorage {
      *
      * Emits a `RequestServiced` event upon successful funding.
      */
-    function serviceRequest(
+    function _serviceRequest(
         uint96 _requestId,
-        address _tokenAddress
-    ) external payable {
+        address _tokenAddress,
+        address _msgSender,
+        uint16 _chainId,
+        uint256 _amount
+    ) internal {
         // Validate if native token is being used and msg.value is non-zero
         Validator._nativeMoreThanZero(_tokenAddress, msg.value);
 
@@ -310,21 +315,6 @@ contract XOperationsImpl is AppStorage {
             ] -= _appStorage.s_idToCollateralTokenAmount[_requestId][
                 _foundRequest.collateralTokens[i]
             ];
-        }
-
-        // Transfer loan amount to borrower based on token type
-        if (_tokenAddress != Constants.NATIVE_TOKEN) {
-            IERC20(_tokenAddress).safeTransferFrom(
-                msg.sender,
-                _foundRequest.author,
-                amountToLend
-            );
-        } else {
-            (bool sent, ) = payable(_foundRequest.author).call{
-                value: amountToLend
-            }("");
-
-            if (!sent) revert Protocol__TransferFailed();
         }
 
         // Emit an event indicating successful servicing of the request

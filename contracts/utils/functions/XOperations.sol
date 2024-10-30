@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-import {WormholeUtilities} from "./WormholeUtilities.sol";
 import {Message} from "./Message.sol";
 import {XOperationsImpl} from "./XOperationsImpl.sol";
 import {LibDiamond} from "../../libraries/LibDiamond.sol";
 import {IWormhole} from "../../interfaces/IWormhole.sol";
 import "../../model/Protocol.sol";
 
-contract XOperations is WormholeUtilities, Message, XOperationsImpl {
+contract XOperations is Message, XOperationsImpl {
     /**
      * @notice Registers a spoke contract. Only wormhole messages from registered spoke contracts are allowed.
      *
@@ -97,14 +96,9 @@ contract XOperations is WormholeUtilities, Message, XOperationsImpl {
 
         if (action == Action.Withdraw) {
             transferTokensToSender = true;
-        } else if (action == Action.CreateRequest) {
-            checkAllowedToBorrow(
-                params.sender,
-                params.assetAddress,
-                params.assetAmount
-            );
-            transferTokensToSender = true;
-        } else if (action == Action.ServiceRequest) {} else if (
+        } else if (action == Action.ServiceRequest) {
+            _serviceRequest();
+        } else if (
             action == Action.CreateListing
         ) {} else if (action == Action.RequestFromLoan) {} else if (
             action == Action.Repay
