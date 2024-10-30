@@ -220,7 +220,8 @@ contract Operations is AppStorage {
             msg.sender,
             _appStorage.requestId,
             _amount,
-            _interest
+            _interest,
+            _appStorage.provider.chainId
         );
     }
 

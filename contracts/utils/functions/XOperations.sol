@@ -152,18 +152,21 @@ contract XOperations is WormholeUtilities, Message, XOperationsImpl {
         address _msgSender,
         address _assetAddress,
         uint256 _amount,
-        uint16 _chainId
+        uint16 _chainId,
+        uint16 _interest,
+        uint256 _returnDate
     ) internal {
         if (action == Action.Deposit) {
             _depositCollateral(_assetAddress, _amount, _msgSender, _chainId);
-        } else if (action == Action.Withdraw) {
-            uint256 normalizedWithdraw = normalizeAmount(
-                amount,
-                indices.deposited,
-                Round.UP
-            );
-            vaultAmounts.deposited -= normalizedWithdraw;
-            globalAmounts.deposited -= normalizedWithdraw;
+        } else if (action == Action.CreateRequest) {
+            _createLendingRequest(
+        uint128 _amount,
+        uint16 _interest,
+        uint256 _returnDate,
+        address _assetAddress,
+        address _msgSender,
+        uint16 _chainId
+    );
         } else if (action == Action.Borrow) {
             uint256 normalizedBorrow = normalizeAmount(
                 amount,

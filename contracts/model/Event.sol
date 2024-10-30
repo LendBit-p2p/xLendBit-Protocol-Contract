@@ -5,7 +5,8 @@ event RequestCreated(
     address indexed _borrower,
     uint96 indexed requestId,
     uint _amount,
-    uint16 _interest
+    uint16 _interest,
+    uint16 indexed _chainId,
 );
 event OrderCreated(
     address indexed _lender,
@@ -48,7 +49,7 @@ event CollateralDeposited(
     address indexed _sender,
     address indexed _token,
     uint256 _value,
-    uint16 _chainId
+    uint16 indexed _chainId
 );
 
 event withdrawnAdsToken(

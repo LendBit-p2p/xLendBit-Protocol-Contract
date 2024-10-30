@@ -91,12 +91,14 @@ contract XOperationsImpl is AppStorage {
      * collateral, calculates the total repayment including interest, and stores loan request data.
      * Emits a `RequestCreated` event on successful request creation.
      */
-    function createLendingRequest(
+    function _createLendingRequest(
         uint128 _amount,
         uint16 _interest,
         uint256 _returnDate,
-        address _loanCurrency
-    ) external {
+        address _loanCurrency,
+        address _msgSender,
+        uint16 _chainId
+    ) internal {
         // Validate that the loan amount is greater than zero
         Validator._moreThanZero(_amount);
 
@@ -126,7 +128,7 @@ contract XOperationsImpl is AppStorage {
 
         // Get the total USD collateral value for the borrower
         uint256 collateralValueInLoanCurrency = LibGettersImpl
-            ._getAccountCollateralValue(_appStorage, msg.sender);
+            ._getAccountCollateralValue(_appStorage, _msgSender);
 
         // Calculate the maximum loanable amount based on available collateral
         uint256 maxLoanableAmount = Utils.maxLoanableAmount(
@@ -135,7 +137,7 @@ contract XOperationsImpl is AppStorage {
 
         // Check if the loan exceeds the user's collateral allowance
         if (
-            _appStorage.addressToUser[msg.sender].totalLoanCollected +
+            _appStorage.addressToUser[_msgSender].totalLoanCollected +
                 _loanUsdValue >=
             maxLoanableAmount
         ) {
@@ -144,7 +146,7 @@ contract XOperationsImpl is AppStorage {
 
         // Retrieve collateral tokens associated with the borrower
         address[] memory _collateralTokens = LibGettersImpl
-            ._getUserCollateralTokens(_appStorage, msg.sender);
+            ._getUserCollateralTokens(_appStorage, _msgSender);
 
         // Increment the request ID and initialize the new loan request
         _appStorage.requestId = _appStorage.requestId + 1;
@@ -176,7 +178,7 @@ contract XOperationsImpl is AppStorage {
             address token = _collateralTokens[i];
             uint8 _decimalToken = LibGettersImpl._getTokenDecimal(token);
             uint256 userBalance = _appStorage.s_addressToCollateralDeposited[
-                msg.sender
+                _msgSender
             ][token];
 
             // Calculate the amount to lock in USD for each token based on the proportional collateral
@@ -200,10 +202,11 @@ contract XOperationsImpl is AppStorage {
 
         // Emit an event for the created loan request
         emit RequestCreated(
-            msg.sender,
+            _msgSender,
             _appStorage.requestId,
             _amount,
-            _interest
+            _interest,
+            _chainId
         );
     }
 
