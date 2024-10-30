@@ -46,3 +46,6 @@ error Protocol__ListingNotOpen();
 error Protocol__OwnerCreatedListing();
 error Protocol__InsufficientAmount();
 error Protocol__OnlyBotCanAccess();
+
+// Error From Wormhole
+error NotAnEvmAddress(bytes32);
