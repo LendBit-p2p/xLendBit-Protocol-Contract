@@ -34,9 +34,12 @@ contract Message {
         return
             abi.encode(
                 uint8(payload.action),
+                payload.interest,
+                payload.id,
                 payload.sender,
                 payload.assetAddress,
-                payload.assetAmount
+                payload.assetAmount,
+                payload.returnDate
             );
     }
 
@@ -56,18 +59,26 @@ contract Message {
     function _decodeActionPayload(
         bytes memory serialized
     ) internal pure returns (ActionPayload memory params) {
-        uint256 index = 0;
-
-        // Decode each part of the payload in sequence and update the index
-        params.action = Action(serialized.toUint8(index));
-        index += 1;
-
-        params.sender = serialized.toAddress(index);
-        index += 20;
-
-        params.assetAddress = serialized.toAddress(index);
-        index += 20;
-
-        params.assetAmount = serialized.toUint256(index);
+        (
+            uint8 action,
+            uint16 interest,
+            uint96 id,
+            address payable sender,
+            address assetAddress,
+            uint256 assetAmount,
+            uint256 returnDate
+        ) = abi.decode(
+                serialized,
+                (uint8, uint16, uint96, address, address, uint256, uint256)
+            );
+        params = ActionPayload(
+            Action(action),
+            interest,
+            id,
+            sender,
+            assetAddress,
+            assetAmount,
+            returnDate
+        );
     }
 }

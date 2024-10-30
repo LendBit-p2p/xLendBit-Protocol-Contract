@@ -71,55 +71,31 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
         );
     }
 
-    /**
-     * @dev Creates a new lending request by validating input parameters, calculating loanable amounts,
-     *      and locking collateral proportional to the loan request.
-     *
-     * @param _amount The amount of loan requested by the borrower.
-     * @param _interest The interest rate for the loan.
-     * @param _returnDate The expected return date for the loan.
-     * @param _loanCurrency The token address for the currency in which the loan is requested.
-     *
-     * Requirements:
-     * - `_amount` must be greater than zero.
-     * - `_loanCurrency` must be an approved loanable token.
-     * - `_returnDate` must be at least 1 day in the future.
-     * - The calculated USD value of `_amount` should meet the minimum loan amount requirement.
-     * - Borrower must have sufficient collateral based on their collateral value and `_loanUsdValue`.
-     *
-     * The function locks collateral based on the proportional USD value of each token in the borrower’s
-     * collateral, calculates the total repayment including interest, and stores loan request data.
-     * Emits a `RequestCreated` event on successful request creation.
-     */
     function _createLendingRequest(
-        uint128 _amount,
-        uint16 _interest,
-        uint256 _returnDate,
-        address _loanCurrency,
-        address _msgSender,
+        ActionPayload memory payload,
         uint16 _chainId
     ) internal {
         // Validate that the loan amount is greater than zero
-        Validator._moreThanZero(_amount);
+        Validator._moreThanZero(payload.assetAmount);
 
         // Check if the loan currency is allowed by validating it against allowed loanable tokens
-        if (!_appStorage.s_isLoanable[_loanCurrency]) {
+        if (!_appStorage.s_isLoanable[payload.assetAddress]) {
             revert Protocol__TokenNotLoanable();
         }
 
         // Ensure the return date is at least 1 day in the future
-        if ((_returnDate - block.timestamp) < 1 days) {
+        if ((payload.returnDate - block.timestamp) < 1 days) {
             revert Protocol__DateMustBeInFuture();
         }
 
         // Retrieve the loan currency's decimal precision
-        uint8 decimal = LibGettersImpl._getTokenDecimal(_loanCurrency);
+        uint8 decimal = LibGettersImpl._getTokenDecimal(payload.assetAddress);
 
         // Calculate the USD equivalent of the loan amount
         uint256 _loanUsdValue = LibGettersImpl._getUsdValue(
             _appStorage,
-            _loanCurrency,
-            _amount,
+            payload.assetAddress,
+            payload.assetAmount,
             decimal
         );
 
@@ -128,7 +104,7 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
 
         // Get the total USD collateral value for the borrower
         uint256 collateralValueInLoanCurrency = LibGettersImpl
-            ._getAccountCollateralValue(_appStorage, _msgSender);
+            ._getAccountCollateralValue(_appStorage, payload.sender);
 
         // Calculate the maximum loanable amount based on available collateral
         uint256 maxLoanableAmount = Utils.maxLoanableAmount(
@@ -137,7 +113,7 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
 
         // Check if the loan exceeds the user's collateral allowance
         if (
-            _appStorage.addressToUser[_msgSender].totalLoanCollected +
+            _appStorage.addressToUser[payload.sender].totalLoanCollected +
                 _loanUsdValue >=
             maxLoanableAmount
         ) {
@@ -146,7 +122,7 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
 
         // Retrieve collateral tokens associated with the borrower
         address[] memory _collateralTokens = LibGettersImpl
-            ._getUserCollateralTokens(_appStorage, _msgSender);
+            ._getUserCollateralTokens(_appStorage, payload.sender);
 
         // Increment the request ID and initialize the new loan request
         _appStorage.requestId = _appStorage.requestId + 1;
@@ -154,16 +130,16 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
             _appStorage.requestId
         ];
         _newRequest.requestId = _appStorage.requestId;
-        _newRequest.author = msg.sender;
-        _newRequest.amount = _amount;
-        _newRequest.interest = _interest;
-        _newRequest.returnDate = _returnDate;
+        _newRequest.author = payload.sender;
+        _newRequest.amount = payload.assetAmount;
+        _newRequest.interest = payload.interest;
+        _newRequest.returnDate = payload.returnDate;
         _newRequest.totalRepayment = Utils.calculateLoanInterest(
-            _returnDate,
-            _amount,
-            _interest
+            payload.returnDate,
+            payload.assetAmount,
+            payload.interest
         );
-        _newRequest.loanRequestAddr = _loanCurrency;
+        _newRequest.loanRequestAddr = payload.assetAddress;
         _newRequest.collateralTokens = _collateralTokens;
         _newRequest.status = Status.OPEN;
         _newRequest.chainId = _chainId;
@@ -179,7 +155,7 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
             address token = _collateralTokens[i];
             uint8 _decimalToken = LibGettersImpl._getTokenDecimal(token);
             uint256 userBalance = _appStorage.s_addressToCollateralDeposited[
-                _msgSender
+                payload.sender
             ][token];
 
             // Calculate the amount to lock in USD for each token based on the proportional collateral
@@ -203,10 +179,10 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
 
         // Emit an event for the created loan request
         emit RequestCreated(
-            _msgSender,
+            payload.sender,
             _appStorage.requestId,
-            _amount,
-            _interest,
+            payload.assetAmount,
+            payload.interest,
             _chainId
         );
     }

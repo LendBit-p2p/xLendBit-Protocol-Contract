@@ -46,6 +46,8 @@ contract XOperations is Message, XOperationsImpl {
                 payload.sender,
                 _sourceChain
             );
+        } else if (action == Action.CreateRequest) {
+            _createLendingRequest(payload, _sourceChain);
         }
     }
 }

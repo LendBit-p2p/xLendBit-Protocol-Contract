@@ -98,9 +98,12 @@ enum Round {
 
 struct ActionPayload {
     Action action;
+    uint16 interest;
+    uint96 id;
     address sender;
     address assetAddress;
     uint256 assetAmount;
+    uint256 returnDate;
 }
 
 /**
