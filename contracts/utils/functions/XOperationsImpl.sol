@@ -218,7 +218,7 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
             revert Protocol__RequestNotOpen();
         if (_foundRequest.loanRequestAddr != _tokenAddress)
             revert Protocol__InvalidToken();
-        if (_foundRequest.author == msg.sender) {
+        if (_foundRequest.author == _msgSender) {
             revert Protocol__CantFundSelf();
         }
         if (_foundRequest.returnDate <= block.timestamp) {
@@ -226,7 +226,7 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
         }
 
         // Update lender and request status to indicate servicing
-        _foundRequest.lender = msg.sender;
+        _foundRequest.lender = _msgSender;
         _foundRequest.status = Status.SERVICED;
         uint256 amountToLend = _foundRequest.amount;
 
@@ -286,7 +286,7 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
         // Emit an event indicating successful servicing of the request
         emit RequestServiced(
             _requestId,
-            msg.sender,
+            _msgSender,
             _foundRequest.author,
             amountToLend,
             _chainId
@@ -452,7 +452,7 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
         // Emit an event to notify that a new loan listing has been created
         emit LoanListingCreated(
             _appStorage.listingId,
-            msg.sender,
+            _msgSender,
             _loanCurrency,
             _amount,
             _sourceChain
@@ -481,7 +481,7 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
         // Check if the listing is open and the borrower is not the listing creator
         if (_listing.listingStatus != ListingStatus.OPEN)
             revert Protocol__ListingNotOpen();
-        if (_listing.author == msg.sender)
+        if (_listing.author == _msgSender)
             revert Protocol__OwnerCreatedListing();
 
         // Validate that the requested amount is within the listing's constraints
@@ -593,7 +593,7 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
 
         // Emit events to notify the loan request creation and servicing
         emit RequestCreated(
-            msg.sender,
+            _msgSender,
             _appStorage.requestId,
             _amount,
             _listing.interest,
@@ -641,83 +641,72 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
     //  * Emits:
     //  * - `LoanRepayment` upon successful repayment.
     //  */
-    // function repayLoan(uint96 _requestId, uint256 _amount) external payable {
-    //     Validator._moreThanZero(_amount);
+    function _repayLoan(uint96 _requestId, uint256 _amount, address _token, address _msgSender, uint16 _sourceChain) internal {
+        Validator._moreThanZero(_amount);
 
-    //     Request storage _request = _appStorage.request[_requestId];
+        Request storage _request = _appStorage.request[_requestId];
 
-    //     // Ensure that the loan request is currently serviced and the caller is the original borrower
-    //     if (_request.status != Status.SERVICED)
-    //         revert Protocol__RequestNotServiced();
-    //     if (msg.sender != _request.author) revert Protocol__NotOwner();
+        // Ensure that the loan request is currently serviced and the caller is the original borrower
+        if (_request.status != Status.SERVICED)
+            revert Protocol__RequestNotServiced();
+        if (_msgSender != _request.author) revert Protocol__NotOwner();
 
-    //     // Process repayment amount based on the token type
-    //     if (_request.loanRequestAddr == Constants.NATIVE_TOKEN) {
-    //         _amount = msg.value;
-    //     } else {
-    //         IERC20 _token = IERC20(_request.loanRequestAddr);
-    //         if (_token.balanceOf(msg.sender) < _amount)
-    //             revert Protocol__InsufficientBalance();
-    //         if (_token.allowance(msg.sender, address(this)) < _amount)
-    //             revert Protocol__InsufficientAllowance();
+        if (_request.loanRequestAddr != _token) revert Protocol__InvalidToken();
 
-    //         _token.safeTransferFrom(msg.sender, address(this), _amount);
-    //     }
+        // If full repayment is made, close the request and release the collateral
+        if (_amount >= _request.totalRepayment) {
+            _amount = _request.totalRepayment;
+            _request.totalRepayment = 0;
+            _request.status = Status.CLOSED;
 
-    //     // If full repayment is made, close the request and release the collateral
-    //     if (_amount >= _request.totalRepayment) {
-    //         _amount = _request.totalRepayment;
-    //         _request.totalRepayment = 0;
-    //         _request.status = Status.CLOSED;
+            for (uint i = 0; i < _request.collateralTokens.length; i++) {
+                address collateralToken = _request.collateralTokens[i];
+                _appStorage.s_addressToAvailableBalance[_request.author][
+                    collateralToken
+                ] += _appStorage.s_idToCollateralTokenAmount[_requestId][
+                    collateralToken
+                ];
+            }
+        } else {
+            // Reduce the outstanding repayment amount for partial payments
+            _request.totalRepayment -= _amount;
+        }
 
-    //         for (uint i = 0; i < _request.collateralTokens.length; i++) {
-    //             address collateralToken = _request.collateralTokens[i];
-    //             _appStorage.s_addressToAvailableBalance[_request.author][
-    //                 collateralToken
-    //             ] += _appStorage.s_idToCollateralTokenAmount[_requestId][
-    //                 collateralToken
-    //             ];
-    //         }
-    //     } else {
-    //         // Reduce the outstanding repayment amount for partial payments
-    //         _request.totalRepayment -= _amount;
-    //     }
+        // Update borrower’s loan collected metrics in USD
+        uint8 decimal = LibGettersImpl._getTokenDecimal(
+            _request.loanRequestAddr
+        );
+        uint256 _loanUsdValue = LibGettersImpl._getUsdValue(
+            _appStorage,
+            _request.loanRequestAddr,
+            _amount,
+            decimal
+        );
+        uint256 loanCollected = LibGettersImpl._getLoanCollectedInUsd(
+            _appStorage,
+            _msgSender
+        );
 
-    //     // Update borrower’s loan collected metrics in USD
-    //     uint8 decimal = LibGettersImpl._getTokenDecimal(
-    //         _request.loanRequestAddr
-    //     );
-    //     uint256 _loanUsdValue = LibGettersImpl._getUsdValue(
-    //         _appStorage,
-    //         _request.loanRequestAddr,
-    //         _amount,
-    //         decimal
-    //     );
-    //     uint256 loanCollected = LibGettersImpl._getLoanCollectedInUsd(
-    //         _appStorage,
-    //         msg.sender
-    //     );
+        // Deposit the repayment amount to the lender's available balance
+        _appStorage.s_addressToCollateralDeposited[_request.lender][
+            _request.loanRequestAddr
+        ] += _amount;
+        _appStorage.s_addressToAvailableBalance[_request.lender][
+            _request.loanRequestAddr
+        ] += _amount;
 
-    //     // Deposit the repayment amount to the lender's available balance
-    //     _appStorage.s_addressToCollateralDeposited[_request.lender][
-    //         _request.loanRequestAddr
-    //     ] += _amount;
-    //     _appStorage.s_addressToAvailableBalance[_request.lender][
-    //         _request.loanRequestAddr
-    //     ] += _amount;
+        // Adjust the borrower's total loan collected
+        if (loanCollected > _loanUsdValue) {
+            _appStorage.addressToUser[_msgSender].totalLoanCollected =
+                loanCollected -
+                _loanUsdValue;
+        } else {
+            _appStorage.addressToUser[_msgSender].totalLoanCollected = 0;
+        }
 
-    //     // Adjust the borrower's total loan collected
-    //     if (loanCollected > _loanUsdValue) {
-    //         _appStorage.addressToUser[msg.sender].totalLoanCollected =
-    //             loanCollected -
-    //             _loanUsdValue;
-    //     } else {
-    //         _appStorage.addressToUser[msg.sender].totalLoanCollected = 0;
-    //     }
-
-    //     // Emit event to notify of loan repayment
-    //     emit LoanRepayment(msg.sender, _requestId, _amount);
-    // }
+        // Emit event to notify of loan repayment
+        emit LoanRepayment(_msgSender, _requestId, _amount, _sourceChain);
+    }
 
     function _vetTokenAndUnwrap(
         TokenReceived[] memory _tokenReceived
