@@ -45,9 +45,17 @@ contract ProtocolTest is Test, IDiamondCut {
 
     address botAddress = address(0x0beaf0BfC5D1f3f3F8d3a6b0F1B6E3f2b0f1b6e3);
     address swapRouterAddress = 0x1689E7B1F10000AE47eBfE339a4f69dECd19F602;
+    address wormhole;
+    address tokenBridge;
+    address wormholeRelayer;
+    address circleTM;
+    address circleMT;
+    uint16 chainId;
 
     address[] tokens;
     address[] priceFeed;
+    uint16[] chainIds;
+    address[] spokeProtocols;
 
     function setUp() public {
         //deploy facets
@@ -109,7 +117,18 @@ contract ProtocolTest is Test, IDiamondCut {
         DiamondLoupeFacet(address(diamond)).facetAddresses();
 
         ///@notice set protocol constructor by the diamond
-        diamond.initialize(tokens, priceFeed);
+        diamond.initialize(
+            tokens,
+            priceFeed,
+            chainIds,
+            spokeProtocols,
+            wormhole,
+            wormholeRelayer,
+            tokenBridge,
+            circleTM,
+            circleMT,
+            chainId
+        );
 
         protocolFacet = ProtocolFacet(address(diamond));
         protocolFacet.setBotAddress(botAddress);

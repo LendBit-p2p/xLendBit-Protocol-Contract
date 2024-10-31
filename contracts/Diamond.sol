@@ -56,7 +56,7 @@ contract Diamond {
         _appStorage.provider.circleMessageTransmitter = _circleMT;
         _appStorage.provider.circleTokenMessenger = _circleTM;
         _appStorage.swapRouter = address(
-            0x94cC0AaC535CCDB3C01d6787D6413C739ae12bc4
+            0x1689E7B1F10000AE47eBfE339a4f69dECd19F602
         );
 
         for (uint8 i = 0; i < _tokens.length; i++) {
