@@ -34,6 +34,15 @@ contract XOperations is XOperationsImpl {
             msg.sender
         );
 
+        _verifySenderIsSpoke(
+            _appStorage,
+            address(uint160(uint256(_sourceAddress)))
+        );
+
+        if (LibXGetters._messageHashConsumed(_appStorage, _deliveryHash))
+            revert Protocol__InvalidHash();
+        _appStorage.s_consumedMessages[_deliveryHash] = true;
+
         ActionPayload memory payload = _decodeActionPayload(_payload);
         Action action = Action(payload.action);
 
