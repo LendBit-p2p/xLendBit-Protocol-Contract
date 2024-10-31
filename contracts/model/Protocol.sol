@@ -106,6 +106,8 @@ struct ActionPayload {
     address assetAddress;
     uint256 assetAmount;
     uint256 returnDate;
+    uint256 min_amount;
+    uint256 max_amount;
 }
 
 /**

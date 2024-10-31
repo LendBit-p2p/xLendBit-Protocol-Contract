@@ -39,7 +39,9 @@ contract Message {
                 payload.sender,
                 payload.assetAddress,
                 payload.assetAmount,
-                payload.returnDate
+                payload.returnDate,
+                payload.min_amount,
+                payload.max_amount
             );
     }
 
@@ -66,7 +68,9 @@ contract Message {
             address payable sender,
             address assetAddress,
             uint256 assetAmount,
-            uint256 returnDate
+            uint256 returnDate,
+            uint256 min_amount,
+            uint256 max_amount
         ) = abi.decode(
                 serialized,
                 (uint8, uint16, uint96, address, address, uint256, uint256)
@@ -78,7 +82,9 @@ contract Message {
             sender,
             assetAddress,
             assetAmount,
-            returnDate
+            returnDate,
+            min_amount,
+            max_amount
         );
     }
 }
