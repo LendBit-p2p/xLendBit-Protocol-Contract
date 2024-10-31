@@ -3,9 +3,11 @@ pragma solidity ^0.8.9;
 
 import {XOperationsImpl} from "./XOperationsImpl.sol";
 import {LibDiamond} from "../../libraries/LibDiamond.sol";
+import {LibXGetters} from "../../libraries/LibXGetters.sol";
 import {IWormhole} from "../../interfaces/IWormhole.sol";
 import {Validator} from "../validators/Validator.sol";
 import "../../model/Protocol.sol";
+import "../validators/Error.sol";
 
 contract XOperations is XOperationsImpl {
     /**
@@ -35,13 +37,13 @@ contract XOperations is XOperationsImpl {
         );
 
         _verifySenderIsSpoke(
-            _appStorage,
+            _sourceChain,
             address(uint160(uint256(_sourceAddress)))
         );
 
         if (LibXGetters._messageHashConsumed(_appStorage, _deliveryHash))
             revert Protocol__InvalidHash();
-        _appStorage.s_consumedMessages[_deliveryHash] = true;
+        _consumeMessageHash(_deliveryHash);
 
         ActionPayload memory payload = _decodeActionPayload(_payload);
         Action action = Action(payload.action);

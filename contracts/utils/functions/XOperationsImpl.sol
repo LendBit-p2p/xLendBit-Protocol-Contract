@@ -7,6 +7,7 @@ import {LibGettersImpl} from "../../libraries/LibGetters.sol";
 import {Validator} from "../validators/Validator.sol";
 import {Constants} from "../constants/Constant.sol";
 import {Utils} from "./Utils.sol";
+import {IWETH} from "../../interfaces/IWETH.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {TokenReceiver} from "./Wormhole/TokenBase.sol";
@@ -22,7 +23,6 @@ import "../validators/Error.sol";
  */
 contract XOperationsImpl is TokenReceiver, WormholeUtilities {
     using SafeERC20 for IERC20;
-
 
     function _depositCollateral(
         address _tokenCollateralAddress,
@@ -170,7 +170,6 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
         );
     }
 
-    
     function _serviceRequest(
         uint96 _requestId,
         address _tokenAddress,
@@ -284,6 +283,8 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
                 _msgSender,
                 _tokenAddress,
                 _amount,
+                0,
+                0,
                 0
             );
             bytes memory _payload = _encodeActionPayload(payload);
@@ -297,7 +298,6 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
         }
     }
 
-    
     function _withdrawCollateral(
         address _tokenCollateralAddress,
         uint256 _amount,
@@ -336,6 +336,8 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
             _msgSender,
             _tokenCollateralAddress,
             _amount,
+            0,
+            0,
             0
         );
         bytes memory _payload = _encodeActionPayload(payload);
@@ -356,7 +358,6 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
         );
     }
 
-    
     function _createLoanListing(
         uint256 _amount,
         uint256 _min_amount,
@@ -391,7 +392,7 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
         _newListing.returnDate = _returnDate;
         _newListing.tokenAddress = _loanCurrency;
         _newListing.listingStatus = ListingStatus.OPEN;
-        _newListing.chainId = _sourceChain
+        _newListing.chainId = _sourceChain;
 
         // Emit an event to notify that a new loan listing has been created
         emit LoanListingCreated(
@@ -403,8 +404,12 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
         );
     }
 
-    
-    function _requestLoanFromListing(uint96 _listingId, uint256 _amount, address _msgSender, uint16 _sourceChain) internal {
+    function _requestLoanFromListing(
+        uint96 _listingId,
+        uint256 _amount,
+        address _msgSender,
+        uint16 _sourceChain
+    ) internal {
         Validator._moreThanZero(_amount);
 
         LoanListing storage _listing = _appStorage.loanListings[_listingId];
@@ -507,7 +512,7 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
             _appStorage.s_idToCollateralTokenAmount[_appStorage.requestId][
                 token
             ] = amountToLock;
-            _appStorage.s_addressToAvailableBalance[_msgSender][
+            _appStorage.s_addressToAvailableBalance[_newRequest.author][
                 token
             ] -= amountToLock;
         }
@@ -544,21 +549,28 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
             0,
             _msgSender,
             _listing.tokenAddress,
-            _amount,
+            _newRequest.amount,
+            0,
+            0,
             0
         );
         bytes memory _payload = _encodeActionPayload(payload);
         _handleTokenTransfer(
-            _chainId,
-            _appStorage.s_spokeProtocols[_chainId],
+            _sourceChain,
+            _appStorage.s_spokeProtocols[_sourceChain],
             _payload,
             _listing.tokenAddress,
-            _amount
+            _newRequest.amount
         );
-
     }
 
-    function _repayLoan(uint96 _requestId, uint256 _amount, address _token, address _msgSender, uint16 _sourceChain) internal {
+    function _repayLoan(
+        uint96 _requestId,
+        uint256 _amount,
+        address _token,
+        address _msgSender,
+        uint16 _sourceChain
+    ) internal {
         Validator._moreThanZero(_amount);
 
         Request storage _request = _appStorage.request[_requestId];

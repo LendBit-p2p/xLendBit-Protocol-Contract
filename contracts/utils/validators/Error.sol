@@ -48,6 +48,7 @@ error Protocol__InsufficientAmount();
 error Protocol__OnlyBotCanAccess();
 error Protocol__InvalidCaller();
 error Protocol__InvalidAction();
+error Protocol__InvalidHash();
 
 // Error From Wormhole
 error NotAnEvmAddress(bytes32);

@@ -52,6 +52,7 @@ contract Diamond {
         }
         _appStorage.provider.chainId = _chainId;
         _appStorage.provider.wormhole = payable(_wormhole);
+        _appStorage.provider.tokenBridge = _tokenBridge;
         _appStorage.provider.wormholeRelayer = _wormholeRelayer;
         _appStorage.provider.circleMessageTransmitter = _circleMT;
         _appStorage.provider.circleTokenMessenger = _circleTM;

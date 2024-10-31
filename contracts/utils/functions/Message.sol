@@ -73,7 +73,17 @@ contract Message {
             uint256 max_amount
         ) = abi.decode(
                 serialized,
-                (uint8, uint16, uint96, address, address, uint256, uint256)
+                (
+                    uint8,
+                    uint16,
+                    uint96,
+                    address,
+                    address,
+                    uint256,
+                    uint256,
+                    uint256,
+                    uint256
+                )
             );
         params = ActionPayload(
             Action(action),

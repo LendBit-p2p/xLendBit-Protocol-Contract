@@ -351,6 +351,8 @@ contract Operations is WormholeUtilities {
                 msg.sender,
                 _tokenAddress,
                 amountToLend,
+                0,
+                0,
                 0
             );
             bytes memory _payload = _encodeActionPayload(payload);

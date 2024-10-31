@@ -130,7 +130,7 @@ contract ProtocolTest is Test, IDiamondCut {
             chainId
         );
 
-        protocolFacet = ProtocolFacet(address(diamond));
+        protocolFacet = ProtocolFacet(payable(address(diamond)));
         protocolFacet.setBotAddress(botAddress);
         protocolFacet.setSwapRouter(swapRouterAddress);
 

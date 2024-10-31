@@ -27,5 +27,5 @@ contract ProtocolFacet is Operations, XOperations, Getters {
         revert("ProtocolFacet: fallback");
     }
 
-    receive() external {}
+    receive() external payable {}
 }
