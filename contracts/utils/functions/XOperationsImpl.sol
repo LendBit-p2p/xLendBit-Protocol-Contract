@@ -338,228 +338,63 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
     //  *
     //  * Emits a `CollateralWithdrawn` event on successful withdrawal.
     //  */
-    // function withdrawCollateral(
-    //     address _tokenCollateralAddress,
-    //     uint128 _amount
-    // ) external {
-    //     // Validate that the token is allowed and the amount is greater than zero
-    //     Validator._isTokenAllowed(
-    //         _appStorage.s_priceFeeds[_tokenCollateralAddress]
-    //     );
-    //     Validator._moreThanZero(_amount);
+    function _withdrawCollateral(
+        address _tokenCollateralAddress,
+        uint256 _amount,
+        address _msgSender,
+        uint16 _chainId
+    ) internal {
+        // Validate that the token is allowed and the amount is greater than zero
+        Validator._isTokenAllowed(
+            _appStorage.s_priceFeeds[_tokenCollateralAddress]
+        );
+        Validator._moreThanZero(_amount);
 
-    //     // Retrieve the user's deposited amount for the specified token
-    //     uint256 depositedAmount = _appStorage.s_addressToAvailableBalance[
-    //         msg.sender
-    //     ][_tokenCollateralAddress];
+        // Retrieve the user's deposited amount for the specified token
+        uint256 depositedAmount = _appStorage.s_addressToAvailableBalance[
+            _msgSender
+        ][_tokenCollateralAddress];
 
-    //     // Check if the user has sufficient collateral to withdraw the requested amount
-    //     if (depositedAmount < _amount) {
-    //         revert Protocol__InsufficientCollateralDeposited();
-    //     }
+        // Check if the user has sufficient collateral to withdraw the requested amount
+        if (depositedAmount < _amount) {
+            revert Protocol__InsufficientCollateralDeposited();
+        }
 
-    //     // Update storage to reflect the withdrawal of collateral
-    //     _appStorage.s_addressToCollateralDeposited[msg.sender][
-    //         _tokenCollateralAddress
-    //     ] -= _amount;
-    //     _appStorage.s_addressToAvailableBalance[msg.sender][
-    //         _tokenCollateralAddress
-    //     ] -= _amount;
+        // Update storage to reflect the withdrawal of collateral
+        _appStorage.s_addressToCollateralDeposited[_msgSender][
+            _tokenCollateralAddress
+        ] -= _amount;
+        _appStorage.s_addressToAvailableBalance[_msgSender][
+            _tokenCollateralAddress
+        ] -= _amount;
 
-    //     // Handle withdrawal for native token vs ERC20 tokens
-    //     if (_tokenCollateralAddress == Constants.NATIVE_TOKEN) {
-    //         // Transfer native token to the user
-    //         (bool sent, ) = payable(msg.sender).call{value: _amount}("");
-    //         if (!sent) revert Protocol__TransferFailed();
-    //     } else {
-    //         // Transfer ERC20 token to the user
-    //         IERC20(_tokenCollateralAddress).safeTransfer(msg.sender, _amount);
-    //     }
+        // Handle withdrawal for native token vs ERC20 tokens
+        ActionPayload memory payload = ActionPayload(
+            Action.Credit,
+            0,
+            0,
+            _msgSender,
+            _tokenCollateralAddress,
+            _amount,
+            0
+        );
+        bytes memory _payload = _encodeActionPayload(payload);
+        _handleTokenTransfer(
+            _chainId,
+            _appStorage.s_spokeProtocols[_chainId],
+            _payload,
+            _tokenCollateralAddress,
+            _amount
+        );
 
-    //     // Emit an event indicating successful collateral withdrawal
-    //     emit CollateralWithdrawn(msg.sender, _tokenCollateralAddress, _amount);
-    // }
-
-    // /**
-    //  * @dev Adds new collateral tokens along with their respective price feeds to the protocol.
-    //  * @param _tokens An array of token addresses to add as collateral.
-    //  * @param _priceFeeds An array of corresponding price feed addresses for the tokens.
-    //  *
-    //  * Requirements:
-    //  * - Only the contract owner can call this function.
-    //  * - The `_tokens` and `_priceFeeds` arrays must have the same length.
-    //  *
-    //  * Emits an `UpdatedCollateralTokens` event with the total number of collateral tokens added.
-    //  */
-    // function addCollateralTokens(
-    //     address[] memory _tokens,
-    //     address[] memory _priceFeeds
-    // ) external {
-    //     // Ensure only the contract owner can add collateral tokens
-    //     LibDiamond.enforceIsContractOwner();
-
-    //     // Validate that the tokens and price feeds arrays have the same length
-    //     if (_tokens.length != _priceFeeds.length) {
-    //         revert Protocol__tokensAndPriceFeedsArrayMustBeSameLength();
-    //     }
-
-    //     // Loop through each token to set its price feed and add it to the collateral list
-    //     for (uint8 i = 0; i < _tokens.length; i++) {
-    //         _appStorage.s_priceFeeds[_tokens[i]] = _priceFeeds[i]; // Map token to price feed
-    //         _appStorage.s_collateralToken.push(_tokens[i]); // Add token to collateral array
-    //     }
-
-    //     // Emit an event indicating the updated number of collateral tokens
-    //     emit UpdatedCollateralTokens(
-    //         msg.sender,
-    //         uint8(_appStorage.s_collateralToken.length)
-    //     );
-    // }
-
-    // /**
-    //  * @dev Removes specified collateral tokens and their associated price feeds from the protocol.
-    //  * @param _tokens An array of token addresses to be removed as collateral.
-    //  *
-    //  * Requirements:
-    //  * - Only the contract owner can call this function.
-    //  *
-    //  * Emits an `UpdatedCollateralTokens` event with the updated total number of collateral tokens.
-    //  */
-    // function removeCollateralTokens(address[] memory _tokens) external {
-    //     // Ensure only the contract owner can remove collateral tokens
-    //     LibDiamond.enforceIsContractOwner();
-
-    //     // Loop through each token to remove it from collateral and reset its price feed
-    //     for (uint8 i = 0; i < _tokens.length; i++) {
-    //         _appStorage.s_priceFeeds[_tokens[i]] = address(0); // Remove the price feed for the token
-
-    //         // Search for the token in the collateral array
-    //         for (uint8 j = 0; j < _appStorage.s_collateralToken.length; j++) {
-    //             if (_appStorage.s_collateralToken[j] == _tokens[i]) {
-    //                 // Replace the token to be removed with the last token in the array
-    //                 _appStorage.s_collateralToken[j] = _appStorage
-    //                     .s_collateralToken[
-    //                         _appStorage.s_collateralToken.length - 1
-    //                     ];
-
-    //                 // Remove the last token from the array
-    //                 _appStorage.s_collateralToken.pop();
-    //                 break; // Stop searching once the token is found and removed
-    //             }
-    //         }
-    //     }
-
-    //     // Emit an event indicating the updated count of collateral tokens
-    //     emit UpdatedCollateralTokens(
-    //         msg.sender,
-    //         uint8(_appStorage.s_collateralToken.length)
-    //     );
-    // }
-
-    // /**
-    //  * @dev Adds a new token as a loanable token and associates it with a price feed.
-    //  * @param _token The address of the token to be added as loanable.
-    //  * @param _priceFeed The address of the price feed for the loanable token.
-    //  *
-    //  * Requirements:
-    //  * - Only the contract owner can call this function.
-    //  *
-    //  * Emits an `UpdateLoanableToken` event indicating the new loanable token and its price feed.
-    //  */
-    // function addLoanableToken(address _token, address _priceFeed) external {
-    //     // Ensure only the contract owner can add loanable tokens
-    //     LibDiamond.enforceIsContractOwner();
-
-    //     // Mark the token as loanable
-    //     _appStorage.s_isLoanable[_token] = true;
-
-    //     // Associate the token with its price feed
-    //     _appStorage.s_priceFeeds[_token] = _priceFeed;
-
-    //     // Add the loanable token to the list of loanable tokens
-    //     _appStorage.s_loanableToken.push(_token);
-
-    //     // Emit an event to notify that a loanable token has been added
-    //     emit UpdateLoanableToken(_token, _priceFeed, msg.sender);
-    // }
-
-    // /**
-    //  * @dev Closes a listing advertisement and transfers the remaining amount to the author.
-    //  * @param _listingId The ID of the listing advertisement to be closed.
-    //  *
-    //  * Requirements:
-    //  * - The listing must be in an OPEN status.
-    //  * - Only the author of the listing can close it.
-    //  * - The amount of the listing must be greater than zero.
-    //  *
-    //  * Emits a `withdrawnAdsToken` event indicating the author, listing ID, status, and amount withdrawn.
-    //  */
-    // function closeListingAd(uint96 _listingId) external {
-    //     // Retrieve the loan listing associated with the given listing ID
-    //     LoanListing storage _newListing = _appStorage.loanListings[_listingId];
-
-    //     // Check if the listing is OPEN; revert if it's not
-    //     if (_newListing.listingStatus != ListingStatus.OPEN)
-    //         revert Protocol__OrderNotOpen();
-
-    //     // Ensure that the caller is the author of the listing; revert if not
-    //     if (_newListing.author != msg.sender)
-    //         revert Protocol__OwnerCreatedOrder();
-
-    //     // Ensure the amount is greater than zero; revert if it is zero
-    //     if (_newListing.amount == 0) revert Protocol__MustBeMoreThanZero();
-
-    //     // Store the amount to be transferred and reset the listing amount to zero
-    //     uint256 _amount = _newListing.amount;
-    //     _newListing.amount = 0; // Prevent re-entrancy by setting amount to zero
-    //     _newListing.listingStatus = ListingStatus.CLOSED; // Update listing status to CLOSED
-
-    //     // Handle the transfer of funds based on whether the token is native or ERC20
-    //     if (_newListing.tokenAddress == Constants.NATIVE_TOKEN) {
-    //         // Transfer native tokens (ETH) to the author
-    //         (bool sent, ) = payable(msg.sender).call{value: _amount}("");
-    //         if (!sent) revert Protocol__TransferFailed(); // Revert if the transfer fails
-    //     } else {
-    //         // Transfer ERC20 tokens to the author
-    //         IERC20(_newListing.tokenAddress).safeTransfer(msg.sender, _amount);
-    //     }
-
-    //     // Emit an event to notify that the listing has been closed and tokens have been withdrawn
-    //     emit withdrawnAdsToken(
-    //         msg.sender,
-    //         _listingId,
-    //         uint8(_newListing.listingStatus),
-    //         _amount
-    //     );
-    // }
-
-    // /**
-    //  * @dev Closes a lending request, updating its status to CLOSED.
-    //  * @param _requestId The ID of the request to be closed.
-    //  *
-    //  * Requirements:
-    //  * - The request must be in an OPEN status.
-    //  * - Only the author of the request can close it.
-    //  *
-    //  * Emits a `RequestClosed` event indicating the request ID and the author of the request.
-    //  */
-    // function closeRequest(uint96 _requestId) external {
-    //     // Retrieve the lending request associated with the given request ID
-    //     Request storage _foundRequest = _appStorage.request[_requestId];
-
-    //     // Check if the request is OPEN; revert if it's not
-    //     if (_foundRequest.status != Status.OPEN)
-    //         revert Protocol__RequestNotOpen();
-
-    //     // Ensure that the caller is the author of the request; revert if not
-    //     if (_foundRequest.author != msg.sender) revert Protocol__NotOwner();
-
-    //     // Update the request status to CLOSED
-    //     _foundRequest.status = Status.CLOSED;
-
-    //     // Emit an event to notify that the request has been closed
-    //     emit RequestClosed(_requestId, msg.sender);
-    // }
+        // Emit an event indicating successful collateral withdrawal
+        emit CollateralWithdrawn(
+            _msgSender,
+            _tokenCollateralAddress,
+            _amount,
+            _chainId
+        );
+    }
 
     // /**
     //  * @dev Creates a loan listing for lenders to fund.
@@ -890,180 +725,6 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
 
     //     // Emit event to notify of loan repayment
     //     emit LoanRepayment(msg.sender, _requestId, _amount);
-    // }
-
-    // /**
-    //  * @dev Liquidates the collateral associated with a loan request and compensates the lender.
-    //  * @param requestId The unique identifier of the loan request to be liquidated.
-    //  *
-    //  * Requirements:
-    //  * - Only a designated bot can execute this function.
-    //  * - The loan must be in a state eligible for liquidation.
-    //  *
-    //  * Emits:
-    //  * - `RequestLiquidated` after successfully liquidating the collateral and transferring the repayment.
-    //  */
-    // function liquidateUserRequest(uint96 requestId) external {
-    //     Validator._onlyBot(_appStorage.botAddress, msg.sender);
-
-    //     Request memory _activeRequest = _appStorage.request[requestId];
-    //     address loanCurrency = _activeRequest.loanRequestAddr;
-    //     address lenderAddress = _activeRequest.lender;
-    //     uint256 swappedAmount = 0;
-
-    //     // Loop through each collateral token and swap to loan currency if applicable
-    //     for (
-    //         uint96 index = 0;
-    //         index < _activeRequest.collateralTokens.length;
-    //         index++
-    //     ) {
-    //         address collateralToken = _activeRequest.collateralTokens[index];
-    //         uint256 amountOfCollateralToken = _appStorage
-    //             .s_idToCollateralTokenAmount[requestId][collateralToken];
-
-    //         if (amountOfCollateralToken > 0) {
-    //             // Attempt to swap collateral token to loan currency
-    //             uint256[] memory loanCurrencyAmount = swapToLoanCurrency(
-    //                 collateralToken,
-    //                 amountOfCollateralToken,
-    //                 loanCurrency
-    //             );
-
-    //             // Update the collateral deposited for the user
-    //             _appStorage.s_addressToCollateralDeposited[
-    //                 _activeRequest.author
-    //             ][collateralToken] -= amountOfCollateralToken;
-
-    //             // Add swapped amount to the total; if swap failed, fallback to using collateral amount
-    //             if (loanCurrencyAmount.length > 0) {
-    //                 swappedAmount += loanCurrencyAmount[1];
-    //             } else {
-    //                 swappedAmount += amountOfCollateralToken;
-    //             }
-
-    //             // Mark collateral as fully used
-    //             _appStorage.s_idToCollateralTokenAmount[requestId][
-    //                 collateralToken
-    //             ] = 0;
-    //         }
-    //     }
-
-    //     // Transfer loan currency to the lender, ensuring not to exceed total repayment
-    //     if (swappedAmount >= _activeRequest.totalRepayment) {
-    //         IERC20(loanCurrency).safeTransfer(
-    //             lenderAddress,
-    //             _activeRequest.totalRepayment
-    //         );
-    //     } else {
-    //         IERC20(loanCurrency).safeTransfer(lenderAddress, swappedAmount);
-    //     }
-
-    //     // Mark request as closed post liquidation
-    //     _activeRequest.status = Status.CLOSED;
-
-    //     emit RequestLiquidated(
-    //         requestId,
-    //         lenderAddress,
-    //         _activeRequest.totalRepayment
-    //     );
-    // }
-
-    // /**
-    //  * @dev Swaps a specified collateral token into the loan currency using Uniswap.
-    //  * @param collateralToken The token used as collateral.
-    //  * @param collateralAmount The amount of collateral to swap.
-    //  * @param loanCurrency The target currency for the loan.
-    //  * @return loanCurrencyAmount Array containing amounts received for each token in the path.
-    //  */
-    // function swapToLoanCurrency(
-    //     address collateralToken,
-    //     uint256 collateralAmount,
-    //     address loanCurrency
-    // ) public returns (uint256[] memory loanCurrencyAmount) {
-    //     uint256 amountOfTokenOut_ = 0;
-    //     uint[] memory amountsOut;
-
-    //     // Early exit if collateral and loan currencies are the same
-    //     if (loanCurrency == collateralToken) {
-    //         return amountsOut;
-    //     }
-
-    //     // Ensure ETH tokens are wrapped as WETH for compatibility with Uniswap
-    //     if (collateralToken == Constants.NATIVE_TOKEN) {
-    //         collateralToken = Constants.WETH;
-    //     }
-    //     if (loanCurrency == Constants.NATIVE_TOKEN) {
-    //         loanCurrency = Constants.WETH;
-    //     }
-
-    //     // Define the swap path from collateral to loan currency
-    //     address[] memory path = new address[](2);
-    //     path[0] = collateralToken;
-    //     path[1] = loanCurrency;
-
-    //     // Handle ETH to ERC20 swap
-    //     if (collateralToken == Constants.WETH) {
-    //         amountsOut = IUniswapV2Router02(_appStorage.swapRouter)
-    //             .swapExactETHForTokens{value: collateralAmount}(
-    //             amountOfTokenOut_,
-    //             path,
-    //             address(this),
-    //             block.timestamp + 300
-    //         );
-
-    //         // Handle ERC20 to ETH swap
-    //     } else if (loanCurrency == Constants.WETH) {
-    //         // Approve Uniswap router to transfer collateral tokens
-    //         IERC20(collateralToken).approve(
-    //             _appStorage.swapRouter,
-    //             collateralAmount
-    //         );
-
-    //         amountsOut = IUniswapV2Router02(_appStorage.swapRouter)
-    //             .swapExactTokensForETH(
-    //                 collateralAmount,
-    //                 amountOfTokenOut_,
-    //                 path,
-    //                 address(this),
-    //                 block.timestamp + 300
-    //             );
-
-    //         // Handle ERC20 to ERC20 swap
-    //     } else {
-    //         // Approve Uniswap router to transfer collateral tokens
-    //         IERC20(collateralToken).approve(
-    //             _appStorage.swapRouter,
-    //             collateralAmount
-    //         );
-
-    //         amountsOut = IUniswapV2Router02(_appStorage.swapRouter)
-    //             .swapExactTokensForTokens(
-    //                 collateralAmount,
-    //                 amountOfTokenOut_,
-    //                 path,
-    //                 address(this),
-    //                 block.timestamp + 300
-    //             );
-    //     }
-
-    //     // Return the output amount in the target loan currency
-    //     return amountsOut;
-    // }
-
-    // /**
-    //  * @notice Sets the bot address for the protocol.
-    //  * @dev This function allows the contract owner to set an address for automated bot actions within the protocol,
-    //  *      such as monitoring and liquidating undercollateralized loans. Only callable by the contract owner.
-    //  * @param _botAddress The address designated as the bot for handling automated protocol tasks.
-    //  *        It should be a valid external or contract address with necessary permissions.
-    //  * @custom:access Only callable by the contract owner.
-    //  */
-    // function setBotAddress(address _botAddress) external {
-    //     // Ensures only the contract owner can call this function
-    //     LibDiamond.enforceIsContractOwner();
-
-    //     // Sets the bot address in storage, enabling bot actions within the protocol
-    //     _appStorage.botAddress = _botAddress;
     // }
 
     function _vetTokenAndUnwrap(

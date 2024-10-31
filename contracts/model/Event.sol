@@ -31,7 +31,8 @@ event RequestClosed(uint96 indexed _requestId, address indexed _borrower);
 event CollateralWithdrawn(
     address indexed sender,
     address indexed _tokenCollateralAddress,
-    uint256 _amount
+    uint256 _amount,
+    uint16 _chainId
 );
 event UpdatedCollateralTokens(address indexed sender, uint8 newTokensCount);
 event AcceptedListedAds(

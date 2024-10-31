@@ -199,7 +199,7 @@ contract ProtocolTest is Test, IDiamondCut {
         vm.deal(B, 10 ether);
 
         vm.expectEmit(true, true, true, true);
-        emit RequestServiced(1, B, owner, 0.01 ether);
+        emit RequestServiced(1, B, owner, 0.01 ether, uint16(11155));
         protocolFacet.serviceRequest{value: 0.01 ether}(
             1,
             ETH_CONTRACT_ADDRESS

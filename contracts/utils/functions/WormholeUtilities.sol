@@ -6,8 +6,11 @@ import {LibBytes} from "../../libraries/LibBytes.sol";
 import {LibXGetters} from "../../libraries/LibXGetters.sol";
 import {XSetters} from "./XSetters.sol";
 import {IWormhole} from "../../interfaces/IWormhole.sol";
+import {IWETH} from "../../interfaces/IWETH.sol";
 import {TokenSender} from "./Wormhole/TokenBase.sol";
+import {CCTPSender} from "./Wormhole/CCTPBase.sol";
 import {Message} from "./Message.sol";
+import {Constants} from "../constants/Constant.sol";
 
 import "../../model/Protocol.sol";
 
@@ -32,8 +35,10 @@ contract WormholeUtilities is XSetters, TokenSender, Message {
         uint256 receiverValue = _amount;
         uint32 gasLimit = 400_000;
 
-        if (_token == Constants.WETH) {
-            _amount = _normalizeAmountTokenBridge(_amount, 18, round);
+        if (_token == Constants.NATIVE_TOKEN) {
+            _token = Constants.WETH;
+            IWETH(_token).deposit{value: _amount}();
+            _amount = _normalizeAmountTokenBridge(_amount, 18, Round.DOWN);
 
             sendTokenWithPayloadToEvm(
                 _targetChain,
@@ -46,7 +51,7 @@ contract WormholeUtilities is XSetters, TokenSender, Message {
                 _appStorage.provider.chainId,
                 address(this)
             );
-        }
+        } else if (_token == Constants.USDC) {}
     }
     /**
      * @dev Extracts the payload from the TransferWithPayload message for further processing.

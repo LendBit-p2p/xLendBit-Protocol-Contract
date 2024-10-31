@@ -47,9 +47,22 @@ contract XOperations is XOperationsImpl {
             );
         } else if (action == Action.CreateRequest) {
             _createLendingRequest(payload, _sourceChain);
-        } esle if (action == Action.ServiceRequest) {
+        } else if (action == Action.ServiceRequest) {
             TokenReceived memory token = _vetTokenAndUnwrap(_receivedTokens);
-            _serviceRequest(payload.id, token.tokenAddress, payload.sender, _sourceChain, token.amount);
+            _serviceRequest(
+                payload.id,
+                token.tokenAddress,
+                payload.sender,
+                _sourceChain,
+                token.amount
+            );
+        } else if (action == Action.Withdraw) {
+            _withdrawCollateral(
+                payload.assetAddress,
+                payload.assetAmount,
+                payload.sender,
+                _sourceChain
+            );
         }
     }
 }

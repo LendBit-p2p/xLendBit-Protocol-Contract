@@ -347,7 +347,8 @@ contract Operations is AppStorage {
             _requestId,
             msg.sender,
             _foundRequest.author,
-            amountToLend
+            amountToLend,
+            _appStorage.provider.chainId
         );
     }
 
@@ -402,7 +403,12 @@ contract Operations is AppStorage {
         }
 
         // Emit an event indicating successful collateral withdrawal
-        emit CollateralWithdrawn(msg.sender, _tokenCollateralAddress, _amount);
+        emit CollateralWithdrawn(
+            msg.sender,
+            _tokenCollateralAddress,
+            _amount,
+            _appStorage.provider.chainId
+        );
     }
 
     /**
@@ -822,7 +828,8 @@ contract Operations is AppStorage {
             _newRequest.requestId,
             _newRequest.lender,
             _newRequest.author,
-            _amount
+            _amount,
+            _appStorage.provider.chainId
         );
     }
 
