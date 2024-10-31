@@ -82,6 +82,15 @@ contract XOperations is XOperationsImpl {
                 payload.assetAddress,
                 _sourceChain
             );
-        } else if (action == Action.Repay) {}
+        } else if (action == Action.Repay) {
+            TokenReceived memory token = _vetTokenAndUnwrap(_receivedTokens);
+            _repayLoan(
+                payload.id,
+                token.amount,
+                token.tokenAddress,
+                payload.sender,
+                _sourceChain
+            );
+        }
     }
 }
