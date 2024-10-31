@@ -53,24 +53,6 @@ contract WormholeUtilities is XSetters, TokenSender, Message {
             );
         } else if (_token == Constants.USDC) {}
     }
-    /**
-     * @dev Extracts the payload from the TransferWithPayload message for further processing.
-     * Skips metadata and focuses on the serialized data in the message.
-     *
-     * @param encodedVM The encoded VM message containing the transfer payload.
-     * @return serialized The extracted serialized payload data.
-     */
-    function _extractPayloadFromTransferPayload(
-        bytes memory encodedVM
-    ) internal pure returns (bytes memory serialized) {
-        uint256 index = 0;
-        uint256 end = encodedVM.length;
-
-        // Pass through TransferWithPayload metadata to arbitrary serialized bytes
-        index += 1 + 32 + 32 + 2 + 32 + 2 + 32;
-
-        return encodedVM.slice(index, end - index);
-    }
 
     /**
      * @dev Verifies that the sender of the message is the authorized spoke contract on the given chain.

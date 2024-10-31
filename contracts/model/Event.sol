@@ -8,18 +8,7 @@ event RequestCreated(
     uint16 _interest,
     uint16 indexed _chainId
 );
-event OrderCreated(
-    address indexed _lender,
-    address indexed_tokenAddress,
-    uint256 _amount,
-    uint96 indexed _requestId
-);
-event RespondToLendingOffer(
-    address indexed sender,
-    uint indexed _offerId,
-    uint8 _status,
-    uint8 _offerStatus
-);
+
 event RequestServiced(
     uint96 indexed _requestId,
     address indexed _lender,
@@ -41,7 +30,12 @@ event AcceptedListedAds(
     uint256 indexed amount,
     uint8 adStatus
 );
-event LoanRepayment(address indexed sender, uint96 id, uint256 amount);
+event LoanRepayment(
+    address indexed sender,
+    uint96 id,
+    uint256 amount,
+    uint16 indexed chainId
+);
 event UpdateLoanableToken(
     address indexed _token,
     address _priceFeed,

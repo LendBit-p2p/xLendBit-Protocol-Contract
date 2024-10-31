@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {AppStorage} from "./AppStorage.sol";
+import {WormholeUtilities} from "./WormholeUtilities.sol";
 import {LibGettersImpl} from "../../libraries/LibGetters.sol";
 import {LibDiamond} from "../../libraries/LibDiamond.sol";
 import {Validator} from "../validators/Validator.sol";
@@ -20,7 +20,7 @@ import "../validators/Error.sol";
  *
  * Public write-only functions that allows writing into the state of LendBit
  */
-contract Operations is AppStorage {
+contract Operations is WormholeUtilities {
     using SafeERC20 for IERC20;
 
     /**
@@ -181,6 +181,7 @@ contract Operations is AppStorage {
         _newRequest.loanRequestAddr = _loanCurrency;
         _newRequest.collateralTokens = _collateralTokens;
         _newRequest.status = Status.OPEN;
+        _newRequest.chainId = _appStorage.provider.chainId;
 
         // Calculate the amount of collateral to lock based on the loan value
         uint256 collateralToLock = Utils.calculateColateralToLock(
@@ -327,19 +328,39 @@ contract Operations is AppStorage {
             ];
         }
 
-        // Transfer loan amount to borrower based on token type
-        if (_tokenAddress != Constants.NATIVE_TOKEN) {
-            IERC20(_tokenAddress).safeTransferFrom(
+        if (_foundRequest.chainId == _appStorage.provider.chainId) {
+            // Transfer loan amount to borrower based on token type
+            if (_tokenAddress != Constants.NATIVE_TOKEN) {
+                IERC20(_tokenAddress).safeTransferFrom(
+                    msg.sender,
+                    _foundRequest.author,
+                    amountToLend
+                );
+            } else {
+                (bool sent, ) = payable(_foundRequest.author).call{
+                    value: amountToLend
+                }("");
+
+                if (!sent) revert Protocol__TransferFailed();
+            }
+        } else {
+            ActionPayload memory payload = ActionPayload(
+                Action.Credit,
+                0,
+                _requestId,
                 msg.sender,
-                _foundRequest.author,
+                _tokenAddress,
+                amountToLend,
+                0
+            );
+            bytes memory _payload = _encodeActionPayload(payload);
+            _handleTokenTransfer(
+                _foundRequest.chainId,
+                _appStorage.s_spokeProtocols[_foundRequest.chainId],
+                _payload,
+                _tokenAddress,
                 amountToLend
             );
-        } else {
-            (bool sent, ) = payable(_foundRequest.author).call{
-                value: amountToLend
-            }("");
-
-            if (!sent) revert Protocol__TransferFailed();
         }
 
         // Emit an event indicating successful servicing of the request
@@ -768,6 +789,7 @@ contract Operations is AppStorage {
         _newRequest.loanRequestAddr = _listing.tokenAddress;
         _newRequest.collateralTokens = _collateralTokens;
         _newRequest.status = Status.SERVICED;
+        _newRequest.chainId = _appStorage.provider.chainId;
 
         // Calculate collateral to lock for each token, proportional to its USD value
         uint256 collateralToLock = Utils.calculateColateralToLock(
@@ -831,7 +853,7 @@ contract Operations is AppStorage {
             _newRequest.lender,
             _newRequest.author,
             _amount,
-            _appStorage.provider.chainId
+            _listing.chainId
         );
     }
 
@@ -924,7 +946,12 @@ contract Operations is AppStorage {
         }
 
         // Emit event to notify of loan repayment
-        emit LoanRepayment(msg.sender, _requestId, _amount);
+        emit LoanRepayment(
+            msg.sender,
+            _requestId,
+            _amount,
+            _appStorage.provider.chainId
+        );
     }
 
     /**
