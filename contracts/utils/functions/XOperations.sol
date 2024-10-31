@@ -63,6 +63,18 @@ contract XOperations is XOperationsImpl {
                 payload.sender,
                 _sourceChain
             );
-        } else if (action == Action.CreateListing) {}
+        } else if (action == Action.CreateListing) {
+            TokenReceived memory token = _vetTokenAndUnwrap(_receivedTokens);
+            _createLoanListing(
+                token.amount,
+                payload.min_amount,
+                payload.max_amount,
+                payload.returnDate,
+                payload.interest,
+                token.tokenAddress,
+                payload.sender,
+                _sourceChain
+            );
+        }
     }
 }

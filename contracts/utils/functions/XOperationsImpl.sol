@@ -420,7 +420,8 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
         uint256 _returnDate,
         uint16 _interest,
         address _loanCurrency,
-        uint16 _sourceChain,
+        address _msgSender,
+        uint16 _sourceChain
     ) internal {
         // Validate that the amount is greater than zero and that a value has been sent if using native token
         Validator._moreThanZero(_amount);
@@ -438,7 +439,7 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
 
         // Populate the loan listing struct with the provided details
         _newListing.listingId = _appStorage.listingId;
-        _newListing.author = msg.sender;
+        _newListing.author = _msgSender;
         _newListing.amount = _amount;
         _newListing.min_amount = _min_amount;
         _newListing.max_amount = _max_amount;
