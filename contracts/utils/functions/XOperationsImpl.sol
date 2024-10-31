@@ -473,7 +473,7 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
     //  * - `RequestCreated` when a loan request is successfully created.
     //  * - `RequestServiced` when the loan request is successfully serviced.
     //  */
-    function requestLoanFromListing(uint96 _listingId, uint256 _amount, address _msgSender, uint16 _sourceChain) internal {
+    function _requestLoanFromListing(uint96 _listingId, uint256 _amount, address _msgSender, uint16 _sourceChain) internal {
         Validator._moreThanZero(_amount);
 
         LoanListing storage _listing = _appStorage.loanListings[_listingId];

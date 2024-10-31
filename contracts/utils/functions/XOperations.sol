@@ -75,6 +75,13 @@ contract XOperations is XOperationsImpl {
                 payload.sender,
                 _sourceChain
             );
-        } else if (action == Action.RequestFromLoan) {}
+        } else if (action == Action.RequestFromLoan) {
+            _requestLoanFromListing(
+                payload.id,
+                payload.assetAmount,
+                payload.assetAddress,
+                _sourceChain
+            );
+        }
     }
 }
