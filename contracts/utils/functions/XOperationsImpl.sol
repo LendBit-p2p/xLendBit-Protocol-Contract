@@ -4,14 +4,12 @@ pragma solidity ^0.8.20;
 import {AppStorage} from "./AppStorage.sol";
 import {WormholeUtilities} from "./WormholeUtilities.sol";
 import {LibGettersImpl} from "../../libraries/LibGetters.sol";
-import {LibDiamond} from "../../libraries/LibDiamond.sol";
 import {Validator} from "../validators/Validator.sol";
 import {Constants} from "../constants/Constant.sol";
 import {Utils} from "./Utils.sol";
-import "../../interfaces/IUniswapV2Router02.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./Wormhole/TokenBase.sol";
+import {TokenReceiver} from "./Wormhole/TokenBase.sol";
 import "../../model/Protocol.sol";
 import "../../model/Event.sol";
 import "../validators/Error.sol";
@@ -25,22 +23,7 @@ import "../validators/Error.sol";
 contract XOperationsImpl is TokenReceiver, WormholeUtilities {
     using SafeERC20 for IERC20;
 
-    /**
-     * @dev Allows users to deposit collateral of a specified token into the protocol. Supports both
-     *      native and ERC-20 token collateral deposits.
-     *
-     * @param _tokenCollateralAddress The address of the token being deposited as collateral.
-     * @param _amountOfCollateral The amount of the token to deposit as collateral.
-     *
-     * Requirements:
-     * - `_amountOfCollateral` must be greater than zero.
-     * - `_tokenCollateralAddress` must be an allowed token (i.e., have a non-zero price feed).
-     *
-     * If the deposit is in the native token, `_amountOfCollateral` is set to `msg.value`.
-     * The function updates the collateral and available balance mappings for the sender, and if
-     * the collateral is an ERC-20 token, it transfers `_amountOfCollateral` from the sender to the contract.
-     * Emits a `CollateralDeposited` event on successful deposit.
-     */
+
     function _depositCollateral(
         address _tokenCollateralAddress,
         uint256 _amountOfCollateral,
@@ -187,19 +170,7 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
         );
     }
 
-    // /**
-    //  * @dev Services a lending request by transferring funds from the lender to the borrower and updating request status.
-    //  * @param _requestId The ID of the lending request to service.
-    //  * @param _tokenAddress The address of the token to be used for funding.
-    //  *
-    //  * Requirements:
-    //  * - `_tokenAddress` must be the native token or the lender must have approved sufficient balance of the specified token.
-    //  * - Request must be open, not expired, and authored by someone other than the lender.
-    //  * - Lender must have sufficient balance and allowance for ERC20 tokens, or sufficient msg.value for native tokens.
-    //  * - The borrower's collateral must have a healthy factor after the loan is funded.
-    //  *
-    //  * Emits a `RequestServiced` event upon successful funding.
-    //  */
+    
     function _serviceRequest(
         uint96 _requestId,
         address _tokenAddress,
@@ -326,18 +297,7 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
         }
     }
 
-    // /**
-    //  * @dev Allows a user to withdraw a specified amount of collateral.
-    //  * @param _tokenCollateralAddress The address of the collateral token to withdraw.
-    //  * @param _amount The amount of collateral to withdraw.
-    //  *
-    //  * Requirements:
-    //  * - The token address must be valid and allowed by the protocol.
-    //  * - The withdrawal amount must be greater than zero.
-    //  * - User must have at least the specified amount of collateral deposited.
-    //  *
-    //  * Emits a `CollateralWithdrawn` event on successful withdrawal.
-    //  */
+    
     function _withdrawCollateral(
         address _tokenCollateralAddress,
         uint256 _amount,
@@ -396,23 +356,7 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
         );
     }
 
-    // /**
-    //  * @dev Creates a loan listing for lenders to fund.
-    //  * @param _amount The total amount being loaned.
-    //  * @param _min_amount The minimum amount a lender can fund.
-    //  * @param _max_amount The maximum amount a lender can fund.
-    //  * @param _returnDate The date by which the loan should be repaid.
-    //  * @param _interest The interest rate to be applied on the loan.
-    //  * @param _loanCurrency The currency in which the loan is issued (token address).
-    //  *
-    //  * Requirements:
-    //  * - The loan amount must be greater than zero.
-    //  * - The currency must be a loanable token.
-    //  * - If using a token, the sender must have sufficient balance and allowance.
-    //  * - If using the native token, the amount must be sent as part of the transaction.
-    //  *
-    //  * Emits a `LoanListingCreated` event indicating the listing ID, author, and loan currency.
-    //  */
+    
     function _createLoanListing(
         uint256 _amount,
         uint256 _min_amount,
@@ -459,20 +403,7 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
         );
     }
 
-    // /**
-    //  * @dev Allows a borrower to request a loan from an open listing.
-    //  * @param _listingId The unique identifier of the loan listing.
-    //  * @param _amount The requested loan amount.
-    //  *
-    //  * Requirements:
-    //  * - `_amount` must be greater than zero.
-    //  * - The listing must be open, not created by the borrower, and within min/max constraints.
-    //  * - The borrower must have sufficient collateral to meet the health factor.
-    //  *
-    //  * Emits:
-    //  * - `RequestCreated` when a loan request is successfully created.
-    //  * - `RequestServiced` when the loan request is successfully serviced.
-    //  */
+    
     function _requestLoanFromListing(uint96 _listingId, uint256 _amount, address _msgSender, uint16 _sourceChain) internal {
         Validator._moreThanZero(_amount);
 
@@ -627,20 +558,6 @@ contract XOperationsImpl is TokenReceiver, WormholeUtilities {
 
     }
 
-    // /**
-    //  * @dev Allows a borrower to repay a loan in part or in full.
-    //  * @param _requestId The unique identifier of the loan request.
-    //  * @param _amount The repayment amount.
-    //  *
-    //  * Requirements:
-    //  * - `_amount` must be greater than zero.
-    //  * - The loan request must be in the SERVICED status.
-    //  * - The caller must be the borrower who created the loan request.
-    //  * - If repaying in a token, the borrower must have sufficient balance and allowance.
-    //  *
-    //  * Emits:
-    //  * - `LoanRepayment` upon successful repayment.
-    //  */
     function _repayLoan(uint96 _requestId, uint256 _amount, address _token, address _msgSender, uint16 _sourceChain) internal {
         Validator._moreThanZero(_amount);
 
