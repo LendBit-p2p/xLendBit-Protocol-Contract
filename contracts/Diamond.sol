@@ -16,7 +16,6 @@ import "../contracts/utils/validators/Error.sol";
 contract Diamond {
     LibAppStorage.Layout internal _appStorage;
 
-
     constructor(address _contractOwner, address _diamondCutFacet) payable {
         LibDiamond.setContractOwner(_contractOwner);
 
@@ -32,26 +31,43 @@ contract Diamond {
         LibDiamond.diamondCut(cut, address(0), "");
     }
 
-    
     /// @dev Acts as our contructor
     /// @param _tokens address of all the tokens
     /// @param _priceFeeds address of all the pricefeed tokens
     function initialize(
         address[] memory _tokens,
-        address[] memory _priceFeeds
-    ) public  {
+        address[] memory _priceFeeds,
+        uint16[] memory _chainIds,
+        address[] memory _spokeContracts,
+        address _wormhole,
+        address _wormholeRelayer,
+        address _tokenBridge,
+        address _circleTM,
+        address _circleMT,
+        uint16 _chainId
+    ) public {
         LibDiamond.enforceIsContractOwner();
         if (_tokens.length != _priceFeeds.length) {
             revert Protocol__tokensAndPriceFeedsArrayMustBeSameLength();
         }
+        _appStorage.provider.chainId = _chainId;
+        _appStorage.provider.wormhole = payable(_wormhole);
+        _appStorage.provider.wormholeRelayer = _wormholeRelayer;
+        _appStorage.provider.circleMessageTransmitter = _circleMT;
+        _appStorage.provider.circleTokenMessenger = _circleTM;
+        _appStorage.swapRouter = address(
+            0x94cC0AaC535CCDB3C01d6787D6413C739ae12bc4
+        );
+
         for (uint8 i = 0; i < _tokens.length; i++) {
             _appStorage.s_isLoanable[_tokens[i]] = true;
             _appStorage.s_priceFeeds[_tokens[i]] = _priceFeeds[i];
             _appStorage.s_collateralToken.push(_tokens[i]);
-        }   
-            _appStorage.swapRouter = address(0x94cC0AaC535CCDB3C01d6787D6413C739ae12bc4);
-  
+        }
 
+        for (uint8 i = 0; i < _chainIds.length; i++) {
+            _appStorage.s_spokeProtocols[_chainIds[i]] = _spokeContracts[i];
+        }
     }
 
     // Find facet for function that is called and execute the
