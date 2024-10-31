@@ -62,6 +62,7 @@ struct LoanListing {
     uint256 returnDate;
     uint16 interest;
     ListingStatus listingStatus;
+    uint16 chainId;
 }
 
 /**

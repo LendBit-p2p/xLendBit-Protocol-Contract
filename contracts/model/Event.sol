@@ -65,7 +65,8 @@ event LoanListingCreated(
     uint96 indexed listingId,
     address indexed sender,
     address indexed tokenAddress,
-    uint256 amount
+    uint256 amount,
+    uint16 chainId
 );
 
 event RequestLiquidated(

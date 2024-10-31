@@ -667,13 +667,15 @@ contract Operations is AppStorage {
         _newListing.returnDate = _returnDate;
         _newListing.tokenAddress = _loanCurrency;
         _newListing.listingStatus = ListingStatus.OPEN;
+        _newListing.chainId = _appStorage.provider.chainId;
 
         // Emit an event to notify that a new loan listing has been created
         emit LoanListingCreated(
             _appStorage.listingId,
             msg.sender,
             _loanCurrency,
-            _amount
+            _amount,
+            _appStorage.provider.chainId
         );
     }
 
