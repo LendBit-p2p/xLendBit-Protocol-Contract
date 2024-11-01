@@ -45,17 +45,18 @@ contract ProtocolTest is Test, IDiamondCut {
 
     address botAddress = address(0x0beaf0BfC5D1f3f3F8d3a6b0F1B6E3f2b0f1b6e3);
     address swapRouterAddress = 0x1689E7B1F10000AE47eBfE339a4f69dECd19F602;
-    address wormhole;
-    address tokenBridge;
-    address wormholeRelayer;
-    address circleTM;
-    address circleMT;
-    uint16 chainId;
+    address wormhole = 0x79A1027a6A159502049F10906D333EC57E95F083;
+    address tokenBridge = 0x86F55A04690fd7815A3D802bD587e83eA888B239;
+    address wormholeRelayer = 0x93BAD53DDfB6132b0aC8E37f6029163E63372cEE;
+    address circleTM = 0x9f3B8679c73C2Fef8b59B4f3444d4e156fb70AA5;
+    address circleMT = 0x7865fAfC2db2093669d92c0F33AeEF291086BEFD;
+    uint16 chainId = 10004;
 
     address[] tokens;
     address[] priceFeed;
     uint16[] chainIds;
     address[] spokeProtocols;
+    uint32[] cctpDomain;
 
     function setUp() public {
         //deploy facets
@@ -127,7 +128,8 @@ contract ProtocolTest is Test, IDiamondCut {
             tokenBridge,
             circleTM,
             circleMT,
-            chainId
+            chainId,
+            cctpDomain
         );
 
         protocolFacet = ProtocolFacet(payable(address(diamond)));

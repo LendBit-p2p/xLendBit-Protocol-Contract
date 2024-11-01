@@ -44,7 +44,8 @@ contract Diamond {
         address _tokenBridge,
         address _circleTM,
         address _circleMT,
-        uint16 _chainId
+        uint16 _chainId,
+        uint32[] memory _cctpDomains
     ) public {
         LibDiamond.enforceIsContractOwner();
         if (_tokens.length != _priceFeeds.length) {
@@ -68,6 +69,7 @@ contract Diamond {
 
         for (uint8 i = 0; i < _chainIds.length; i++) {
             _appStorage.s_spokeProtocols[_chainIds[i]] = _spokeContracts[i];
+            _appStorage.s_chainIdToCCTPDomain[_chainIds[i]] = _cctpDomains[i];
         }
     }
 
