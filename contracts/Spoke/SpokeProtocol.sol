@@ -12,46 +12,31 @@ import "../utils/validators/Error.sol";
 import "../model/Event.sol";
 
 contract SpokeProtocol is TokenSender, Message {
-
     mapping(address => uint16 chainId) s_spokeProtocols;
     mapping(address spokeContractAddress => Provider) s_spokeProtocolProvider;
     mapping(address token => bool) isTokenValid;
 
-
-
     constructor(
         address _wormholeRelayer,
         address _tokenBridge,
-        address _wormhole, 
-        address [] memory _tokens,
-        uint16 chainId 
+        address _wormhole,
+        address[] memory _tokens,
+        uint16 chainId
     ) TokenBase(_wormholeRelayer, _tokenBridge, _wormhole) {
         wormholeRelayer = IWormholeRelayer(_wormholeRelayer);
 
-        if(_tokens.length < 1) revert spoke__TokenArrayCantBeEmpty();
+        if (_tokens.length < 1) revert spoke__TokenArrayCantBeEmpty();
         for (uint8 i = 0; i < _tokens.length; i++) {
-          isTokenValid[_tokens[i]] = true;
+            isTokenValid[_tokens[i]] = true;
         }
         s_spokeProtocols[address(this)] = chainId;
     }
-    
 
-
-    modifier ValidateChainId(uint16 _chainId){
-       uint16 currentChainId = _getChainId(address(this));
-        if( currentChainId != _chainId) revert  spoke__InvalidSpokeChainId();
+    modifier ValidateChainId(uint16 _chainId) {
+        uint16 currentChainId = _getChainId(address(this));
+        if (currentChainId != _chainId) revert spoke__InvalidSpokeChainId();
         _;
     }
-
-
-
-
-
-
-
-
-
-
 
     function depositCollateral(
         uint16 _targetChain,
@@ -59,20 +44,13 @@ contract SpokeProtocol is TokenSender, Message {
         address _assetAddress,
         uint256 _amount
     ) external payable {
-
-           Validator._valueMoreThanZero(
-            _amount,
-            _assetAddress,
-            msg.value
-        );
+        Validator._valueMoreThanZero(_amount, _assetAddress, msg.value);
 
         uint256 cost = _quoteCrossChainCost(_targetChain);
         uint16 currentChainId = _getChainId(address(this));
-        if(currentChainId < 1) revert spoke__InvalidSpokeChainId();
+        if (currentChainId < 1) revert spoke__InvalidSpokeChainId();
 
-        
-
-        if(msg.value < cost) revert spoke__InsufficientGasFee();
+        if (msg.value < cost) revert spoke__InsufficientGasFee();
 
         if (_assetAddress == Constants.NATIVE_TOKEN) {
             _amount = msg.value;
@@ -110,12 +88,10 @@ contract SpokeProtocol is TokenSender, Message {
         emit Spoke__DepositCollateral(
             _targetChain,
             _amount,
-             msg.sender,
+            msg.sender,
             _assetAddress
         );
     }
-
-
 
     function createLendingRequest(
         uint16 _targetChain,
@@ -124,19 +100,18 @@ contract SpokeProtocol is TokenSender, Message {
         uint256 _returnDate,
         address _loanAddress,
         uint256 _amount
-    ) external payable{
-          Validator._moreThanZero(_amount);
-          //todo check address zero and comment
+    ) external payable {
+        Validator._moreThanZero(_amount);
+        //todo check address zero and comment
 
-         uint256 cost = _quoteCrossChainCost(_targetChain);
-            
-            uint16 currentChainId = _getChainId(address(this));
-            if(currentChainId < 1) revert spoke__InvalidSpokeChainId();
+        uint256 cost = _quoteCrossChainCost(_targetChain);
 
+        uint16 currentChainId = _getChainId(address(this));
+        if (currentChainId < 1) revert spoke__InvalidSpokeChainId();
 
-        if(msg.value < cost) revert spoke__InsufficientGasFee();
-     
-           // Create and encode payload for cross-chain message
+        if (msg.value < cost) revert spoke__InsufficientGasFee();
+
+        // Create and encode payload for cross-chain message
         ActionPayload memory payload;
         payload.action = Action.CreateRequest;
         payload.assetAddress = _loanAddress;
@@ -147,28 +122,68 @@ contract SpokeProtocol is TokenSender, Message {
 
         bytes memory _payload = Message._encodeActionPayload(payload);
 
+        wormholeRelayer.sendPayloadToEvm{value: cost}(
+            _targetChain,
+            _targetAddress,
+            _payload,
+            0,
+            Constants.GAS_LIMIT,
+            currentChainId,
+            msg.sender
+        );
 
-         wormholeRelayer.sendPayloadToEvm{value: cost}
-         (_targetChain,
-          _targetAddress,
-          _payload,
-           0,
-           Constants.GAS_LIMIT,
-          currentChainId, 
-          msg.sender);
-
-      
         emit Spoke__CreateRequest(
             _targetChain,
             _amount,
             msg.sender,
             _loanAddress
         );
+    }
+
+    function serviceRequest(
+         uint16 _targetChain,
+        address _targetAddress,
+        uint96 _requestId,
+        address _tokenAddress
+
+    )external payable{
+
+        uint256 cost = _quoteCrossChainCost(_targetChain);
+
+        uint16 currentChainId = _getChainId(address(this));
+        if (currentChainId < 1) revert spoke__InvalidSpokeChainId();
+
+        if (msg.value < cost) revert spoke__InsufficientGasFee();
+
+          // Create and encode payload for cross-chain message
+        ActionPayload memory payload;
+        payload.action = Action.ServiceRequest;
+        payload.assetAddress = _tokenAddress;
+        payload.sender = msg.sender;
+        payload.id = _requestId;
+
+        bytes memory _payload = Message._encodeActionPayload(payload);
+
+        wormholeRelayer.sendPayloadToEvm{value: cost}(
+            _targetChain,
+            _targetAddress,
+            _payload,
+            0,
+            Constants.GAS_LIMIT,
+            currentChainId,
+            msg.sender
+        );
+
+           emit Spoke__ServiceRequest(
+            _targetChain,
+            _requestId,
+            msg.sender,
+            _tokenAddress
+        );
 
 
 
     }
-
 
     //   /**
     //  * @dev Registers a spoke contract for a specific chain ID.
@@ -183,44 +198,34 @@ contract SpokeProtocol is TokenSender, Message {
     //     s_spokeProtocols[chainId] = spokeContractAddress;
     // }
 
-
-
-
-    function _getChainId(address _spokeContractAddress) private view returns (uint16 chainId_){
+    function _getChainId(
+        address _spokeContractAddress
+    ) private view returns (uint16 chainId_) {
         chainId_ = s_spokeProtocols[_spokeContractAddress];
     }
 
-
-
     function registerSpokeContractProvider(
-     uint16 _chainId,
-    address payable _wormhole,
-    address _tokenBridge,
-    address _wormholeRelayer,
-    address _circleTokenMessenger,
-    address _circleMessageTransmitter)ValidateChainId(_chainId) external {
-
-        Provider storage provider =  s_spokeProtocolProvider[address(this)];
+        uint16 _chainId,
+        address payable _wormhole,
+        address _tokenBridge,
+        address _wormholeRelayer,
+        address _circleTokenMessenger,
+        address _circleMessageTransmitter
+    ) external ValidateChainId(_chainId) {
+        Provider storage provider = s_spokeProtocolProvider[address(this)];
         provider.chainId = _chainId;
         provider.wormhole = _wormhole;
         provider.tokenBridge = _tokenBridge;
         provider.wormholeRelayer = _wormholeRelayer;
         provider.circleTokenMessenger = _circleTokenMessenger;
         provider.circleMessageTransmitter = _circleMessageTransmitter;
-
     }
 
-
-
-
-    function quoteCrossChainCost(uint16 _targetChain) 
-    external 
-    view 
-    returns(
-    uint256 deliveryCost){
-    deliveryCost = _quoteCrossChainCost(_targetChain);
-    } 
-
+    function quoteCrossChainCost(
+        uint16 _targetChain
+    ) external view returns (uint256 deliveryCost) {
+        deliveryCost = _quoteCrossChainCost(_targetChain);
+    }
 
     function _quoteCrossChainCost(
         uint16 targetChain
