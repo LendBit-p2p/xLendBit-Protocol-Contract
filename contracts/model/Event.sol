@@ -69,6 +69,14 @@ event RequestLiquidated(
     uint256 indexed totalRepayment
 );
 
+
+// spoke event
 event Spoke__DepositCollateral(uint16 indexed _targetChain, uint256 indexed amount, address indexed assetAdrress, address assetAdd);
 
 event Spoke__CreateRequest(uint16 indexed _targetChain, uint256 indexed amount, address indexed assetAdrress, address _loanAddress);
+event Spoke__ServiceRequest(
+            uint16 indexed _targetChain,
+           uint96 indexed _requestId,
+           address indexed sender,
+           address _tokenAddress
+        );
