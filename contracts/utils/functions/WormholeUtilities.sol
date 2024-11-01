@@ -32,7 +32,7 @@ contract WormholeUtilities is XSetters, CCTPAndTokenSender, Message {
         address _token,
         uint256 _amount
     ) internal {
-        uint256 receiverValue = _amount;
+        uint256 receiverValue = 0;
         uint32 gasLimit = 400_000;
 
         if (_token == Constants.NATIVE_TOKEN) {
@@ -51,7 +51,16 @@ contract WormholeUtilities is XSetters, CCTPAndTokenSender, Message {
                 _appStorage.provider.chainId,
                 address(this)
             );
-        } else if (_token == Constants.USDC) {}
+        } else if (_token == Constants.USDC) {
+            sendUSDCWithPayloadToEvm(
+                _targetChain,
+                _targetAddress,
+                _payload,
+                receiverValue,
+                gasLimit,
+                _amount
+            );
+        }
     }
 
     /**
