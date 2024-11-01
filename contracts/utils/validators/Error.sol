@@ -52,3 +52,11 @@ error Protocol__InvalidHash();
 
 // Error From Wormhole
 error NotAnEvmAddress(bytes32);
+
+
+//Error for spoke contract
+
+error spoke__InsufficientGasFee();
+error spoke__TokenArrayCantBeEmpty();
+error spoke__InvalidSpokeChainId();
+
