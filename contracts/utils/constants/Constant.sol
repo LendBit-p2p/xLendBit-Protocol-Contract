@@ -12,4 +12,5 @@ library Constants {
     address constant WETH = 0x4200000000000000000000000000000000000006;
     address constant USDC = 0x4200000000000000000000000000000000000006;
     uint8 constant CONSISTENCY_LEVEL_FINALIZED = 15;
+     uint256 constant GAS_LIMIT = 400_000;
 }
