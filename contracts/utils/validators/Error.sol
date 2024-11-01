@@ -59,4 +59,5 @@ error NotAnEvmAddress(bytes32);
 error spoke__InsufficientGasFee();
 error spoke__TokenArrayCantBeEmpty();
 error spoke__InvalidSpokeChainId();
+error spoke_TokenNotVaid();
 
