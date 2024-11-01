@@ -80,3 +80,31 @@ event Spoke__ServiceRequest(
            address indexed sender,
            address _tokenAddress
         );
+
+event  Spoke__WithrawnCollateral(
+           uint16 indexed _targetChain,
+           address indexed _targetAddress,
+            address indexed sender,
+            address _tokenCollateralAddress
+        );
+    
+    event  Spoke__createLoanListing(
+          uint16 indexed  _targetChain,
+            uint256 indexed _amount,
+            address indexed sender,
+            address _assetAddress
+        );
+
+    event   Spoke__RepayLoan(
+             uint16 indexed _targetChain,
+             uint96 indexed_requestId,
+             address indexed sender,
+            uint256 _amount
+        );
+
+    event Spoke__requestLoanFromListing(
+             uint16 indexed _targetChain,
+             uint96 indexed_requestId,
+             address indexed sender,
+             uint256 indexed _amount
+        );
