@@ -11,12 +11,23 @@ import {Message} from "../utils/functions/Message.sol";
 import "../utils/validators/Error.sol";
 import "../model/Event.sol";
 
+/**
+ * @title SpokeProtocol
+ * @author LendBit Finance
+ * Contains public write-only functions that modify the state of the LendBit system
+ * via interactions with the Wormhole protocol for cross-chain communication.
+ * This contract utilizes `TokenSender` and `Message` functionalities.
+ */
 contract SpokeProtocol is TokenSender, Message {
+    /// @dev maps spokeContractAddress to chainId
     mapping(address => uint16 chainId) s_spokeProtocols;
+    /// @dev maps spokeContractAddress to a Provider
     mapping(address spokeContractAddress => Provider) s_spokeProtocolProvider;
+    /// @dev maps supported token to a bool isValid
     mapping(address token => bool) isTokenValid;
 
     constructor(
+        
         address _wormholeRelayer,
         address _tokenBridge,
         address _wormhole,
@@ -32,18 +43,42 @@ contract SpokeProtocol is TokenSender, Message {
         s_spokeProtocols[address(this)] = chainId;
     }
 
-    modifier ValidateChainId(uint16 _chainId) {
-        uint16 currentChainId = _getChainId(address(this));
-        if (currentChainId != _chainId) revert spoke__InvalidSpokeChainId();
+    //////////////////
+    /// Modifiers ///
+    ////////////////
+
+    /**
+     * @dev Checks if the specified token address is valid.
+     * Reverts with `spoke_TokenNotValid` if the token is not allowed.
+     */
+    modifier _isTokenValid(address _addr) {
+        if (!isTokenValid[_addr]) revert spoke_TokenNotVaid();
         _;
     }
 
+    /**
+     * @dev Allows users to deposit collateral of a specified token into the protocol, supporting both
+     *      native and ERC-20 token deposits. Deposits collateral on the current chain and sends a payload
+     *      to the specified target chain via Wormhole protocol.
+     *
+     * @param _targetChain The ID of the target chain to which the payload will be sent.
+     * @param _targetAddress The address on the target chain that will receive the payload.
+     * @param _assetAddress The address of the token to deposit as collateral (use `Constants.NATIVE_TOKEN` for native tokens).
+     * @param _amount The amount of the token to deposit as collateral. If depositing a native token, this must equal `msg.value`.
+     *
+     * Requirements:
+     * - `_amount` must be greater than zero.
+     * - `_assetAddress` must be an allowed token with a valid price feed.
+     * - `msg.value` should be sufficient to cover cross-chain gas fees and, if depositing native tokens, `_amount`.
+     *
+     * Emits a `Spoke__DepositCollateral` event on successful deposit.
+     */
     function depositCollateral(
         uint16 _targetChain,
         address _targetAddress,
         address _assetAddress,
         uint256 _amount
-    ) external payable {
+    ) external payable _isTokenValid(_assetAddress) {
         Validator._valueMoreThanZero(_amount, _assetAddress, msg.value);
 
         uint256 cost = _quoteCrossChainCost(_targetChain);
@@ -82,7 +117,7 @@ contract SpokeProtocol is TokenSender, Message {
             Constants.GAS_LIMIT,
             _assetAddress,
             _amount,
-            currentChainId, // remember to change with the current chain it was sent
+            currentChainId,
             msg.sender // Refund address is this contract
         );
         emit Spoke__DepositCollateral(
@@ -93,6 +128,25 @@ contract SpokeProtocol is TokenSender, Message {
         );
     }
 
+    /**
+     * @dev Creates a lending request that is sent to the specified `_targetChain` and `_targetAddress`
+     *      through a cross-chain message. This function allows users to request a loan with a specified
+     *      interest rate, return date, and loan currency.
+     *
+     * @param _targetChain The target chain ID for the cross-chain message.
+     * @param _targetAddress The address on the target chain to receive the lending request.
+     * @param _interest The interest rate applied to the lending request.
+     * @param _returnDate The UNIX timestamp by which the loan should be repaid.
+     * @param _loanAddress The address of the loan currency token.
+     * @param _amount The amount of currency being requested as a loan.
+     *
+     * Requirements:
+     * - `_amount` must be greater than zero.
+     * - `_loanAddress` cannot be the zero address.
+     * - Sufficient cross-chain gas fee must be provided in `msg.value`.
+     *
+     * Emits a `Spoke__CreateRequest` event indicating the target chain, loan amount, sender, and loan currency.
+     */
     function createLendingRequest(
         uint16 _targetChain,
         address _targetAddress,
@@ -102,7 +156,7 @@ contract SpokeProtocol is TokenSender, Message {
         uint256 _amount
     ) external payable {
         Validator._moreThanZero(_amount);
-        //todo check address zero and comment
+        Validator._isTokenAllowed(_loanAddress);
 
         uint256 cost = _quoteCrossChainCost(_targetChain);
 
@@ -138,6 +192,20 @@ contract SpokeProtocol is TokenSender, Message {
         );
     }
 
+    /**
+     * @dev Initiates a service request sent to `_targetChain` and `_targetAddress`
+     *      via a cross-chain message. The request includes a specified token and request ID.
+     *
+     * @param _targetChain The target chain ID for the cross-chain message.
+     * @param _targetAddress The address on the target chain to receive the service request.
+     * @param _requestId The unique identifier for the service request.
+     * @param _tokenAddress The address of the token related to the service request.
+     *
+     * Requirements:
+     * - Sufficient cross-chain gas fee must be provided in `msg.value`.
+     *
+     * Emits a `Spoke__ServiceRequest` event indicating the target chain, request ID, sender, and token address.
+     */
     function serviceRequest(
         uint16 _targetChain,
         address _targetAddress,
@@ -176,6 +244,15 @@ contract SpokeProtocol is TokenSender, Message {
         );
     }
 
+    /**
+     * @dev Sends an encoded payload to a specified `_targetChain` and `_targetAddress`.
+     *
+     * @param _targetChain The target chain ID for cross-chain message.
+     * @param _targetAddress The address on the target chain to receive the payload.
+     * @param _payload The encoded payload data to be sent.
+     * @param _currentChainId The current chain ID where the function is executed.
+     * @param _costFee The gas fee for cross-chain messaging.
+     */
     function _sendPayloadToEvm(
         uint16 _targetChain,
         address _targetAddress,
@@ -194,6 +271,22 @@ contract SpokeProtocol is TokenSender, Message {
         );
     }
 
+    /**
+     * @dev Allows a user to withdraw a specified amount of collateral from the protocol
+     *      and send it to a specified address on a target chain.
+     *
+     * @param _targetChain The target chain ID for the cross-chain message.
+     * @param _targetAddress The address on the target chain to receive the withdrawn collateral.
+     * @param _tokenCollateralAddress The address of the token being withdrawn as collateral.
+     * @param _amount The amount of the token to withdraw.
+     *
+     * Requirements:
+     * - Sufficient cross-chain gas fee must be provided in `msg.value`.
+     * - `_amount` must be greater than zero.
+     * - `_targetChain` must be a valid chain ID.
+     *
+     * Emits a `Spoke__WithdrawnCollateral` event on successful collateral withdrawal.
+     */
     function withdrawnCollateral(
         uint16 _targetChain,
         address _targetAddress,
@@ -352,9 +445,8 @@ contract SpokeProtocol is TokenSender, Message {
         address _targetAddress,
         uint96 _listingId,
         uint256 _amount
-    ) external payable{
-
-         uint256 cost = _quoteCrossChainCost(_targetChain);
+    ) external payable {
+        uint256 cost = _quoteCrossChainCost(_targetChain);
 
         uint16 currentChainId = _getChainId(address(this));
         if (currentChainId < 1) revert spoke__InvalidSpokeChainId();
@@ -384,9 +476,9 @@ contract SpokeProtocol is TokenSender, Message {
             msg.sender,
             _amount
         );
-
     }
-         /**
+
+    /**
      * @dev Allows a borrower to repay a loan in part or in full.
      * @param _targetChain The ID of the target chain where the loan listing will be published.
      * @param _targetAddress The address on the target chain that will receive the loan listing details.
@@ -402,8 +494,12 @@ contract SpokeProtocol is TokenSender, Message {
      * Emits:
      * - `LoanRepayment` upon successful repayment.
      */
-    function repayLoan( uint16 _targetChain, address _targetAddress,uint96 _requestId, uint256 _amount) external payable {
-
+    function repayLoan(
+        uint16 _targetChain,
+        address _targetAddress,
+        uint96 _requestId,
+        uint256 _amount
+    ) external payable {
         uint256 cost = _quoteCrossChainCost(_targetChain);
 
         uint16 currentChainId = _getChainId(address(this));
@@ -428,35 +524,39 @@ contract SpokeProtocol is TokenSender, Message {
             cost
         );
 
-        emit Spoke__RepayLoan(
-            _targetChain,
-            _requestId,
-            msg.sender,
-            _amount
-        );
-
+        emit Spoke__RepayLoan(_targetChain, _requestId, msg.sender, _amount);
     }
-        
 
-    //   /**
-    //  * @dev Registers a spoke contract for a specific chain ID.
-    //  * Used to verify valid sending addresses for cross-chain interactions.
-    //  * @param chainId The chain ID associated with the spoke contract.
-    //  * @param spokeContractAddress The address of the spoke contract to register.
-    //  */
-    // function _registerSpokeContract(
-    //     uint16 chainId,
-    //     address spokeContractAddress
-    // ) internal {
-    //     s_spokeProtocols[chainId] = spokeContractAddress;
-    // }
 
+     /**
+     * @dev Retrieves the chain ID associated with a given spoke contract address.
+     *
+     * @param _spokeContractAddress The address of the spoke contract.
+     * @return chainId_ The chain ID linked to the provided spoke contract address.
+     */
     function _getChainId(
         address _spokeContractAddress
     ) private view returns (uint16 chainId_) {
         chainId_ = s_spokeProtocols[_spokeContractAddress];
     }
 
+    /**
+     * @dev Registers provider information for the spoke contract, linking it to essential
+     *      cross-chain infrastructure like Wormhole, token bridges, and Circle token messenger.
+     *
+     * @param _chainId The chain ID for the spoke contract being registered.
+     * @param _wormhole The Wormhole contract address for cross-chain interactions.
+     * @param _tokenBridge The token bridge address for asset transfers.
+     * @param _wormholeRelayer The Wormhole relayer address for relayed messages.
+     * @param _circleTokenMessenger The Circle token messenger for token transfers.
+     * @param _circleMessageTransmitter The Circle message transmitter for cross-chain messaging.
+     *
+     * Requirements:
+     * - `_chainId` must match the chain ID associated with the contract's address.
+     * - Only callable by an external address.
+     *
+     * Emits an event for successful provider registration.
+     */
     function registerSpokeContractProvider(
         uint16 _chainId,
         address payable _wormhole,
@@ -464,7 +564,10 @@ contract SpokeProtocol is TokenSender, Message {
         address _wormholeRelayer,
         address _circleTokenMessenger,
         address _circleMessageTransmitter
-    ) external ValidateChainId(_chainId) {
+    ) external {
+        uint16 currentChainId = _getChainId(address(this));
+        if (currentChainId != _chainId) revert spoke__InvalidSpokeChainId();
+
         Provider storage provider = s_spokeProtocolProvider[address(this)];
         provider.chainId = _chainId;
         provider.wormhole = _wormhole;
@@ -472,14 +575,29 @@ contract SpokeProtocol is TokenSender, Message {
         provider.wormholeRelayer = _wormholeRelayer;
         provider.circleTokenMessenger = _circleTokenMessenger;
         provider.circleMessageTransmitter = _circleMessageTransmitter;
+        
+        emit ProviderRegistered(_chainId, address(this));
     }
 
+    /**
+     * @dev Publicly accessible function to retrieve the estimated cost of a cross-chain transaction to the target chain.
+     *
+     * @param _targetChain The target chain ID for the cross-chain transaction.
+     * @return deliveryCost The estimated delivery cost for the transaction.
+     */
     function quoteCrossChainCost(
         uint16 _targetChain
     ) external view returns (uint256 deliveryCost) {
         deliveryCost = _quoteCrossChainCost(_targetChain);
     }
 
+    /**
+     * @dev Private function to calculate the delivery cost for a cross-chain transaction,
+     *      including the message fee for Wormhole.
+     *
+     * @param targetChain The target chain ID for the cross-chain transaction.
+     * @return cost The total calculated cost of the transaction.
+     */
     function _quoteCrossChainCost(
         uint16 targetChain
     ) private view returns (uint256 cost) {

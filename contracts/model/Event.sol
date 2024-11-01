@@ -108,3 +108,5 @@ event  Spoke__WithrawnCollateral(
              address indexed sender,
              uint256 indexed _amount
         );
+
+    event    ProviderRegistered(uint16 indexed _chainId, address indexed spokeAddr);
