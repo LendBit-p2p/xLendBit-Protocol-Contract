@@ -122,14 +122,12 @@ contract SpokeProtocol is TokenSender, Message {
 
         bytes memory _payload = Message._encodeActionPayload(payload);
 
-        wormholeRelayer.sendPayloadToEvm{value: cost}(
+        _sendPayloadToEvm(
             _targetChain,
             _targetAddress,
             _payload,
-            0,
-            Constants.GAS_LIMIT,
             currentChainId,
-            msg.sender
+            cost
         );
 
         emit Spoke__CreateRequest(
@@ -141,13 +139,11 @@ contract SpokeProtocol is TokenSender, Message {
     }
 
     function serviceRequest(
-         uint16 _targetChain,
+        uint16 _targetChain,
         address _targetAddress,
         uint96 _requestId,
         address _tokenAddress
-
-    )external payable{
-
+    ) external payable {
         uint256 cost = _quoteCrossChainCost(_targetChain);
 
         uint16 currentChainId = _getChainId(address(this));
@@ -155,7 +151,7 @@ contract SpokeProtocol is TokenSender, Message {
 
         if (msg.value < cost) revert spoke__InsufficientGasFee();
 
-          // Create and encode payload for cross-chain message
+        // Create and encode payload for cross-chain message
         ActionPayload memory payload;
         payload.action = Action.ServiceRequest;
         payload.assetAddress = _tokenAddress;
@@ -164,26 +160,283 @@ contract SpokeProtocol is TokenSender, Message {
 
         bytes memory _payload = Message._encodeActionPayload(payload);
 
-        wormholeRelayer.sendPayloadToEvm{value: cost}(
+        _sendPayloadToEvm(
             _targetChain,
             _targetAddress,
             _payload,
-            0,
-            Constants.GAS_LIMIT,
             currentChainId,
-            msg.sender
+            cost
         );
 
-           emit Spoke__ServiceRequest(
+        emit Spoke__ServiceRequest(
             _targetChain,
             _requestId,
             msg.sender,
             _tokenAddress
         );
+    }
 
+    function _sendPayloadToEvm(
+        uint16 _targetChain,
+        address _targetAddress,
+        bytes memory _payload,
+        uint16 _currentChainId,
+        uint256 _costFee
+    ) private {
+        wormholeRelayer.sendPayloadToEvm{value: _costFee}(
+            _targetChain,
+            _targetAddress,
+            _payload,
+            0,
+            Constants.GAS_LIMIT,
+            _currentChainId,
+            msg.sender
+        );
+    }
 
+    function withdrawnCollateral(
+        uint16 _targetChain,
+        address _targetAddress,
+        address _tokenCollateralAddress,
+        uint128 _amount
+    ) external payable {
+        uint256 cost = _quoteCrossChainCost(_targetChain);
+
+        uint16 currentChainId = _getChainId(address(this));
+        if (currentChainId < 1) revert spoke__InvalidSpokeChainId();
+
+        if (msg.value < cost) revert spoke__InsufficientGasFee();
+
+        // Create and encode payload for cross-chain message
+        ActionPayload memory payload;
+        payload.action = Action.Withdraw;
+        payload.assetAddress = _tokenCollateralAddress;
+        payload.assetAmount = _amount;
+        payload.sender = msg.sender;
+
+        bytes memory _payload = Message._encodeActionPayload(payload);
+
+        _sendPayloadToEvm(
+            _targetChain,
+            _targetAddress,
+            _payload,
+            currentChainId,
+            cost
+        );
+
+        emit Spoke__WithrawnCollateral(
+            _targetChain,
+            _targetAddress,
+            msg.sender,
+            _tokenCollateralAddress
+        );
+    }
+
+    /**
+     * @dev Creates a loan listing for potential lenders, publishing the listing details via Wormhole
+     * to facilitate cross-chain interactions.
+     *
+     * @param _targetChain The ID of the target chain where the loan listing will be published.
+     * @param _targetAddress The address on the target chain that will receive the loan listing details.
+     * @param _amount The total amount being loaned.
+     * @param _min_amount The minimum amount a lender can fund.
+     * @param _max_amount The maximum amount a lender can fund.
+     * @param _returnDate The date by which the loan should be repaid.
+     * @param _interest The interest rate applied to the loan.
+     * @param _loanCurrency The currency (token address) in which the loan is issued.
+     *
+     * Requirements:
+     * - `_amount` must be greater than zero.
+     * - `_loanCurrency` must be a loanable token.
+     * - If `_loanCurrency` is a token, the sender must have sufficient balance and allowance.
+     * - If using the native token, the equivalent amount must be sent as part of the transaction.
+     * - `msg.value` must cover the cross-chain transaction fee to the Wormhole.
+     *
+     * Emits a `LoanListingCreated` event, containing the listing ID, author, and loan currency.
+     */
+
+    function createLoanListing(
+        uint16 _targetChain,
+        address _targetAddress,
+        uint256 _amount,
+        uint256 _min_amount,
+        uint256 _max_amount,
+        uint256 _returnDate,
+        uint16 _interest,
+        address _loanCurrency
+    ) external payable {
+        Validator._valueMoreThanZero(_amount, _loanCurrency, msg.value);
+
+        uint256 cost = _quoteCrossChainCost(_targetChain);
+        uint16 currentChainId = _getChainId(address(this));
+        if (currentChainId < 1) revert spoke__InvalidSpokeChainId();
+
+        if (msg.value < cost) revert spoke__InsufficientGasFee();
+
+        // Check for sufficient balance and allowance if using a token other than native
+        if (_loanCurrency != Constants.NATIVE_TOKEN) {
+            if (IERC20(_loanCurrency).balanceOf(msg.sender) < _amount)
+                revert Protocol__InsufficientBalance();
+
+            if (
+                IERC20(_loanCurrency).allowance(msg.sender, address(this)) <
+                _amount
+            ) revert Protocol__InsufficientAllowance();
+        }
+
+        // If using the native token, set the amount to the value sent with the transaction
+        if (_loanCurrency == Constants.NATIVE_TOKEN) {
+            _amount = msg.value;
+        }
+
+        // Transfer the specified amount from the user to the contract if using a token
+        if (_loanCurrency != Constants.NATIVE_TOKEN) {
+            IERC20(_loanCurrency).transferFrom(
+                msg.sender,
+                address(this),
+                _amount
+            );
+        }
+
+        // Create and encode payload for cross-chain message
+        ActionPayload memory payload;
+        payload.action = Action.CreateListing;
+        payload.assetAddress = _loanCurrency;
+        payload.assetAmount = _amount;
+        payload.sender = msg.sender;
+        payload.returnDate = _returnDate;
+        payload.min_amount = _min_amount;
+        payload.max_amount = _max_amount;
+        payload.interest = _interest;
+
+        bytes memory _payload = Message._encodeActionPayload(payload);
+
+        // Send the token with payload to the target chain
+        sendTokenWithPayloadToEvm(
+            _targetChain,
+            _targetAddress,
+            _payload,
+            0, // No native tokens sent
+            Constants.GAS_LIMIT,
+            _loanCurrency,
+            _amount,
+            currentChainId, // remember to change with the current chain it was sent
+            msg.sender // Refund address is this contract
+        );
+        emit Spoke__createLoanListing(
+            _targetChain,
+            _amount,
+            msg.sender,
+            _loanCurrency
+        );
+    }
+
+    /**
+     * @dev Allows a borrower to request a loan from an open listing.
+     *  * @param _targetChain The ID of the target chain where the loan listing will be published.
+     * @param _targetAddress The address on the target chain that will receive the loan listing details.
+     * @param _listingId The unique identifier of the loan listing.
+     * @param _amount The requested loan amount.
+     *
+     * Requirements:
+     * - `_amount` must be greater than zero.
+     * - The listing must be open, not created by the borrower, and within min/max constraints.
+     * - The borrower must have sufficient collateral to meet the health factor.
+     *
+     * Emits:
+     * - `RequestCreated` when a loan request is successfully created.
+     * - `RequestServiced` when the loan request is successfully serviced.
+     */
+    function requestLoanFromListing(
+        uint16 _targetChain,
+        address _targetAddress,
+        uint96 _listingId,
+        uint256 _amount
+    ) external payable{
+
+         uint256 cost = _quoteCrossChainCost(_targetChain);
+
+        uint16 currentChainId = _getChainId(address(this));
+        if (currentChainId < 1) revert spoke__InvalidSpokeChainId();
+
+        if (msg.value < cost) revert spoke__InsufficientGasFee();
+
+        // Create and encode payload for cross-chain message
+        ActionPayload memory payload;
+        payload.action = Action.RequestFromLoan;
+        payload.sender = msg.sender;
+        payload.id = _listingId;
+        payload.assetAmount = _amount;
+
+        bytes memory _payload = Message._encodeActionPayload(payload);
+
+        _sendPayloadToEvm(
+            _targetChain,
+            _targetAddress,
+            _payload,
+            currentChainId,
+            cost
+        );
+
+        emit Spoke__requestLoanFromListing(
+            _targetChain,
+            _listingId,
+            msg.sender,
+            _amount
+        );
 
     }
+         /**
+     * @dev Allows a borrower to repay a loan in part or in full.
+     * @param _targetChain The ID of the target chain where the loan listing will be published.
+     * @param _targetAddress The address on the target chain that will receive the loan listing details.
+     * @param _requestId The unique identifier of the loan request.
+     * @param _amount The repayment amount.
+     *
+     * Requirements:
+     * - `_amount` must be greater than zero.
+     * - The loan request must be in the SERVICED status.
+     * - The caller must be the borrower who created the loan request.
+     * - If repaying in a token, the borrower must have sufficient balance and allowance.
+     *
+     * Emits:
+     * - `LoanRepayment` upon successful repayment.
+     */
+    function repayLoan( uint16 _targetChain, address _targetAddress,uint96 _requestId, uint256 _amount) external payable {
+
+        uint256 cost = _quoteCrossChainCost(_targetChain);
+
+        uint16 currentChainId = _getChainId(address(this));
+        if (currentChainId < 1) revert spoke__InvalidSpokeChainId();
+
+        if (msg.value < cost) revert spoke__InsufficientGasFee();
+
+        // Create and encode payload for cross-chain message
+        ActionPayload memory payload;
+        payload.action = Action.Repay;
+        payload.sender = msg.sender;
+        payload.id = _requestId;
+        payload.assetAmount = _amount;
+
+        bytes memory _payload = Message._encodeActionPayload(payload);
+
+        _sendPayloadToEvm(
+            _targetChain,
+            _targetAddress,
+            _payload,
+            currentChainId,
+            cost
+        );
+
+        emit Spoke__RepayLoan(
+            _targetChain,
+            _requestId,
+            msg.sender,
+            _amount
+        );
+
+    }
+        
 
     //   /**
     //  * @dev Registers a spoke contract for a specific chain ID.
