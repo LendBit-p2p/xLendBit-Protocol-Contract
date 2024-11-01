@@ -6,6 +6,7 @@ import {LibDiamond} from "../../libraries/LibDiamond.sol";
 import {LibXGetters} from "../../libraries/LibXGetters.sol";
 import {IWormhole} from "../../interfaces/IWormhole.sol";
 import {Validator} from "../validators/Validator.sol";
+import {Constants} from "../constants/Constant.sol";
 import "../../model/Protocol.sol";
 import "../validators/Error.sol";
 
@@ -103,5 +104,29 @@ contract XOperations is XOperationsImpl {
                 _sourceChain
             );
         }
+    }
+    function receivePayloadAndUSDC(
+        bytes memory payload,
+        uint256 amountUSDCReceived,
+        bytes32 sourceAddress,
+        uint16 sourceChain,
+        bytes32 deliveryHash
+    ) internal override {
+        TokenReceived[] memory _receivedTokens = new TokenReceived[](1);
+        _receivedTokens[0] = TokenReceived(
+            sourceAddress,
+            sourceChain,
+            Constants.USDC,
+            amountUSDCReceived,
+            amountUSDCReceived
+        );
+
+        receivePayloadAndTokens(
+            payload,
+            _receivedTokens,
+            sourceAddress,
+            sourceChain,
+            deliveryHash
+        );
     }
 }

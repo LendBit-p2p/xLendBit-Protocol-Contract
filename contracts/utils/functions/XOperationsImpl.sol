@@ -10,7 +10,7 @@ import {Utils} from "./Utils.sol";
 import {IWETH} from "../../interfaces/IWETH.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {TokenReceiver} from "./Wormhole/TokenBase.sol";
+import {CCTPAndTokenReceiver} from "./Wormhole/CCTPAndTokenBase.sol";
 import "../../model/Protocol.sol";
 import "../../model/Event.sol";
 import "../validators/Error.sol";
@@ -21,7 +21,7 @@ import "../validators/Error.sol";
  *
  * Internal write-only functions that allows writing into the state of LendBit
  */
-contract XOperationsImpl is TokenReceiver, WormholeUtilities {
+contract XOperationsImpl is CCTPAndTokenReceiver, WormholeUtilities {
     using SafeERC20 for IERC20;
 
     function _depositCollateral(

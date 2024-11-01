@@ -7,7 +7,7 @@ import {LibXGetters} from "../../libraries/LibXGetters.sol";
 import {XSetters} from "./XSetters.sol";
 import {IWormhole} from "../../interfaces/IWormhole.sol";
 import {IWETH} from "../../interfaces/IWETH.sol";
-import {TokenSender} from "./Wormhole/TokenBase.sol";
+import {CCTPAndTokenSender} from "./Wormhole/CCTPAndTokenBase.sol";
 import {CCTPSender} from "./Wormhole/CCTPBase.sol";
 import {Message} from "./Message.sol";
 import {Constants} from "../constants/Constant.sol";
@@ -22,7 +22,7 @@ import "../../model/Protocol.sol";
  * Contains internal functions for token transfers, message publishing, payload handling, and
  * asset amount normalization for cross-chain token transfers.
  */
-contract WormholeUtilities is XSetters, TokenSender, Message {
+contract WormholeUtilities is XSetters, CCTPAndTokenSender, Message {
     using LibBytes for bytes;
 
     function _handleTokenTransfer(
