@@ -68,3 +68,45 @@ event RequestLiquidated(
     address indexed lenderAddress,
     uint256 indexed totalRepayment
 );
+
+
+// spoke event
+event Spoke__DepositCollateral(uint16 indexed _targetChain, uint256 indexed amount, address indexed assetAdrress, address assetAdd);
+
+event Spoke__CreateRequest(uint16 indexed _targetChain, uint256 indexed amount, address indexed assetAdrress, address _loanAddress);
+event Spoke__ServiceRequest(
+            uint16 indexed _targetChain,
+           uint96 indexed _requestId,
+           address indexed sender,
+           address _tokenAddress
+        );
+
+event  Spoke__WithrawnCollateral(
+           uint16 indexed _targetChain,
+           address indexed _targetAddress,
+            address indexed sender,
+            address _tokenCollateralAddress
+        );
+    
+    event  Spoke__createLoanListing(
+          uint16 indexed  _targetChain,
+            uint256 indexed _amount,
+            address indexed sender,
+            address _assetAddress
+        );
+
+    event   Spoke__RepayLoan(
+             uint16 indexed _targetChain,
+             uint96 indexed_requestId,
+             address indexed sender,
+            uint256 _amount
+        );
+
+    event Spoke__requestLoanFromListing(
+             uint16 indexed _targetChain,
+             uint96 indexed_requestId,
+             address indexed sender,
+             uint256 indexed _amount
+        );
+
+    event    ProviderRegistered(uint16 indexed _chainId, address indexed spokeAddr);

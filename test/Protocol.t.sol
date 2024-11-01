@@ -469,8 +469,8 @@ contract ProtocolTest is Test, IDiamondCut {
         IERC20(LINK_CONTRACT_ADDRESS).approve(address(protocolFacet), 1 ether);
 
         protocolFacet.depositCollateral(LINK_CONTRACT_ADDRESS, 1 ether);
-        uint256 _amountQualaterized = protocolFacet
-            .getAddressToCollateralDeposited(owner, LINK_CONTRACT_ADDRESS);
+        // uint256 _amountQualaterized = protocolFacet
+        //     .getAddressToCollateralDeposited(owner, LINK_CONTRACT_ADDRESS);
 
         uint128 requestAmount = 0.5 ether;
         uint16 interestRate = 500;
