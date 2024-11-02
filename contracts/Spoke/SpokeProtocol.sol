@@ -4,13 +4,13 @@ pragma solidity ^0.8.9;
 import "lib/wormhole-solidity-sdk/src/interfaces/IERC20.sol";
 import "lib/wormhole-solidity-sdk/src/interfaces/IWormholeRelayer.sol";
 import "lib/wormhole-solidity-sdk/src/WormholeRelayerSDK.sol";
-import {Validator} from "../utils/validators/Validator.sol";
-import {Constants} from "../utils/constants/Constant.sol";
 import "../model/Protocol.sol";
-import {Message} from "../utils/functions/Message.sol";
-import {IWETH} from "../interfaces/IWETH.sol";
 import "../utils/validators/Error.sol";
 import "../model/Event.sol";
+import {Validator} from "../utils/validators/Validator.sol";
+import {Constants} from "../utils/constants/Constant.sol";
+import {IWETH} from "../interfaces/IWETH.sol";
+import {SpokeInternals} from "./SpokeInternals.sol";
 
 /**
  * @title SpokeProtocol
@@ -19,9 +19,8 @@ import "../model/Event.sol";
  * via interactions with the Wormhole protocol for cross-chain communication.
  * This contract utilizes `TokenSender` and `Message` functionalities.
  */
-contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
+contract SpokeProtocol is CCTPAndTokenSender, SpokeInternals {
     uint16 public immutable i_chainId;
-    address public immutable i_WETH;
     address public immutable i_USDC;
     uint16 s_hubChainId;
     address s_hubChainAddress;
@@ -100,7 +99,7 @@ contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
         payload.assetAmount = _amount;
         payload.sender = msg.sender;
 
-        bytes memory _payload = Message._encodeActionPayload(payload);
+        bytes memory _payload = _encodeActionPayload(payload);
 
         if (_assetAddress == i_USDC) {
             sendUSDCWithPayloadToEvm(
@@ -156,7 +155,7 @@ contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
         payload.interest = _interest;
         payload.returnDate = _returnDate;
 
-        bytes memory _payload = Message._encodeActionPayload(payload);
+        bytes memory _payload = _encodeActionPayload(payload);
 
         _sendPayloadToEvm(
             s_hubChainId,
@@ -204,7 +203,7 @@ contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
         payload.sender = msg.sender;
         payload.id = _requestId;
 
-        bytes memory _payload = Message._encodeActionPayload(payload);
+        bytes memory _payload = _encodeActionPayload(payload);
 
         if (_tokenAddress == i_USDC) {
             sendUSDCWithPayloadToEvm(
@@ -238,33 +237,6 @@ contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
         );
     }
 
-    /**
-     * @dev Sends an encoded payload to a specified `_targetChain` and `_targetAddress`.
-     *
-     * @param _targetChain The target chain ID for cross-chain message.
-     * @param _targetAddress The address on the target chain to receive the payload.
-     * @param _payload The encoded payload data to be sent.
-     * @param _currentChainId The current chain ID where the function is executed.
-     * @param _costFee The gas fee for cross-chain messaging.
-     */
-    function _sendPayloadToEvm(
-        uint16 _targetChain,
-        address _targetAddress,
-        bytes memory _payload,
-        uint16 _currentChainId,
-        uint256 _costFee
-    ) private {
-        wormholeRelayer.sendPayloadToEvm{value: _costFee}(
-            _targetChain,
-            _targetAddress,
-            _payload,
-            0,
-            Constants.GAS_LIMIT,
-            _currentChainId,
-            msg.sender
-        );
-    }
-
     function withdrawnCollateral(
         address _tokenCollateralAddress,
         uint128 _amount
@@ -280,7 +252,7 @@ contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
         payload.assetAmount = _amount;
         payload.sender = msg.sender;
 
-        bytes memory _payload = Message._encodeActionPayload(payload);
+        bytes memory _payload = _encodeActionPayload(payload);
 
         _sendPayloadToEvm(
             s_hubChainId,
@@ -344,7 +316,7 @@ contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
         payload.max_amount = _max_amount;
         payload.interest = _interest;
 
-        bytes memory _payload = Message._encodeActionPayload(payload);
+        bytes memory _payload = _encodeActionPayload(payload);
 
         if (_loanCurrency == i_USDC) {
             sendUSDCWithPayloadToEvm(
@@ -393,7 +365,7 @@ contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
         payload.id = _listingId;
         payload.assetAmount = _amount;
 
-        bytes memory _payload = Message._encodeActionPayload(payload);
+        bytes memory _payload = _encodeActionPayload(payload);
 
         _sendPayloadToEvm(
             s_hubChainId,
@@ -450,7 +422,7 @@ contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
         payload.assetAmount = _amount;
         payload.assetAddress = _loanCurrency;
 
-        bytes memory _payload = Message._encodeActionPayload(payload);
+        bytes memory _payload = _encodeActionPayload(payload);
 
         if (_loanCurrency == i_USDC) {
             sendUSDCWithPayloadToEvm(
@@ -489,26 +461,6 @@ contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
         uint16 _targetChain
     ) external view returns (uint256 deliveryCost) {
         deliveryCost = _quoteCrossChainCost(_targetChain);
-    }
-
-    /**
-     * @dev Private function to calculate the delivery cost for a cross-chain transaction,
-     *      including the message fee for Wormhole.
-     *
-     * @param targetChain The target chain ID for the cross-chain transaction.
-     * @return cost The total calculated cost of the transaction.
-     */
-    function _quoteCrossChainCost(
-        uint16 targetChain
-    ) private view returns (uint256 cost) {
-        uint256 deliveryCost;
-        (deliveryCost, ) = wormholeRelayer.quoteEVMDeliveryPrice(
-            targetChain,
-            0,
-            Constants.GAS_LIMIT
-        );
-
-        cost = deliveryCost + wormhole.messageFee();
     }
 
     receive() external payable {}
