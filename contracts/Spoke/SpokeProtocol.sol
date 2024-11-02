@@ -483,15 +483,10 @@ contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
      * - `RequestServiced` when the loan request is successfully serviced.
      */
     function requestLoanFromListing(
-        uint16 _targetChain,
-        address _targetAddress,
         uint96 _listingId,
         uint256 _amount
     ) external payable {
-        uint256 cost = _quoteCrossChainCost(_targetChain);
-
-        uint16 currentChainId = _getChainId(address(this));
-        if (currentChainId < 1) revert spoke__InvalidSpokeChainId();
+        uint256 cost = _quoteCrossChainCost(s_hubChainId);
 
         if (msg.value < cost) revert spoke__InsufficientGasFee();
 
@@ -505,15 +500,15 @@ contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
         bytes memory _payload = Message._encodeActionPayload(payload);
 
         _sendPayloadToEvm(
-            _targetChain,
-            _targetAddress,
+            s_hubChainId,
+            s_hubChainAddress,
             _payload,
-            currentChainId,
+            i_chainId,
             cost
         );
 
         emit Spoke__requestLoanFromListing(
-            _targetChain,
+            s_hubChainId,
             _listingId,
             msg.sender,
             _amount
