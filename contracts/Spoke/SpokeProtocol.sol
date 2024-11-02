@@ -86,22 +86,18 @@ contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
      * Emits a `Spoke__DepositCollateral` event on successful deposit.
      */
     function depositCollateral(
-        uint16 _targetChain,
-        address _targetAddress,
         address _assetAddress,
         uint256 _amount
     ) external payable _isTokenValid(_assetAddress) {
         Validator._valueMoreThanZero(_amount, _assetAddress, msg.value);
 
         uint256 cost = _quoteCrossChainCost(_targetChain);
-        uint16 currentChainId = _getChainId(address(this));
-        if (currentChainId < 1) revert spoke__InvalidSpokeChainId();
 
-        if (msg.value < cost) revert spoke__InsufficientGasFee();
+        if (msg.value - cost < 1) revert spoke__InsufficientGasFee();
 
         if (_assetAddress == Constants.NATIVE_TOKEN) {
-            _amount = msg.value;
-            _assetAddress = Constants.WETH;
+            _amount = msg.value - cost;
+            _assetAddress = i_WETH;
         } else {
             bool success = IERC20(_assetAddress).transferFrom(
                 msg.sender,
@@ -120,18 +116,30 @@ contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
 
         bytes memory _payload = Message._encodeActionPayload(payload);
 
-        // Send the token with payload to the target chain
-        sendTokenWithPayloadToEvm(
-            _targetChain,
-            _targetAddress,
-            _payload,
-            0, // No native tokens sent
-            Constants.GAS_LIMIT,
-            _assetAddress,
-            _amount,
-            currentChainId,
-            msg.sender // Refund address is this contract
-        );
+        if (_assetAddress == i_USDC) {
+            sendUSDCWithPayloadToEvm(
+                s_hubChainId,
+                s_hubChainAddress,
+                payload,
+                0,
+                Constants.GAS_LIMIT,
+                _amount
+            );
+        } else {
+            // Send the token with payload to the target chain
+            sendTokenWithPayloadToEvm(
+                s_hubChainId,
+                s_hubChainAddress,
+                _payload,
+                0, // No native tokens sent
+                Constants.GAS_LIMIT,
+                _assetAddress,
+                _amount,
+                i_chainId,
+                msg.sender // Refund address is this contract
+            );
+        }
+
         emit Spoke__DepositCollateral(
             _targetChain,
             _amount,
