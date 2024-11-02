@@ -25,6 +25,7 @@ contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
     uint16 s_hubChainId;
     address s_hubChainAddress;
     mapping(address token => bool) isTokenValid;
+    mapping(address s_tokens => address h_tokens) s_spokeToHubTokens;
 
     constructor(
         address _wormholeRelayer,
@@ -91,13 +92,14 @@ contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
     ) external payable _isTokenValid(_assetAddress) {
         Validator._valueMoreThanZero(_amount, _assetAddress, msg.value);
 
-        uint256 cost = _quoteCrossChainCost(_targetChain);
+        uint256 cost = _quoteCrossChainCost(s_hubChainId);
 
-        if (msg.value - cost < 1) revert spoke__InsufficientGasFee();
+        if (msg.value < cost) revert spoke__InsufficientGasFee();
 
         if (_assetAddress == Constants.NATIVE_TOKEN) {
             _amount = msg.value - cost;
             _assetAddress = i_WETH;
+            IWETH(i_WETH).deposit{value: _amount}();
         } else {
             bool success = IERC20(_assetAddress).transferFrom(
                 msg.sender,
@@ -176,14 +178,14 @@ contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
         Validator._moreThanZero(_amount);
         Validator._isTokenAllowed(_loanAddress);
 
-        uint256 cost = _quoteCrossChainCost(_targetChain);
+        uint256 cost = _quoteCrossChainCost(s_hubChainId);
 
         if (msg.value < cost) revert spoke__InsufficientGasFee();
 
         // Create and encode payload for cross-chain message
         ActionPayload memory payload;
         payload.action = Action.CreateRequest;
-        payload.assetAddress = _loanAddress;
+        payload.assetAddress = s_spokeToHubTokens[_loanAddress];
         payload.assetAmount = _amount;
         payload.sender = msg.sender;
         payload.interest = _interest;
@@ -222,34 +224,60 @@ contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
      * Emits a `Spoke__ServiceRequest` event indicating the target chain, request ID, sender, and token address.
      */
     function serviceRequest(
-        uint16 _targetChain,
-        address _targetAddress,
         uint96 _requestId,
-        address _tokenAddress
+        address _tokenAddress,
+        uint256 _amount
     ) external payable {
-        uint256 cost = _quoteCrossChainCost(_targetChain);
-
-        uint16 currentChainId = _getChainId(address(this));
-        if (currentChainId < 1) revert spoke__InvalidSpokeChainId();
+        uint256 cost = _quoteCrossChainCost(s_hubChainId);
 
         if (msg.value < cost) revert spoke__InsufficientGasFee();
+
+        if (_tokenAddress == Constants.NATIVE_TOKEN) {
+            _amount = msg.value - cost;
+            _tokenAddress = i_WETH;
+            IWETH(i_WETH).deposit{value: _amount}();
+        } else {
+            bool success = IERC20(_tokenAddress).transferFrom(
+                msg.sender,
+                address(this),
+                _amount
+            );
+            require(success, "Token transfer failed");
+        }
 
         // Create and encode payload for cross-chain message
         ActionPayload memory payload;
         payload.action = Action.ServiceRequest;
         payload.assetAddress = _tokenAddress;
+        payload.assetAmount = _amount;
         payload.sender = msg.sender;
         payload.id = _requestId;
 
         bytes memory _payload = Message._encodeActionPayload(payload);
 
-        _sendPayloadToEvm(
-            _targetChain,
-            _targetAddress,
-            _payload,
-            currentChainId,
-            cost
-        );
+        if (_assetAddress == i_USDC) {
+            sendUSDCWithPayloadToEvm(
+                s_hubChainId,
+                s_hubChainAddress,
+                _payload,
+                0,
+                Constants.GAS_LIMIT,
+                _amount
+            );
+        } else {
+            // Send the token with payload to the target chain
+            sendTokenWithPayloadToEvm(
+                s_hubChainId,
+                s_hubChainAddress,
+                _payload,
+                0, // No native tokens sent
+                Constants.GAS_LIMIT,
+                _assetAddress,
+                _amount,
+                i_chainId,
+                msg.sender // Refund address is this contract
+            );
+        }
 
         emit Spoke__ServiceRequest(
             _targetChain,
