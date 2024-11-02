@@ -143,7 +143,7 @@ contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
         }
 
         emit Spoke__DepositCollateral(
-            _targetChain,
+            s_hubChainId,
             _amount,
             msg.sender,
             _assetAddress
@@ -202,7 +202,7 @@ contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
         );
 
         emit Spoke__CreateRequest(
-            _targetChain,
+            s_hubChainId,
             _amount,
             msg.sender,
             _loanAddress
@@ -280,7 +280,7 @@ contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
         }
 
         emit Spoke__ServiceRequest(
-            _targetChain,
+            s_hubChainId,
             _requestId,
             msg.sender,
             _tokenAddress
@@ -331,38 +331,33 @@ contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
      * Emits a `Spoke__WithdrawnCollateral` event on successful collateral withdrawal.
      */
     function withdrawnCollateral(
-        uint16 _targetChain,
-        address _targetAddress,
         address _tokenCollateralAddress,
         uint128 _amount
     ) external payable {
-        uint256 cost = _quoteCrossChainCost(_targetChain);
-
-        uint16 currentChainId = _getChainId(address(this));
-        if (currentChainId < 1) revert spoke__InvalidSpokeChainId();
+        uint256 cost = _quoteCrossChainCost(s_hubChainId);
 
         if (msg.value < cost) revert spoke__InsufficientGasFee();
 
         // Create and encode payload for cross-chain message
         ActionPayload memory payload;
         payload.action = Action.Withdraw;
-        payload.assetAddress = _tokenCollateralAddress;
+        payload.assetAddress = s_spokeToHubTokens[_tokenCollateralAddress];
         payload.assetAmount = _amount;
         payload.sender = msg.sender;
 
         bytes memory _payload = Message._encodeActionPayload(payload);
 
         _sendPayloadToEvm(
-            _targetChain,
-            _targetAddress,
+            s_hubChainId,
+            s_hubChainAddress,
             _payload,
             currentChainId,
             cost
         );
 
         emit Spoke__WithrawnCollateral(
-            _targetChain,
-            _targetAddress,
+            s_hubChainId,
+            s_hubChainAddress,
             msg.sender,
             _tokenCollateralAddress
         );
