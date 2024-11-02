@@ -22,8 +22,6 @@ import {SpokeInternals} from "./SpokeInternals.sol";
 contract SpokeProtocol is CCTPAndTokenSender, SpokeInternals {
     uint16 public immutable i_chainId;
     address public immutable i_USDC;
-    uint16 s_hubChainId;
-    address s_hubChainAddress;
     mapping(address token => bool) isTokenValid;
     mapping(address s_tokens => address h_tokens) s_spokeToHubTokens;
 

@@ -14,6 +14,8 @@ import {IWETH} from "../interfaces/IWETH.sol";
 
 abstract contract SpokeInternals is CCTPAndTokenReceiver, Message {
     address immutable i_WETH;
+    uint16 s_hubChainId;
+    address s_hubChainAddress;
 
     /**
      * @dev Sends an encoded payload to a specified `_targetChain` and `_targetAddress`.
@@ -70,6 +72,9 @@ abstract contract SpokeInternals is CCTPAndTokenReceiver, Message {
         bytes32 _deliveryHash
     ) internal override {
         Validator._isWormholeRelayer(address(wormholeRelayer), msg.sender);
+
+        require(_sourceChain == s_hubChainId, "Invalid_Chain");
+        require(_sourceAddress == s_hubChainAddress, "Invalid_Contract");
 
         ActionPayload memory payload = _decodeActionPayload(_payload);
         Action action = Action(payload.action);
