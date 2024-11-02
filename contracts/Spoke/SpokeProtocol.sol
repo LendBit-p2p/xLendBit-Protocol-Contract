@@ -120,7 +120,7 @@ contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
             sendUSDCWithPayloadToEvm(
                 s_hubChainId,
                 s_hubChainAddress,
-                payload,
+                _payload,
                 0,
                 Constants.GAS_LIMIT,
                 _amount
@@ -168,8 +168,6 @@ contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
      * Emits a `Spoke__CreateRequest` event indicating the target chain, loan amount, sender, and loan currency.
      */
     function createLendingRequest(
-        uint16 _targetChain,
-        address _targetAddress,
         uint16 _interest,
         uint256 _returnDate,
         address _loanAddress,
@@ -179,9 +177,6 @@ contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
         Validator._isTokenAllowed(_loanAddress);
 
         uint256 cost = _quoteCrossChainCost(_targetChain);
-
-        uint16 currentChainId = _getChainId(address(this));
-        if (currentChainId < 1) revert spoke__InvalidSpokeChainId();
 
         if (msg.value < cost) revert spoke__InsufficientGasFee();
 
@@ -197,10 +192,10 @@ contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
         bytes memory _payload = Message._encodeActionPayload(payload);
 
         _sendPayloadToEvm(
-            _targetChain,
-            _targetAddress,
+            s_hubChainId,
+            s_hubChainAddress,
             _payload,
-            currentChainId,
+            i_chainId,
             cost
         );
 
