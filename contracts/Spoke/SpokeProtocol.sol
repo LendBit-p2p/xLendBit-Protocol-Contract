@@ -474,5 +474,10 @@ contract SpokeProtocol is CCTPAndTokenSender, SpokeInternals {
         s_hubChainId = _chainId;
         s_hubChainAddress = _hub;
     }
+
+    function setSpokeToHub(address _spoke, address _hub) external _onlyOwner {
+        s_spokeToHubTokens[_spoke] = _hub;
+    }
+
     receive() external payable {}
 }
