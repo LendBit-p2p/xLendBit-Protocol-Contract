@@ -18,7 +18,7 @@ import "../model/Event.sol";
  * via interactions with the Wormhole protocol for cross-chain communication.
  * This contract utilizes `TokenSender` and `Message` functionalities.
  */
-contract SpokeProtocol is TokenSender, Message {
+contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
     uint16 public immutable i_chainId;
     address public immutable i_WETH;
     address public immutable i_USDC;
@@ -31,15 +31,28 @@ contract SpokeProtocol is TokenSender, Message {
         address _tokenBridge,
         address _wormhole,
         address[] memory _tokens,
-        uint16 chainId
-    ) TokenBase(_wormholeRelayer, _tokenBridge, _wormhole) {
-        wormholeRelayer = IWormholeRelayer(_wormholeRelayer);
-
+        address _circleTM,
+        address _circleMT,
+        uint16 _chainId,
+        address _USDC,
+        address _WETH
+    )
+        CCTPAndTokenBase(
+            _wormholeRelayer,
+            _tokenBridge,
+            _wormhole,
+            _circleMT,
+            _circleTM,
+            _USDC
+        )
+    {
         if (_tokens.length < 1) revert spoke__TokenArrayCantBeEmpty();
         for (uint8 i = 0; i < _tokens.length; i++) {
             isTokenValid[_tokens[i]] = true;
         }
-        s_spokeProtocols[address(this)] = chainId;
+        i_chainId = _chainId;
+        i_USDC = _USDC;
+        i_WETH = _WETH;
     }
 
     //////////////////
