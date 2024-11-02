@@ -387,8 +387,6 @@ contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
      */
 
     function createLoanListing(
-        uint16 _targetChain,
-        address _targetAddress,
         uint256 _amount,
         uint256 _min_amount,
         uint256 _max_amount,
@@ -398,14 +396,16 @@ contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
     ) external payable {
         Validator._valueMoreThanZero(_amount, _loanCurrency, msg.value);
 
-        uint256 cost = _quoteCrossChainCost(_targetChain);
-        uint16 currentChainId = _getChainId(address(this));
-        if (currentChainId < 1) revert spoke__InvalidSpokeChainId();
+        uint256 cost = _quoteCrossChainCost(s_hubChainId);
 
         if (msg.value < cost) revert spoke__InsufficientGasFee();
 
         // Check for sufficient balance and allowance if using a token other than native
-        if (_loanCurrency != Constants.NATIVE_TOKEN) {
+        if (_loanCurrency == Constants.NATIVE_TOKEN) {
+            _amount = msg.value - cost;
+            _loanCurrency = i_WETH;
+            IWETH(i_WETH).deposit{value: _amount}();
+        } else {
             if (IERC20(_loanCurrency).balanceOf(msg.sender) < _amount)
                 revert Protocol__InsufficientBalance();
 
@@ -413,15 +413,7 @@ contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
                 IERC20(_loanCurrency).allowance(msg.sender, address(this)) <
                 _amount
             ) revert Protocol__InsufficientAllowance();
-        }
 
-        // If using the native token, set the amount to the value sent with the transaction
-        if (_loanCurrency == Constants.NATIVE_TOKEN) {
-            _amount = msg.value;
-        }
-
-        // Transfer the specified amount from the user to the contract if using a token
-        if (_loanCurrency != Constants.NATIVE_TOKEN) {
             IERC20(_loanCurrency).transferFrom(
                 msg.sender,
                 address(this),
@@ -442,20 +434,32 @@ contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
 
         bytes memory _payload = Message._encodeActionPayload(payload);
 
-        // Send the token with payload to the target chain
-        sendTokenWithPayloadToEvm(
-            _targetChain,
-            _targetAddress,
-            _payload,
-            0, // No native tokens sent
-            Constants.GAS_LIMIT,
-            _loanCurrency,
-            _amount,
-            currentChainId, // remember to change with the current chain it was sent
-            msg.sender // Refund address is this contract
-        );
+        if (_assetAddress == i_USDC) {
+            sendUSDCWithPayloadToEvm(
+                s_hubChainId,
+                s_hubChainAddress,
+                _payload,
+                0,
+                Constants.GAS_LIMIT,
+                _amount
+            );
+        } else {
+            // Send the token with payload to the target chain
+            sendTokenWithPayloadToEvm(
+                s_hubChainId,
+                s_hubChainAddress,
+                _payload,
+                0, // No native tokens sent
+                Constants.GAS_LIMIT,
+                _assetAddress,
+                _amount,
+                i_chainId,
+                msg.sender // Refund address is this contract
+            );
+        }
+
         emit Spoke__createLoanListing(
-            _targetChain,
+            s_hubChainId,
             _amount,
             msg.sender,
             _loanCurrency
