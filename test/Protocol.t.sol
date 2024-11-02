@@ -82,6 +82,15 @@ contract ProtocolTest is Test, IDiamondCut {
         priceFeed.push(WETH_USD);
         priceFeed.push(ETH_USD);
 
+        chainIds.push(1005);
+        chainIds.push(1003);
+
+        spokeProtocols.push(0xc5520369a974AEB437a34F5ef15D8F408A2e7588);
+        spokeProtocols.push(0xd556b9e2c661eFEbf8775cb538ff696621edD353);
+
+        cctpDomain.push(2);
+        cctpDomain.push(3);
+
         //upgrade diamond with facets
 
         //build cut struct
