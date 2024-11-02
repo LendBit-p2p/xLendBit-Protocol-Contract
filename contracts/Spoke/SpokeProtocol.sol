@@ -532,17 +532,35 @@ contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
      * - `LoanRepayment` upon successful repayment.
      */
     function repayLoan(
-        uint16 _targetChain,
-        address _targetAddress,
         uint96 _requestId,
-        uint256 _amount
+        uint256 _amount,
+        address _loanCurrency
     ) external payable {
-        uint256 cost = _quoteCrossChainCost(_targetChain);
+        Validator._valueMoreThanZero(_amount, _loanCurrency, msg.value);
 
-        uint16 currentChainId = _getChainId(address(this));
-        if (currentChainId < 1) revert spoke__InvalidSpokeChainId();
+        uint256 cost = _quoteCrossChainCost(s_hubChainId);
 
         if (msg.value < cost) revert spoke__InsufficientGasFee();
+
+        if (_loanCurrency == Constants.NATIVE_TOKEN) {
+            _amount = msg.value - cost;
+            _loanCurrency = i_WETH;
+            IWETH(i_WETH).deposit{value: _amount}();
+        } else {
+            if (IERC20(_loanCurrency).balanceOf(msg.sender) < _amount)
+                revert Protocol__InsufficientBalance();
+
+            if (
+                IERC20(_loanCurrency).allowance(msg.sender, address(this)) <
+                _amount
+            ) revert Protocol__InsufficientAllowance();
+
+            IERC20(_loanCurrency).transferFrom(
+                msg.sender,
+                address(this),
+                _amount
+            );
+        }
 
         // Create and encode payload for cross-chain message
         ActionPayload memory payload;
@@ -550,16 +568,33 @@ contract SpokeProtocol is CCTPAndTokenSender, CCTPAndTokenReceiver, Message {
         payload.sender = msg.sender;
         payload.id = _requestId;
         payload.assetAmount = _amount;
+        payload.assetAddress = _loanCurrency;
 
         bytes memory _payload = Message._encodeActionPayload(payload);
 
-        _sendPayloadToEvm(
-            _targetChain,
-            _targetAddress,
-            _payload,
-            currentChainId,
-            cost
-        );
+        if (_assetAddress == i_USDC) {
+            sendUSDCWithPayloadToEvm(
+                s_hubChainId,
+                s_hubChainAddress,
+                _payload,
+                0,
+                Constants.GAS_LIMIT,
+                _amount
+            );
+        } else {
+            // Send the token with payload to the target chain
+            sendTokenWithPayloadToEvm(
+                s_hubChainId,
+                s_hubChainAddress,
+                _payload,
+                0, // No native tokens sent
+                Constants.GAS_LIMIT,
+                _assetAddress,
+                _amount,
+                i_chainId,
+                msg.sender // Refund address is this contract
+            );
+        }
 
         emit Spoke__RepayLoan(_targetChain, _requestId, msg.sender, _amount);
     }
