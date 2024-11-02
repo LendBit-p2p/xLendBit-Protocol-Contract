@@ -19,15 +19,14 @@ import "../model/Event.sol";
  * This contract utilizes `TokenSender` and `Message` functionalities.
  */
 contract SpokeProtocol is TokenSender, Message {
-    /// @dev maps spokeContractAddress to chainId
-    mapping(address => uint16 chainId) s_spokeProtocols;
-    /// @dev maps spokeContractAddress to a Provider
-    mapping(address spokeContractAddress => Provider) s_spokeProtocolProvider;
-    /// @dev maps supported token to a bool isValid
+    uint16 public immutable i_chainId;
+    address public immutable i_WETH;
+    address public immutable i_USDC;
+    uint16 s_hubChainId;
+    address s_hubChainAddress;
     mapping(address token => bool) isTokenValid;
 
     constructor(
-        
         address _wormholeRelayer,
         address _tokenBridge,
         address _wormhole,
@@ -527,8 +526,7 @@ contract SpokeProtocol is TokenSender, Message {
         emit Spoke__RepayLoan(_targetChain, _requestId, msg.sender, _amount);
     }
 
-
-     /**
+    /**
      * @dev Retrieves the chain ID associated with a given spoke contract address.
      *
      * @param _spokeContractAddress The address of the spoke contract.
@@ -575,7 +573,7 @@ contract SpokeProtocol is TokenSender, Message {
         provider.wormholeRelayer = _wormholeRelayer;
         provider.circleTokenMessenger = _circleTokenMessenger;
         provider.circleMessageTransmitter = _circleMessageTransmitter;
-        
+
         emit ProviderRegistered(_chainId, address(this));
     }
 
