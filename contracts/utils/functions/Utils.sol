@@ -83,7 +83,8 @@ library Utils {
     function fromUniversalAddress(
         bytes32 universalAddr
     ) internal pure returns (address addr) {
-        if (bytes12(universalAddr) != 0) revert NotAnEvmAddress(universalAddr);
+        if (bytes12(universalAddr) != 0)
+            revert Protocol__NotAnEvmAddress(universalAddr);
 
         assembly ("memory-safe") {
             addr := universalAddr
