@@ -22,6 +22,7 @@ import {SpokeInternals} from "./SpokeInternals.sol";
 contract SpokeProtocol is CCTPAndTokenSender, SpokeInternals {
     uint16 public immutable i_chainId;
     address public immutable i_USDC;
+    address owner;
     mapping(address token => bool) isTokenValid;
     mapping(address s_tokens => address h_tokens) s_spokeToHubTokens;
 
@@ -52,6 +53,7 @@ contract SpokeProtocol is CCTPAndTokenSender, SpokeInternals {
         i_chainId = _chainId;
         i_USDC = _USDC;
         i_WETH = _WETH;
+        owner = msg.sender;
     }
 
     //////////////////
@@ -64,6 +66,13 @@ contract SpokeProtocol is CCTPAndTokenSender, SpokeInternals {
      */
     modifier _isTokenValid(address _addr) {
         if (!isTokenValid[_addr]) revert spoke_TokenNotVaid();
+        _;
+    }
+
+    modifier _onlyOwner() {
+        if (msg.sender != owner) {
+            revert Protocol__NotOwner();
+        }
         _;
     }
 
@@ -461,5 +470,9 @@ contract SpokeProtocol is CCTPAndTokenSender, SpokeInternals {
         deliveryCost = _quoteCrossChainCost(_targetChain);
     }
 
+    function setHub(uint16 _chainId, address _hub) external _onlyOwner {
+        s_hubChainId = _chainId;
+        s_hubChainAddress = _hub;
+    }
     receive() external payable {}
 }
