@@ -16,6 +16,7 @@ abstract contract SpokeInternals is CCTPAndTokenReceiver, Message {
     address immutable i_WETH;
     uint16 s_hubChainId;
     address s_hubChainAddress;
+    mapping(bytes32 deliveryHash => bool consumed) s_consumedMessages;
 
     /**
      * @dev Sends an encoded payload to a specified `_targetChain` and `_targetAddress`.
@@ -74,7 +75,14 @@ abstract contract SpokeInternals is CCTPAndTokenReceiver, Message {
         Validator._isWormholeRelayer(address(wormholeRelayer), msg.sender);
 
         require(_sourceChain == s_hubChainId, "Invalid_Chain");
-        require(_sourceAddress == s_hubChainAddress, "Invalid_Contract");
+        require(
+            address(uint160(uint256(_sourceAddress))) == s_hubChainAddress,
+            "Invalid_Contract"
+        );
+        require(
+            !s_consumedMessages[_deliveryHash],
+            "Transaction Already Occured"
+        );
 
         ActionPayload memory payload = _decodeActionPayload(_payload);
         Action action = Action(payload.action);
@@ -93,6 +101,8 @@ abstract contract SpokeInternals is CCTPAndTokenReceiver, Message {
                 );
             }
         }
+
+        _consumeMessageHash(_deliveryHash);
     }
     function receivePayloadAndUSDC(
         bytes memory payload,
@@ -131,5 +141,14 @@ abstract contract SpokeInternals is CCTPAndTokenReceiver, Message {
             IWETH(i_WETH).withdraw(_token.amount);
             _token.tokenAddress = Constants.NATIVE_TOKEN;
         }
+    }
+
+    /**
+     * @dev Marks a message hash as consumed, preventing reuse.
+     * Helps prevent replay attacks by ensuring each message hash is only processed once.
+     * @param vmHash The hash of the virtual machine (VM) message to be marked as consumed.
+     */
+    function _consumeMessageHash(bytes32 vmHash) internal {
+        s_consumedMessages[vmHash] = true;
     }
 }
