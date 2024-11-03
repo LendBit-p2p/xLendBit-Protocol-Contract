@@ -80,7 +80,7 @@ contract Operations is WormholeUtilities {
         }
 
         // Emit an event for the collateral deposit
-        emit CollateralDeposited(
+        emit Event.CollateralDeposited(
             msg.sender,
             _tokenCollateralAddress,
             _amountOfCollateral,
@@ -217,7 +217,7 @@ contract Operations is WormholeUtilities {
         }
 
         // Emit an event for the created loan request
-        emit RequestCreated(
+        emit Event.RequestCreated(
             msg.sender,
             _appStorage.requestId,
             _amount,
@@ -366,7 +366,7 @@ contract Operations is WormholeUtilities {
         }
 
         // Emit an event indicating successful servicing of the request
-        emit RequestServiced(
+        emit Event.RequestServiced(
             _requestId,
             msg.sender,
             _foundRequest.author,
@@ -426,7 +426,7 @@ contract Operations is WormholeUtilities {
         }
 
         // Emit an event indicating successful collateral withdrawal
-        emit CollateralWithdrawn(
+        emit Event.CollateralWithdrawn(
             msg.sender,
             _tokenCollateralAddress,
             _amount,
@@ -464,7 +464,7 @@ contract Operations is WormholeUtilities {
         }
 
         // Emit an event indicating the updated number of collateral tokens
-        emit UpdatedCollateralTokens(
+        emit Event.UpdatedCollateralTokens(
             msg.sender,
             uint8(_appStorage.s_collateralToken.length)
         );
@@ -504,7 +504,7 @@ contract Operations is WormholeUtilities {
         }
 
         // Emit an event indicating the updated count of collateral tokens
-        emit UpdatedCollateralTokens(
+        emit Event.UpdatedCollateralTokens(
             msg.sender,
             uint8(_appStorage.s_collateralToken.length)
         );
@@ -534,7 +534,7 @@ contract Operations is WormholeUtilities {
         _appStorage.s_loanableToken.push(_token);
 
         // Emit an event to notify that a loanable token has been added
-        emit UpdateLoanableToken(_token, _priceFeed, msg.sender);
+        emit Event.UpdateLoanableToken(_token, _priceFeed, msg.sender);
     }
 
     /**
@@ -579,7 +579,7 @@ contract Operations is WormholeUtilities {
         }
 
         // Emit an event to notify that the listing has been closed and tokens have been withdrawn
-        emit withdrawnAdsToken(
+        emit Event.withdrawnAdsToken(
             msg.sender,
             _listingId,
             uint8(_newListing.listingStatus),
@@ -612,7 +612,7 @@ contract Operations is WormholeUtilities {
         _foundRequest.status = Status.CLOSED;
 
         // Emit an event to notify that the request has been closed
-        emit RequestClosed(_requestId, msg.sender);
+        emit Event.RequestClosed(_requestId, msg.sender);
     }
 
     /**
@@ -693,7 +693,7 @@ contract Operations is WormholeUtilities {
         _newListing.chainId = _appStorage.provider.chainId;
 
         // Emit an event to notify that a new loan listing has been created
-        emit LoanListingCreated(
+        emit Event.LoanListingCreated(
             _appStorage.listingId,
             msg.sender,
             _loanCurrency,
@@ -843,14 +843,14 @@ contract Operations is WormholeUtilities {
         }
 
         // Emit events to notify the loan request creation and servicing
-        emit RequestCreated(
+        emit Event.RequestCreated(
             msg.sender,
             _appStorage.requestId,
             _amount,
             _listing.interest,
             _appStorage.provider.chainId
         );
-        emit RequestServiced(
+        emit Event.RequestServiced(
             _newRequest.requestId,
             _newRequest.lender,
             _newRequest.author,
@@ -948,7 +948,7 @@ contract Operations is WormholeUtilities {
         }
 
         // Emit event to notify of loan repayment
-        emit LoanRepayment(
+        emit Event.LoanRepayment(
             msg.sender,
             _requestId,
             _amount,
@@ -1025,7 +1025,7 @@ contract Operations is WormholeUtilities {
         // Mark request as closed post liquidation
         _activeRequest.status = Status.CLOSED;
 
-        emit RequestLiquidated(
+        emit Event.RequestLiquidated(
             requestId,
             lenderAddress,
             _activeRequest.totalRepayment

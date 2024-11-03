@@ -2,7 +2,6 @@
 pragma solidity ^0.8.9;
 
 import {Operations} from "../utils/functions/Operations.sol";
-import {XOperations} from "../utils/functions/XOperations.sol";
 import {Getters} from "../utils/functions/Getters.sol";
 
 /**
@@ -16,7 +15,7 @@ import {Getters} from "../utils/functions/Getters.sol";
  * This contract acts as a primary interface for protocol interactions, while `Operations`
  * contains core operational functions, and `Getters` allows querying data from the protocol.
  */
-contract ProtocolFacet is Operations, XOperations, Getters {
+contract ProtocolFacet is Operations, Getters {
     /**
      * @dev Fallback function that reverts any calls made to undefined functions.
      * This ensures the protocol does not accept or process unsupported function calls.

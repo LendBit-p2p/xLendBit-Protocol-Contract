@@ -1,0 +1,1186 @@
+{
+  "fragments": [
+    {
+      "type": "error",
+      "name": "NotDiamondOwner",
+      "inputs": [],
+      "_isFragment": true
+    },
+    {
+      "type": "error",
+      "name": "Protocol__CantFundSelf",
+      "inputs": [],
+      "_isFragment": true
+    },
+    {
+      "type": "error",
+      "name": "Protocol__DateMustBeInFuture",
+      "inputs": [],
+      "_isFragment": true
+    },
+    {
+      "type": "error",
+      "name": "Protocol__InsufficientAmount",
+      "inputs": [],
+      "_isFragment": true
+    },
+    {
+      "type": "error",
+      "name": "Protocol__InsufficientCollateral",
+      "inputs": [],
+      "_isFragment": true
+    },
+    {
+      "type": "error",
+      "name": "Protocol__InsufficientCollateralDeposited",
+      "inputs": [],
+      "_isFragment": true
+    },
+    {
+      "type": "error",
+      "name": "Protocol__InvalidAction",
+      "inputs": [],
+      "_isFragment": true
+    },
+    {
+      "type": "error",
+      "name": "Protocol__InvalidAmount",
+      "inputs": [],
+      "_isFragment": true
+    },
+    {
+      "type": "error",
+      "name": "Protocol__InvalidCaller",
+      "inputs": [],
+      "_isFragment": true
+    },
+    {
+      "type": "error",
+      "name": "Protocol__InvalidHash",
+      "inputs": [],
+      "_isFragment": true
+    },
+    {
+      "type": "error",
+      "name": "Protocol__InvalidToken",
+      "inputs": [],
+      "_isFragment": true
+    },
+    {
+      "type": "error",
+      "name": "Protocol__ListingNotOpen",
+      "inputs": [],
+      "_isFragment": true
+    },
+    {
+      "type": "error",
+      "name": "Protocol__MustBeMoreThanZero",
+      "inputs": [],
+      "_isFragment": true
+    },
+    {
+      "type": "error",
+      "name": "Protocol__NotAnEvmAddress",
+      "inputs": [
+        {
+          "name": null,
+          "type": "bytes32",
+          "indexed": null,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "bytes32",
+          "_isParamType": true
+        }
+      ],
+      "_isFragment": true
+    },
+    {
+      "type": "error",
+      "name": "Protocol__NotOwner",
+      "inputs": [],
+      "_isFragment": true
+    },
+    {
+      "type": "error",
+      "name": "Protocol__OwnerCreatedListing",
+      "inputs": [],
+      "_isFragment": true
+    },
+    {
+      "type": "error",
+      "name": "Protocol__RequestExpired",
+      "inputs": [],
+      "_isFragment": true
+    },
+    {
+      "type": "error",
+      "name": "Protocol__RequestNotOpen",
+      "inputs": [],
+      "_isFragment": true
+    },
+    {
+      "type": "error",
+      "name": "Protocol__RequestNotServiced",
+      "inputs": [],
+      "_isFragment": true
+    },
+    {
+      "type": "error",
+      "name": "Protocol__TokenNotAllowed",
+      "inputs": [],
+      "_isFragment": true
+    },
+    {
+      "type": "error",
+      "name": "Protocol__TokenNotLoanable",
+      "inputs": [],
+      "_isFragment": true
+    },
+    {
+      "type": "error",
+      "name": "Protocol__TransferFailed",
+      "inputs": [],
+      "_isFragment": true
+    },
+    {
+      "type": "error",
+      "name": "SafeERC20FailedOperation",
+      "inputs": [
+        {
+          "name": "token",
+          "type": "address",
+          "indexed": null,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "address",
+          "_isParamType": true
+        }
+      ],
+      "_isFragment": true
+    },
+    {
+      "name": "CollateralDeposited",
+      "anonymous": false,
+      "inputs": [
+        {
+          "name": "_sender",
+          "type": "address",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "address",
+          "_isParamType": true
+        },
+        {
+          "name": "_token",
+          "type": "address",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "address",
+          "_isParamType": true
+        },
+        {
+          "name": "_value",
+          "type": "uint256",
+          "indexed": false,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint256",
+          "_isParamType": true
+        },
+        {
+          "name": "_chainId",
+          "type": "uint16",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint16",
+          "_isParamType": true
+        }
+      ],
+      "type": "event",
+      "_isFragment": true
+    },
+    {
+      "name": "CollateralWithdrawn",
+      "anonymous": false,
+      "inputs": [
+        {
+          "name": "sender",
+          "type": "address",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "address",
+          "_isParamType": true
+        },
+        {
+          "name": "_tokenCollateralAddress",
+          "type": "address",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "address",
+          "_isParamType": true
+        },
+        {
+          "name": "_amount",
+          "type": "uint256",
+          "indexed": false,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint256",
+          "_isParamType": true
+        },
+        {
+          "name": "_chainId",
+          "type": "uint16",
+          "indexed": false,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint16",
+          "_isParamType": true
+        }
+      ],
+      "type": "event",
+      "_isFragment": true
+    },
+    {
+      "name": "LoanListingCreated",
+      "anonymous": false,
+      "inputs": [
+        {
+          "name": "listingId",
+          "type": "uint96",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint96",
+          "_isParamType": true
+        },
+        {
+          "name": "sender",
+          "type": "address",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "address",
+          "_isParamType": true
+        },
+        {
+          "name": "tokenAddress",
+          "type": "address",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "address",
+          "_isParamType": true
+        },
+        {
+          "name": "amount",
+          "type": "uint256",
+          "indexed": false,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint256",
+          "_isParamType": true
+        },
+        {
+          "name": "chainId",
+          "type": "uint16",
+          "indexed": false,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint16",
+          "_isParamType": true
+        }
+      ],
+      "type": "event",
+      "_isFragment": true
+    },
+    {
+      "name": "LoanRepayment",
+      "anonymous": false,
+      "inputs": [
+        {
+          "name": "sender",
+          "type": "address",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "address",
+          "_isParamType": true
+        },
+        {
+          "name": "id",
+          "type": "uint96",
+          "indexed": false,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint96",
+          "_isParamType": true
+        },
+        {
+          "name": "amount",
+          "type": "uint256",
+          "indexed": false,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint256",
+          "_isParamType": true
+        },
+        {
+          "name": "chainId",
+          "type": "uint16",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint16",
+          "_isParamType": true
+        }
+      ],
+      "type": "event",
+      "_isFragment": true
+    },
+    {
+      "name": "RequestCreated",
+      "anonymous": false,
+      "inputs": [
+        {
+          "name": "_borrower",
+          "type": "address",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "address",
+          "_isParamType": true
+        },
+        {
+          "name": "requestId",
+          "type": "uint96",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint96",
+          "_isParamType": true
+        },
+        {
+          "name": "_amount",
+          "type": "uint256",
+          "indexed": false,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint256",
+          "_isParamType": true
+        },
+        {
+          "name": "_interest",
+          "type": "uint16",
+          "indexed": false,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint16",
+          "_isParamType": true
+        },
+        {
+          "name": "_chainId",
+          "type": "uint16",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint16",
+          "_isParamType": true
+        }
+      ],
+      "type": "event",
+      "_isFragment": true
+    },
+    {
+      "name": "RequestServiced",
+      "anonymous": false,
+      "inputs": [
+        {
+          "name": "_requestId",
+          "type": "uint96",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint96",
+          "_isParamType": true
+        },
+        {
+          "name": "_lender",
+          "type": "address",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "address",
+          "_isParamType": true
+        },
+        {
+          "name": "_borrower",
+          "type": "address",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "address",
+          "_isParamType": true
+        },
+        {
+          "name": "_amount",
+          "type": "uint256",
+          "indexed": false,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint256",
+          "_isParamType": true
+        },
+        {
+          "name": "_chainId",
+          "type": "uint16",
+          "indexed": false,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint16",
+          "_isParamType": true
+        }
+      ],
+      "type": "event",
+      "_isFragment": true
+    },
+    {
+      "type": "function",
+      "name": "receiveWormholeMessages",
+      "constant": false,
+      "inputs": [
+        {
+          "name": "payload",
+          "type": "bytes",
+          "indexed": null,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "bytes",
+          "_isParamType": true
+        },
+        {
+          "name": "additionalMessages",
+          "type": "bytes[]",
+          "indexed": null,
+          "components": null,
+          "arrayLength": -1,
+          "arrayChildren": {
+            "name": null,
+            "type": "bytes",
+            "indexed": null,
+            "components": null,
+            "arrayLength": null,
+            "arrayChildren": null,
+            "baseType": "bytes",
+            "_isParamType": true
+          },
+          "baseType": "array",
+          "_isParamType": true
+        },
+        {
+          "name": "sourceAddress",
+          "type": "bytes32",
+          "indexed": null,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "bytes32",
+          "_isParamType": true
+        },
+        {
+          "name": "sourceChain",
+          "type": "uint16",
+          "indexed": null,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint16",
+          "_isParamType": true
+        },
+        {
+          "name": "deliveryHash",
+          "type": "bytes32",
+          "indexed": null,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "bytes32",
+          "_isParamType": true
+        }
+      ],
+      "outputs": [],
+      "payable": true,
+      "stateMutability": "payable",
+      "gas": null,
+      "_isFragment": true
+    },
+    {
+      "type": "function",
+      "name": "registerSpoke",
+      "constant": false,
+      "inputs": [
+        {
+          "name": "chainId",
+          "type": "uint16",
+          "indexed": null,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint16",
+          "_isParamType": true
+        },
+        {
+          "name": "spokeContractAddress",
+          "type": "address",
+          "indexed": null,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "address",
+          "_isParamType": true
+        }
+      ],
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "gas": null,
+      "_isFragment": true
+    }
+  ],
+  "_abiCoder": {
+    "coerceFunc": null
+  },
+  "functions": {
+    "receiveWormholeMessages(bytes,bytes[],bytes32,uint16,bytes32)": {
+      "type": "function",
+      "name": "receiveWormholeMessages",
+      "constant": false,
+      "inputs": [
+        {
+          "name": "payload",
+          "type": "bytes",
+          "indexed": null,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "bytes",
+          "_isParamType": true
+        },
+        {
+          "name": "additionalMessages",
+          "type": "bytes[]",
+          "indexed": null,
+          "components": null,
+          "arrayLength": -1,
+          "arrayChildren": {
+            "name": null,
+            "type": "bytes",
+            "indexed": null,
+            "components": null,
+            "arrayLength": null,
+            "arrayChildren": null,
+            "baseType": "bytes",
+            "_isParamType": true
+          },
+          "baseType": "array",
+          "_isParamType": true
+        },
+        {
+          "name": "sourceAddress",
+          "type": "bytes32",
+          "indexed": null,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "bytes32",
+          "_isParamType": true
+        },
+        {
+          "name": "sourceChain",
+          "type": "uint16",
+          "indexed": null,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint16",
+          "_isParamType": true
+        },
+        {
+          "name": "deliveryHash",
+          "type": "bytes32",
+          "indexed": null,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "bytes32",
+          "_isParamType": true
+        }
+      ],
+      "outputs": [],
+      "payable": true,
+      "stateMutability": "payable",
+      "gas": null,
+      "_isFragment": true
+    },
+    "registerSpoke(uint16,address)": {
+      "type": "function",
+      "name": "registerSpoke",
+      "constant": false,
+      "inputs": [
+        {
+          "name": "chainId",
+          "type": "uint16",
+          "indexed": null,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint16",
+          "_isParamType": true
+        },
+        {
+          "name": "spokeContractAddress",
+          "type": "address",
+          "indexed": null,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "address",
+          "_isParamType": true
+        }
+      ],
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "gas": null,
+      "_isFragment": true
+    }
+  },
+  "errors": {
+    "NotDiamondOwner()": {
+      "type": "error",
+      "name": "NotDiamondOwner",
+      "inputs": [],
+      "_isFragment": true
+    },
+    "Protocol__CantFundSelf()": {
+      "type": "error",
+      "name": "Protocol__CantFundSelf",
+      "inputs": [],
+      "_isFragment": true
+    },
+    "Protocol__DateMustBeInFuture()": {
+      "type": "error",
+      "name": "Protocol__DateMustBeInFuture",
+      "inputs": [],
+      "_isFragment": true
+    },
+    "Protocol__InsufficientAmount()": {
+      "type": "error",
+      "name": "Protocol__InsufficientAmount",
+      "inputs": [],
+      "_isFragment": true
+    },
+    "Protocol__InsufficientCollateral()": {
+      "type": "error",
+      "name": "Protocol__InsufficientCollateral",
+      "inputs": [],
+      "_isFragment": true
+    },
+    "Protocol__InsufficientCollateralDeposited()": {
+      "type": "error",
+      "name": "Protocol__InsufficientCollateralDeposited",
+      "inputs": [],
+      "_isFragment": true
+    },
+    "Protocol__InvalidAction()": {
+      "type": "error",
+      "name": "Protocol__InvalidAction",
+      "inputs": [],
+      "_isFragment": true
+    },
+    "Protocol__InvalidAmount()": {
+      "type": "error",
+      "name": "Protocol__InvalidAmount",
+      "inputs": [],
+      "_isFragment": true
+    },
+    "Protocol__InvalidCaller()": {
+      "type": "error",
+      "name": "Protocol__InvalidCaller",
+      "inputs": [],
+      "_isFragment": true
+    },
+    "Protocol__InvalidHash()": {
+      "type": "error",
+      "name": "Protocol__InvalidHash",
+      "inputs": [],
+      "_isFragment": true
+    },
+    "Protocol__InvalidToken()": {
+      "type": "error",
+      "name": "Protocol__InvalidToken",
+      "inputs": [],
+      "_isFragment": true
+    },
+    "Protocol__ListingNotOpen()": {
+      "type": "error",
+      "name": "Protocol__ListingNotOpen",
+      "inputs": [],
+      "_isFragment": true
+    },
+    "Protocol__MustBeMoreThanZero()": {
+      "type": "error",
+      "name": "Protocol__MustBeMoreThanZero",
+      "inputs": [],
+      "_isFragment": true
+    },
+    "Protocol__NotAnEvmAddress(bytes32)": {
+      "type": "error",
+      "name": "Protocol__NotAnEvmAddress",
+      "inputs": [
+        {
+          "name": null,
+          "type": "bytes32",
+          "indexed": null,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "bytes32",
+          "_isParamType": true
+        }
+      ],
+      "_isFragment": true
+    },
+    "Protocol__NotOwner()": {
+      "type": "error",
+      "name": "Protocol__NotOwner",
+      "inputs": [],
+      "_isFragment": true
+    },
+    "Protocol__OwnerCreatedListing()": {
+      "type": "error",
+      "name": "Protocol__OwnerCreatedListing",
+      "inputs": [],
+      "_isFragment": true
+    },
+    "Protocol__RequestExpired()": {
+      "type": "error",
+      "name": "Protocol__RequestExpired",
+      "inputs": [],
+      "_isFragment": true
+    },
+    "Protocol__RequestNotOpen()": {
+      "type": "error",
+      "name": "Protocol__RequestNotOpen",
+      "inputs": [],
+      "_isFragment": true
+    },
+    "Protocol__RequestNotServiced()": {
+      "type": "error",
+      "name": "Protocol__RequestNotServiced",
+      "inputs": [],
+      "_isFragment": true
+    },
+    "Protocol__TokenNotAllowed()": {
+      "type": "error",
+      "name": "Protocol__TokenNotAllowed",
+      "inputs": [],
+      "_isFragment": true
+    },
+    "Protocol__TokenNotLoanable()": {
+      "type": "error",
+      "name": "Protocol__TokenNotLoanable",
+      "inputs": [],
+      "_isFragment": true
+    },
+    "Protocol__TransferFailed()": {
+      "type": "error",
+      "name": "Protocol__TransferFailed",
+      "inputs": [],
+      "_isFragment": true
+    },
+    "SafeERC20FailedOperation(address)": {
+      "type": "error",
+      "name": "SafeERC20FailedOperation",
+      "inputs": [
+        {
+          "name": "token",
+          "type": "address",
+          "indexed": null,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "address",
+          "_isParamType": true
+        }
+      ],
+      "_isFragment": true
+    }
+  },
+  "events": {
+    "CollateralDeposited(address,address,uint256,uint16)": {
+      "name": "CollateralDeposited",
+      "anonymous": false,
+      "inputs": [
+        {
+          "name": "_sender",
+          "type": "address",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "address",
+          "_isParamType": true
+        },
+        {
+          "name": "_token",
+          "type": "address",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "address",
+          "_isParamType": true
+        },
+        {
+          "name": "_value",
+          "type": "uint256",
+          "indexed": false,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint256",
+          "_isParamType": true
+        },
+        {
+          "name": "_chainId",
+          "type": "uint16",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint16",
+          "_isParamType": true
+        }
+      ],
+      "type": "event",
+      "_isFragment": true
+    },
+    "CollateralWithdrawn(address,address,uint256,uint16)": {
+      "name": "CollateralWithdrawn",
+      "anonymous": false,
+      "inputs": [
+        {
+          "name": "sender",
+          "type": "address",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "address",
+          "_isParamType": true
+        },
+        {
+          "name": "_tokenCollateralAddress",
+          "type": "address",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "address",
+          "_isParamType": true
+        },
+        {
+          "name": "_amount",
+          "type": "uint256",
+          "indexed": false,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint256",
+          "_isParamType": true
+        },
+        {
+          "name": "_chainId",
+          "type": "uint16",
+          "indexed": false,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint16",
+          "_isParamType": true
+        }
+      ],
+      "type": "event",
+      "_isFragment": true
+    },
+    "LoanListingCreated(uint96,address,address,uint256,uint16)": {
+      "name": "LoanListingCreated",
+      "anonymous": false,
+      "inputs": [
+        {
+          "name": "listingId",
+          "type": "uint96",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint96",
+          "_isParamType": true
+        },
+        {
+          "name": "sender",
+          "type": "address",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "address",
+          "_isParamType": true
+        },
+        {
+          "name": "tokenAddress",
+          "type": "address",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "address",
+          "_isParamType": true
+        },
+        {
+          "name": "amount",
+          "type": "uint256",
+          "indexed": false,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint256",
+          "_isParamType": true
+        },
+        {
+          "name": "chainId",
+          "type": "uint16",
+          "indexed": false,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint16",
+          "_isParamType": true
+        }
+      ],
+      "type": "event",
+      "_isFragment": true
+    },
+    "LoanRepayment(address,uint96,uint256,uint16)": {
+      "name": "LoanRepayment",
+      "anonymous": false,
+      "inputs": [
+        {
+          "name": "sender",
+          "type": "address",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "address",
+          "_isParamType": true
+        },
+        {
+          "name": "id",
+          "type": "uint96",
+          "indexed": false,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint96",
+          "_isParamType": true
+        },
+        {
+          "name": "amount",
+          "type": "uint256",
+          "indexed": false,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint256",
+          "_isParamType": true
+        },
+        {
+          "name": "chainId",
+          "type": "uint16",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint16",
+          "_isParamType": true
+        }
+      ],
+      "type": "event",
+      "_isFragment": true
+    },
+    "RequestCreated(address,uint96,uint256,uint16,uint16)": {
+      "name": "RequestCreated",
+      "anonymous": false,
+      "inputs": [
+        {
+          "name": "_borrower",
+          "type": "address",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "address",
+          "_isParamType": true
+        },
+        {
+          "name": "requestId",
+          "type": "uint96",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint96",
+          "_isParamType": true
+        },
+        {
+          "name": "_amount",
+          "type": "uint256",
+          "indexed": false,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint256",
+          "_isParamType": true
+        },
+        {
+          "name": "_interest",
+          "type": "uint16",
+          "indexed": false,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint16",
+          "_isParamType": true
+        },
+        {
+          "name": "_chainId",
+          "type": "uint16",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint16",
+          "_isParamType": true
+        }
+      ],
+      "type": "event",
+      "_isFragment": true
+    },
+    "RequestServiced(uint96,address,address,uint256,uint16)": {
+      "name": "RequestServiced",
+      "anonymous": false,
+      "inputs": [
+        {
+          "name": "_requestId",
+          "type": "uint96",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint96",
+          "_isParamType": true
+        },
+        {
+          "name": "_lender",
+          "type": "address",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "address",
+          "_isParamType": true
+        },
+        {
+          "name": "_borrower",
+          "type": "address",
+          "indexed": true,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "address",
+          "_isParamType": true
+        },
+        {
+          "name": "_amount",
+          "type": "uint256",
+          "indexed": false,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint256",
+          "_isParamType": true
+        },
+        {
+          "name": "_chainId",
+          "type": "uint16",
+          "indexed": false,
+          "components": null,
+          "arrayLength": null,
+          "arrayChildren": null,
+          "baseType": "uint16",
+          "_isParamType": true
+        }
+      ],
+      "type": "event",
+      "_isFragment": true
+    }
+  },
+  "structs": {},
+  "deploy": {
+    "name": null,
+    "type": "constructor",
+    "inputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "gas": null,
+    "_isFragment": true
+  },
+  "_isInterface": true
+}

@@ -46,7 +46,7 @@ contract XOperationsImpl is CCTPAndTokenReceiver, WormholeUtilities {
         ] += _amountOfCollateral;
 
         // Emit an event for the collateral deposit
-        emit CollateralDeposited(
+        emit Event.CollateralDeposited(
             _msgSender,
             _tokenCollateralAddress,
             _amountOfCollateral,
@@ -161,7 +161,7 @@ contract XOperationsImpl is CCTPAndTokenReceiver, WormholeUtilities {
         }
 
         // Emit an event for the created loan request
-        emit RequestCreated(
+        emit Event.RequestCreated(
             payload.sender,
             _appStorage.requestId,
             payload.assetAmount,
@@ -254,7 +254,7 @@ contract XOperationsImpl is CCTPAndTokenReceiver, WormholeUtilities {
         }
 
         // Emit an event indicating successful servicing of the request
-        emit RequestServiced(
+        emit Event.RequestServiced(
             _requestId,
             _msgSender,
             _foundRequest.author,
@@ -350,7 +350,7 @@ contract XOperationsImpl is CCTPAndTokenReceiver, WormholeUtilities {
         );
 
         // Emit an event indicating successful collateral withdrawal
-        emit CollateralWithdrawn(
+        emit Event.CollateralWithdrawn(
             _msgSender,
             _tokenCollateralAddress,
             _amount,
@@ -395,7 +395,7 @@ contract XOperationsImpl is CCTPAndTokenReceiver, WormholeUtilities {
         _newListing.chainId = _sourceChain;
 
         // Emit an event to notify that a new loan listing has been created
-        emit LoanListingCreated(
+        emit Event.LoanListingCreated(
             _appStorage.listingId,
             _msgSender,
             _loanCurrency,
@@ -528,14 +528,14 @@ contract XOperationsImpl is CCTPAndTokenReceiver, WormholeUtilities {
         );
 
         // Emit events to notify the loan request creation and servicing
-        emit RequestCreated(
+        emit Event.RequestCreated(
             _msgSender,
             _appStorage.requestId,
             _amount,
             _listing.interest,
             _sourceChain
         );
-        emit RequestServiced(
+        emit Event.RequestServiced(
             _newRequest.requestId,
             _newRequest.lender,
             _newRequest.author,
@@ -634,7 +634,7 @@ contract XOperationsImpl is CCTPAndTokenReceiver, WormholeUtilities {
         }
 
         // Emit event to notify of loan repayment
-        emit LoanRepayment(_msgSender, _requestId, _amount, _sourceChain);
+        emit Event.LoanRepayment(_msgSender, _requestId, _amount, _sourceChain);
     }
 
     function _vetTokenAndUnwrap(

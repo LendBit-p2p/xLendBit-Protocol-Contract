@@ -46,10 +46,10 @@ abstract contract CCTPAndTokenSender is CCTPAndTokenBase {
      * setCCTPDomain(23, 3);
      * setCCTPDomain(30, 6);
      */
-    function setCCTPDomain(uint16 chain, uint32 cctpDomain) public {
-        LibDiamond.enforceIsContractOwner();
-        _appStorage.s_chainIdToCCTPDomain[chain] = cctpDomain;
-    }
+    // function setCCTPDomain(uint16 chain, uint32 cctpDomain) public {
+    //     LibDiamond.enforceIsContractOwner();
+    //     _appStorage.s_chainIdToCCTPDomain[chain] = cctpDomain;
+    // }
 
     function getCCTPDomain(uint16 chain) internal view returns (uint32) {
         return _appStorage.s_chainIdToCCTPDomain[chain];
