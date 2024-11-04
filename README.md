@@ -87,4 +87,4 @@ _Deploying facets_
 
 ## Contributing
 
-We welcome and encourage contributions from developers and community members! If you're interested in contributing to Lendbit, please follow our [Contribution Guidelines] or reach out via **X** `@lendbit`.
+We welcome and encourage contributions from developers and community members! If you're interested in contributing to Lendbit, please reach out via **X** [`@LendbitFinance`](https://x.com/LendbitFinance).
