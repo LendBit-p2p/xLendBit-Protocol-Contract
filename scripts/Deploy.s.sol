@@ -2,14 +2,14 @@
 pragma solidity ^0.8.9;
 
 import {Script, console} from "forge-std/Script.sol";
-import {SpokeProtocol} from "../contracts/Spoke/SpokeProtocol.sol";
+import "../contracts/Spoke/SpokeProtocol.sol";
 
 contract DeployScript is Script {
     // Returns the address of the newly deployed contract
     bytes32 salt =
         keccak256("LendBits_WormHole_hackathon_Winners_2024_BY_A_MILE");
     uint16 chainIdOP = 10005;
-    uint16 chainIdARB = 10005;
+    uint16 chainIdARB = 10003;
     uint32 cctpDomainOP = 2;
     uint32 cctpDomainARB = 3;
     string rpcOP = "https://sepolia.optimism.io";
@@ -50,18 +50,37 @@ contract DeployScript is Script {
         // uint256 ARB = vm.createFork(rpcARB);
         vm.selectFork(OP);
         vm.startBroadcast();
-        address op = deployOP(
-            wormholeRelayerOP,
-            tokenBridgeOP,
-            wormholeOP,
-            tokensOP,
-            circleTokenMessengerOP,
-            circleMessageTransmitterOP,
-            chainIdOP,
-            USDCOP,
-            WETHOP
+        // address op = deployOP(
+        //     wormholeRelayerOP,
+        //     tokenBridgeOP,
+        //     wormholeOP,
+        //     tokensOP,
+        //     circleTokenMessengerOP,
+        //     circleMessageTransmitterOP,
+        //     chainIdOP,
+        //     USDCOP,
+        //     WETHOP
+        // );
+        // console.log("This OP: ", op);
+        SpokeProtocol _spokeProtocol = SpokeProtocol(
+            payable(0xD93eBB95196AF1D9FdD1dD970fAC1d2BFfDb8046)
         );
-        console.log("This OP: ", op);
+        // _spokeProtocol.setHub(
+        //     10004,
+        //     0x05AE831342A66bA3640F5342eeBb50352fC6A4B0
+        // );
+        // _spokeProtocol.setSpokeToHub(address(1), address(1));
+        // _spokeProtocol.setSpokeToHub(
+        //     0x4200000000000000000000000000000000000006,
+        //     address(1)
+        // );
+        // _spokeProtocol.setSpokeToHub(
+        //     0x5fd84259d66Cd46123540766Be93DFE6D43130D7,
+        //     0x036CbD53842c5426634e7929541eC2318f3dCF7e
+        // );
+        IERC20(USDCOP).approve(address(_spokeProtocol), 2E6);
+        _spokeProtocol.depositCollateral{value: 0.05 ether}(USDCOP, 2E6);
+
         vm.stopBroadcast();
 
         // vm.selectFork(ARB);
@@ -93,7 +112,7 @@ contract DeployScript is Script {
         // https://docs.soliditylang.org/en/latest/control-structures.html#salted-contract-creations-create2
         return
             address(
-                new SpokeProtocol{salt: salt}(
+                new SpokeProtocol(
                     _wormholeRelayer,
                     _tokenBridge,
                     _wormhole,

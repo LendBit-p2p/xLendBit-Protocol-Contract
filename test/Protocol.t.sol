@@ -85,7 +85,7 @@ contract ProtocolTest is Test, IDiamondCut {
         chainIds.push(1005);
         chainIds.push(1003);
 
-        spokeProtocols.push(0xc5520369a974AEB437a34F5ef15D8F408A2e7588);
+        spokeProtocols.push(0xD93eBB95196AF1D9FdD1dD970fAC1d2BFfDb8046);
         spokeProtocols.push(0xd556b9e2c661eFEbf8775cb538ff696621edD353);
 
         cctpDomain.push(2);
