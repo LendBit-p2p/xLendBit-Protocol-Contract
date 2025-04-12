@@ -1126,11 +1126,11 @@ contract Operations is AppStorage {
         require(_to != address(0), "invalid address");
 
         uint256 _feesAccrued = _appStorage.s_feesAccrued[_token];
-        require(_feesAccrued >= amount, "not enough fees accrued");
+        require(_feesAccrued >= amount, "insufficient fees");
         _appStorage.s_feesAccrued[_token] = _feesAccrued - amount;
         if (_token == Constants.NATIVE_TOKEN) {
             (bool sent, ) = payable(_to).call{value: amount}("");
-            require(sent, "Failed to send Ether");
+            require(sent, "failed to send Ether");
         } else {
             IERC20(_token).safeTransfer(_to, amount);
         }

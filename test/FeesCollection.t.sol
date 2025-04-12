@@ -335,6 +335,36 @@ contract ProtocolTest is Test, IDiamondCut {
         assertEq(_balance, 1000E18);
     }
 
+    function testWithdrawRevertsIfNotContractOwner() public {
+        testFeeWithdrawalERC20();
+        vm.startPrank(B);
+        vm.expectRevert(LibDiamond.NotDiamondOwner.selector);
+        protocolFacet.withdrawFees(USDT_CONTRACT_ADDRESS, C, 1000E18);
+    }
+
+    function testWithdrawRevertsIfZeroAddress() public {
+        testFeeWithdrawalERC20();
+        vm.expectRevert("invalid address");
+        protocolFacet.withdrawFees(USDT_CONTRACT_ADDRESS, address(0), 1000E18);
+    }
+
+    function testWithdrawRevertsIfFeesLowerThatWithdrawAmount() public {
+        testFeeWithdrawalERC20();
+        vm.expectRevert("insufficient fees");
+        protocolFacet.withdrawFees(USDT_CONTRACT_ADDRESS, C, 100_000_000E18);
+    }
+
+    function testFeeRateCannotExceedTenPercent() public {
+        vm.expectRevert("rate cannot exceed 10%");
+        protocolFacet.setFeeRate(1001);
+    }
+
+    function testSetFeeRateRevertsIfNotContractOwner() public {
+        vm.startPrank(B);
+        vm.expectRevert(LibDiamond.NotDiamondOwner.selector);
+        protocolFacet.setFeeRate(1000);
+    }
+
     function _depositCollateral(
         address user,
         address token,
