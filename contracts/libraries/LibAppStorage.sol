@@ -8,6 +8,8 @@ library LibAppStorage {
         mapping(address token => address priceFeed) s_priceFeeds;
         /// @dev maps address of a token to see if it is loanable
         mapping(address token => bool isLoanable) s_isLoanable;
+        /// @dev maps token address to the amount of fees accrued
+        mapping(address token => uint256 feesAccrued) s_feesAccrued;
         /// @dev maps user to the value of balance he has collaterised
         mapping(address => mapping(address token => uint256 balance)) s_addressToCollateralDeposited;
         /// @dev maps user to the value of balance he has available
@@ -32,5 +34,7 @@ library LibAppStorage {
         address botAddress;
         /// @dev uniswap router address
         address swapRouter;
+        /// @dev fees rate in basis points
+        uint16 feeRateBps;
     }
 }
