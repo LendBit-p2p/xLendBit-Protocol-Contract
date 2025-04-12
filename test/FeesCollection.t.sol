@@ -38,9 +38,9 @@ contract ProtocolTest is Test, IDiamondCut {
     address LINK_CONTRACT_ADDRESS;
     address ETH_CONTRACT_ADDRESS = address(1);
 
-    address owner = address(0xa);
-    address B = address(0xb);
-    address C = address(0xc);
+    address owner;
+    address B;
+    address C;
 
     address botAddress = address(0x0beaf0BfC5D1f3f3F8d3a6b0F1B6E3f2b0f1b6e3);
     address swapRouterAddress = 0x1689E7B1F10000AE47eBfE339a4f69dECd19F602;
@@ -49,6 +49,10 @@ contract ProtocolTest is Test, IDiamondCut {
     address[] priceFeed;
 
     function setUp() public {
+        owner = mkaddr("owner");
+        B = mkaddr("B address");
+        C = mkaddr("C address");
+
         switchSigner(owner);
         //deploy facets
         dCutFacet = new DiamondCutFacet();
@@ -56,10 +60,6 @@ contract ProtocolTest is Test, IDiamondCut {
         dLoupe = new DiamondLoupeFacet();
         ownerF = new OwnershipFacet();
         protocolFacet = new ProtocolFacet();
-
-        owner = mkaddr("owner");
-        B = mkaddr("B address");
-        C = mkaddr("C address");
 
         //deploy mock tokens
         (USDT_CONTRACT_ADDRESS, USDT_USD) = deployERC20ContractAndAddPriceFeed(
@@ -257,12 +257,95 @@ contract ProtocolTest is Test, IDiamondCut {
         protocol.getRequest(1);
     }
 
+    function testFeeWithdrawalERC20() public {
+        _mintTokenToAddress(DAI_CONTRACT_ADDRESS, B, 100_000_000E18);
+        _mintTokenToAddress(WETH_CONTRACT_ADDRESS, owner, 500_000E18);
+        _mintTokenToAddress(DAI_CONTRACT_ADDRESS, owner, 100_000_000E18);
+        _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 500_000E18);
+
+        ProtocolFacet protocol = ProtocolFacet(address(diamond));
+        protocol.createLendingRequest(
+            70_000_000E18,
+            1000,
+            block.timestamp + (30 days * 3),
+            DAI_CONTRACT_ADDRESS
+        );
+
+        IERC20 dai = IERC20(DAI_CONTRACT_ADDRESS);
+
+        switchSigner(B);
+        dai.approve(address(diamond), 100_000_000E18);
+        protocol.serviceRequest(1, DAI_CONTRACT_ADDRESS);
+
+        switchSigner(owner);
+        dai.approve(address(diamond), 100_000_000E18);
+        protocol.repayLoan(1, 77_000_000E18);
+
+        uint256 _feesAccruedUsdt = protocol.getFeesAccrued(
+            DAI_CONTRACT_ADDRESS
+        );
+        // assuming 1% fee rate
+        assertEq(_feesAccruedUsdt, 770_000E18);
+
+        protocol.withdrawFees(DAI_CONTRACT_ADDRESS, C, 500_000E18);
+        uint256 _feesAfterWithdrawal = protocol.getFeesAccrued(
+            DAI_CONTRACT_ADDRESS
+        );
+        assertEq(_feesAfterWithdrawal, 270_000E18);
+
+        uint256 _balance = dai.balanceOf(C);
+        assertEq(_balance, 500_000E18);
+    }
+
+    function testFeeWithdrawalNative() public {
+        vm.deal(B, 1_000_000E18);
+        vm.deal(owner, 1_000_000E18);
+        _mintTokenToAddress(WETH_CONTRACT_ADDRESS, owner, 500_000E18);
+        _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 500_000E18);
+
+        uint128 _amount = 300_000E18;
+        uint256 _repayAmount = 330_000E18;
+        uint256 _feeAccrued = 3300E18;
+
+        ProtocolFacet protocol = ProtocolFacet(address(diamond));
+        protocol.createLendingRequest(
+            _amount,
+            1000,
+            block.timestamp + (30 days * 3),
+            ETH_CONTRACT_ADDRESS
+        );
+
+        switchSigner(B);
+        protocol.serviceRequest{value: _amount}(1, ETH_CONTRACT_ADDRESS);
+
+        switchSigner(owner);
+        protocol.repayLoan{value: _repayAmount}(1, _repayAmount);
+
+        uint256 _feesAccruedEth = protocol.getFeesAccrued(ETH_CONTRACT_ADDRESS);
+        // assuming 1% fee rate
+        assertEq(_feesAccruedEth, _feeAccrued);
+
+        protocol.withdrawFees(ETH_CONTRACT_ADDRESS, C, 1000E18);
+        uint256 _feesAfterWithdrawal = protocol.getFeesAccrued(
+            ETH_CONTRACT_ADDRESS
+        );
+        assertEq(_feesAfterWithdrawal, 2300E18);
+
+        uint256 _balance = C.balance;
+        assertEq(_balance, 1000E18);
+    }
+
     function _depositCollateral(
         address user,
         address token,
         uint256 amount
     ) internal {
         switchSigner(user);
+        if (token == ETH_CONTRACT_ADDRESS) {
+            vm.deal(user, amount);
+            protocolFacet.depositCollateral{value: amount}(token, amount);
+            return;
+        }
         IERC20(token).approve(address(protocolFacet), type(uint).max);
         protocolFacet.depositCollateral(token, amount);
     }
