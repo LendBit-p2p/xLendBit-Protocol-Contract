@@ -945,9 +945,7 @@ function liquidateUserRequest(uint96 requestId)
     if(request.author == msg.sender) revert Protocol__OwnerCantLiquidateRequest();
 
     
-    // Check if loan is past due date (liquidation only allowed for overdue loans)
-    bool isPastDue = block.timestamp > request.returnDate;
-    if (!isPastDue) revert Protocol__NotLiquidatable();
+
     
     // Store key loan details for easier reference and gas optimization
     address borrower = request.author;
@@ -981,9 +979,15 @@ function liquidateUserRequest(uint96 requestId)
         }
     }
     
+
+        // Check if loan is past due date (liquidation only allowed for overdue loans)
+    bool isPastDue = block.timestamp > request.returnDate;
+
+    bool isUnhealthy = loanUsdValue > totalCollateralValue;
+    if (!isPastDue || !isUnhealthy) revert Protocol__NotLiquidatable();
     // Verify loan is undercollateralized (health factor check)
     // Health factor broken when loan value exceeds collateral value
-    if (loanUsdValue <= totalCollateralValue) revert Protocol__HealthFactorNotBroken();
+    // if () revert Protocol__HealthFactorNotBroken();
     
     // Update request status to prevent re-entrancy and multiple liquidations
     request.status = Status.LIQUIDATED;
