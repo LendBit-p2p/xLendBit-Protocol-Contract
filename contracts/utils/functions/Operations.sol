@@ -982,12 +982,11 @@ function liquidateUserRequest(uint96 requestId)
 
         // Check if loan is past due date (liquidation only allowed for overdue loans)
     bool isPastDue = block.timestamp > request.returnDate;
-
+        // Verify loan is undercollateralized (health factor check)
+    // Health factor broken when loan value exceeds collateral value
     bool isUnhealthy = loanUsdValue > totalCollateralValue;
     if (!isPastDue || !isUnhealthy) revert Protocol__NotLiquidatable();
-    // Verify loan is undercollateralized (health factor check)
-    // Health factor broken when loan value exceeds collateral value
-    // if () revert Protocol__HealthFactorNotBroken();
+
     
     // Update request status to prevent re-entrancy and multiple liquidations
     request.status = Status.LIQUIDATED;
