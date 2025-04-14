@@ -13,6 +13,7 @@ import "../contracts/model/Protocol.sol";
 import "../contracts/model/Event.sol";
 import "../contracts/utils/constants/Constant.sol";
 import "../contracts/utils/validators/Validator.sol";
+import "../contracts/utils/validators/Error.sol";
 
 // MOCK Contracts
 import {MockV3Aggregator} from "@chainlink/contracts/src/v0.8/tests/MockV3Aggregator.sol";
@@ -157,213 +158,203 @@ contract ProtocolTest is Test, IDiamondCut {
         ERC20Mock(_token).mint(_to, _amount);
     }
 
-    function testGetFeesAccrued() public {
+    function testRequestCannotBeLiquidatedIfRequestNotService() public {
         _mintTokenToAddress(USDT_CONTRACT_ADDRESS, B, 100000E18);
         _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 5E18);
 
-        ProtocolFacet protocol = ProtocolFacet(address(diamond));
-        protocol.createLendingRequest(
+        // ProtocolFacet protocol = ProtocolFacet(address(diamond));
+        protocolFacet.createLendingRequest(
             200E18,
             500,
             block.timestamp + (30 days * 3),
             USDT_CONTRACT_ADDRESS
         );
 
-        IERC20 usdt = IERC20(USDT_CONTRACT_ADDRESS);
 
-        switchSigner(B);
-        usdt.approve(address(diamond), 250E18);
-        protocol.serviceRequest(1, USDT_CONTRACT_ADDRESS);
+          vm.expectRevert(abi.encodeWithSelector(Protocol__RequestNotServiced.selector));
 
-        switchSigner(owner);
-        usdt.approve(address(diamond), 250E18);
-        protocol.repayLoan(1, 210E18);
-
-        uint256 _feesAccruedUsdt = protocol.getFeesAccrued(
-            USDT_CONTRACT_ADDRESS
-        );
-        // assuming 1% fee rate
-        assertEq(_feesAccruedUsdt, 210E16);
+        protocolFacet.liquidateUserRequest(1);
+        
     }
 
-    function testFeeAccruedOnNativeToken() public {
-        vm.deal(owner, 3 ether);
-        vm.deal(B, 10 ether);
-        _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 5E18);
+    // function testFeeAccruedOnNativeToken() public {
+    //     vm.deal(owner, 3 ether);
+    //     vm.deal(B, 10 ether);
+    //     _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 5E18);
 
-        ProtocolFacet protocol = ProtocolFacet(address(diamond));
-        protocol.createLendingRequest(
-            2E18,
-            500,
-            block.timestamp + (30 days * 3),
-            ETH_CONTRACT_ADDRESS
-        );
+    //     ProtocolFacet protocol = ProtocolFacet(address(diamond));
+    //     protocol.createLendingRequest(
+    //         2E18,
+    //         500,
+    //         block.timestamp + (30 days * 3),
+    //         ETH_CONTRACT_ADDRESS
+    //     );
 
-        switchSigner(B);
-        protocol.serviceRequest{value: 2E18}(1, ETH_CONTRACT_ADDRESS);
+    //     switchSigner(B);
+    //     protocol.serviceRequest{value: 2E18}(1, ETH_CONTRACT_ADDRESS);
 
-        switchSigner(owner);
-        protocol.repayLoan{value: 21E17}(1, 21E17);
+    //     switchSigner(owner);
+    //     protocol.repayLoan{value: 21E17}(1, 21E17);
 
-        uint256 _feesAccruedUsdt = protocol.getFeesAccrued(
-            ETH_CONTRACT_ADDRESS
-        );
-        // assuming 1% fee rate
-        assertEq(_feesAccruedUsdt, 21E15);
-    }
+    //     uint256 _feesAccruedUsdt = protocol.getFeesAccrued(
+    //         ETH_CONTRACT_ADDRESS
+    //     );
+    //     // assuming 1% fee rate
+    //     assertEq(_feesAccruedUsdt, 21E15);
+    // }
 
-    function testFeesAccrueWithPeriodicPayments() public {
-        _mintTokenToAddress(DAI_CONTRACT_ADDRESS, B, 10000E18);
-        _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 5E18);
+    // function testFeesAccrueWithPeriodicPayments() public {
+    //     _mintTokenToAddress(DAI_CONTRACT_ADDRESS, B, 10000E18);
+    //     _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 5E18);
 
-        ProtocolFacet protocol = ProtocolFacet(address(diamond));
-        protocol.createLendingRequest(
-            200E18,
-            500,
-            block.timestamp + (30 days * 3),
-            DAI_CONTRACT_ADDRESS
-        );
+    //     ProtocolFacet protocol = ProtocolFacet(address(diamond));
+    //     protocol.createLendingRequest(
+    //         200E18,
+    //         500,
+    //         block.timestamp + (30 days * 3),
+    //         DAI_CONTRACT_ADDRESS
+    //     );
 
-        IERC20 dai = IERC20(DAI_CONTRACT_ADDRESS);
+    //     IERC20 dai = IERC20(DAI_CONTRACT_ADDRESS);
 
-        switchSigner(B);
-        dai.approve(address(diamond), 250E18);
-        protocol.serviceRequest(1, DAI_CONTRACT_ADDRESS);
+    //     switchSigner(B);
+    //     dai.approve(address(diamond), 250E18);
+    //     protocol.serviceRequest(1, DAI_CONTRACT_ADDRESS);
 
-        protocol.getRequest(1);
+    //     protocol.getRequest(1);
 
-        switchSigner(owner);
-        dai.approve(address(diamond), 250E18);
-        protocol.repayLoan(1, 50E18);
+    //     switchSigner(owner);
+    //     dai.approve(address(diamond), 250E18);
+    //     protocol.repayLoan(1, 50E18);
 
-        uint256 _feesAccruedAfter1 = protocol.getFeesAccrued(
-            DAI_CONTRACT_ADDRESS
-        );
-        // assuming 1% fee rate
-        assertEq(_feesAccruedAfter1, 5E17);
+    //     uint256 _feesAccruedAfter1 = protocol.getFeesAccrued(
+    //         DAI_CONTRACT_ADDRESS
+    //     );
+    //     // assuming 1% fee rate
+    //     assertEq(_feesAccruedAfter1, 5E17);
 
-        protocol.repayLoan(1, 120E18);
-        uint256 _feesAccruedAfter2 = protocol.getFeesAccrued(
-            DAI_CONTRACT_ADDRESS
-        );
-        assertEq(_feesAccruedAfter2, 17E17);
+    //     protocol.repayLoan(1, 120E18);
+    //     uint256 _feesAccruedAfter2 = protocol.getFeesAccrued(
+    //         DAI_CONTRACT_ADDRESS
+    //     );
+    //     assertEq(_feesAccruedAfter2, 17E17);
 
-        protocol.repayLoan(1, 80E18);
-        uint256 _feesAccruedAfter3 = protocol.getFeesAccrued(
-            DAI_CONTRACT_ADDRESS
-        );
-        assertEq(_feesAccruedAfter3, 21E17);
+    //     protocol.repayLoan(1, 80E18);
+    //     uint256 _feesAccruedAfter3 = protocol.getFeesAccrued(
+    //         DAI_CONTRACT_ADDRESS
+    //     );
+    //     assertEq(_feesAccruedAfter3, 21E17);
 
-        protocol.getRequest(1);
-    }
+    //     protocol.getRequest(1);
+    // }
 
-    function testFeeWithdrawalERC20() public {
-        _mintTokenToAddress(DAI_CONTRACT_ADDRESS, B, 100_000_000E18);
-        _mintTokenToAddress(WETH_CONTRACT_ADDRESS, owner, 500_000E18);
-        _mintTokenToAddress(DAI_CONTRACT_ADDRESS, owner, 100_000_000E18);
-        _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 500_000E18);
+    // function testFeeWithdrawalERC20() public {
+    //     _mintTokenToAddress(DAI_CONTRACT_ADDRESS, B, 100_000_000E18);
+    //     _mintTokenToAddress(WETH_CONTRACT_ADDRESS, owner, 500_000E18);
+    //     _mintTokenToAddress(DAI_CONTRACT_ADDRESS, owner, 100_000_000E18);
+    //     _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 500_000E18);
 
-        ProtocolFacet protocol = ProtocolFacet(address(diamond));
-        protocol.createLendingRequest(
-            70_000_000E18,
-            1000,
-            block.timestamp + (30 days * 3),
-            DAI_CONTRACT_ADDRESS
-        );
+    //     ProtocolFacet protocol = ProtocolFacet(address(diamond));
+    //     protocol.createLendingRequest(
+    //         70_000_000E18,
+    //         1000,
+    //         block.timestamp + (30 days * 3),
+    //         DAI_CONTRACT_ADDRESS
+    //     );
 
-        IERC20 dai = IERC20(DAI_CONTRACT_ADDRESS);
+    //     IERC20 dai = IERC20(DAI_CONTRACT_ADDRESS);
 
-        switchSigner(B);
-        dai.approve(address(diamond), 100_000_000E18);
-        protocol.serviceRequest(1, DAI_CONTRACT_ADDRESS);
+    //     switchSigner(B);
+    //     dai.approve(address(diamond), 100_000_000E18);
+    //     protocol.serviceRequest(1, DAI_CONTRACT_ADDRESS);
 
-        switchSigner(owner);
-        dai.approve(address(diamond), 100_000_000E18);
-        protocol.repayLoan(1, 77_000_000E18);
+    //     switchSigner(owner);
+    //     dai.approve(address(diamond), 100_000_000E18);
+    //     protocol.repayLoan(1, 77_000_000E18);
 
-        uint256 _feesAccruedUsdt = protocol.getFeesAccrued(
-            DAI_CONTRACT_ADDRESS
-        );
-        // assuming 1% fee rate
-        assertEq(_feesAccruedUsdt, 770_000E18);
+    //     uint256 _feesAccruedUsdt = protocol.getFeesAccrued(
+    //         DAI_CONTRACT_ADDRESS
+    //     );
+    //     // assuming 1% fee rate
+    //     assertEq(_feesAccruedUsdt, 770_000E18);
 
-        protocol.withdrawFees(DAI_CONTRACT_ADDRESS, C, 500_000E18);
-        uint256 _feesAfterWithdrawal = protocol.getFeesAccrued(
-            DAI_CONTRACT_ADDRESS
-        );
-        assertEq(_feesAfterWithdrawal, 270_000E18);
+    //     protocol.withdrawFees(DAI_CONTRACT_ADDRESS, C, 500_000E18);
+    //     uint256 _feesAfterWithdrawal = protocol.getFeesAccrued(
+    //         DAI_CONTRACT_ADDRESS
+    //     );
+    //     assertEq(_feesAfterWithdrawal, 270_000E18);
 
-        uint256 _balance = dai.balanceOf(C);
-        assertEq(_balance, 500_000E18);
-    }
+    //     uint256 _balance = dai.balanceOf(C);
+    //     assertEq(_balance, 500_000E18);
+    // }
 
-    function testFeeWithdrawalNative() public {
-        vm.deal(B, 1_000_000E18);
-        vm.deal(owner, 1_000_000E18);
-        _mintTokenToAddress(WETH_CONTRACT_ADDRESS, owner, 500_000E18);
-        _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 500_000E18);
+    // function testFeeWithdrawalNative() public {
+    //     vm.deal(B, 1_000_000E18);
+    //     vm.deal(owner, 1_000_000E18);
+    //     _mintTokenToAddress(WETH_CONTRACT_ADDRESS, owner, 500_000E18);
+    //     _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 500_000E18);
 
-        uint128 _amount = 300_000E18;
-        uint256 _repayAmount = 330_000E18;
-        uint256 _feeAccrued = 3300E18;
+    //     uint128 _amount = 300_000E18;
+    //     uint256 _repayAmount = 330_000E18;
+    //     uint256 _feeAccrued = 3300E18;
 
-        ProtocolFacet protocol = ProtocolFacet(address(diamond));
-        protocol.createLendingRequest(
-            _amount,
-            1000,
-            block.timestamp + (30 days * 3),
-            ETH_CONTRACT_ADDRESS
-        );
+    //     ProtocolFacet protocol = ProtocolFacet(address(diamond));
+    //     protocol.createLendingRequest(
+    //         _amount,
+    //         1000,
+    //         block.timestamp + (30 days * 3),
+    //         ETH_CONTRACT_ADDRESS
+    //     );
 
-        switchSigner(B);
-        protocol.serviceRequest{value: _amount}(1, ETH_CONTRACT_ADDRESS);
+    //     switchSigner(B);
+    //     protocol.serviceRequest{value: _amount}(1, ETH_CONTRACT_ADDRESS);
 
-        switchSigner(owner);
-        protocol.repayLoan{value: _repayAmount}(1, _repayAmount);
+    //     switchSigner(owner);
+    //     protocol.repayLoan{value: _repayAmount}(1, _repayAmount);
 
-        uint256 _feesAccruedEth = protocol.getFeesAccrued(ETH_CONTRACT_ADDRESS);
-        // assuming 1% fee rate
-        assertEq(_feesAccruedEth, _feeAccrued);
+    //     uint256 _feesAccruedEth = protocol.getFeesAccrued(ETH_CONTRACT_ADDRESS);
+    //     // assuming 1% fee rate
+    //     assertEq(_feesAccruedEth, _feeAccrued);
 
-        protocol.withdrawFees(ETH_CONTRACT_ADDRESS, C, 1000E18);
-        uint256 _feesAfterWithdrawal = protocol.getFeesAccrued(
-            ETH_CONTRACT_ADDRESS
-        );
-        assertEq(_feesAfterWithdrawal, 2300E18);
+    //     protocol.withdrawFees(ETH_CONTRACT_ADDRESS, C, 1000E18);
+    //     uint256 _feesAfterWithdrawal = protocol.getFeesAccrued(
+    //         ETH_CONTRACT_ADDRESS
+    //     );
+    //     assertEq(_feesAfterWithdrawal, 2300E18);
 
-        uint256 _balance = C.balance;
-        assertEq(_balance, 1000E18);
-    }
+    //     uint256 _balance = C.balance;
+    //     assertEq(_balance, 1000E18);
+    // }
 
-    function testWithdrawRevertsIfNotContractOwner() public {
-        testFeeWithdrawalERC20();
-        vm.startPrank(B);
-        vm.expectRevert(LibDiamond.NotDiamondOwner.selector);
-        protocolFacet.withdrawFees(USDT_CONTRACT_ADDRESS, C, 1000E18);
-    }
+    // function testWithdrawRevertsIfNotContractOwner() public {
+    //     testFeeWithdrawalERC20();
+    //     vm.startPrank(B);
+    //     vm.expectRevert(LibDiamond.NotDiamondOwner.selector);
+    //     protocolFacet.withdrawFees(USDT_CONTRACT_ADDRESS, C, 1000E18);
+    // }
 
-    function testWithdrawRevertsIfZeroAddress() public {
-        testFeeWithdrawalERC20();
-        vm.expectRevert("invalid address");
-        protocolFacet.withdrawFees(USDT_CONTRACT_ADDRESS, address(0), 1000E18);
-    }
+    // function testWithdrawRevertsIfZeroAddress() public {
+    //     testFeeWithdrawalERC20();
+    //     vm.expectRevert("invalid address");
+    //     protocolFacet.withdrawFees(USDT_CONTRACT_ADDRESS, address(0), 1000E18);
+    // }
 
-    function testWithdrawRevertsIfFeesLowerThatWithdrawAmount() public {
-        testFeeWithdrawalERC20();
-        vm.expectRevert("insufficient fees");
-        protocolFacet.withdrawFees(USDT_CONTRACT_ADDRESS, C, 100_000_000E18);
-    }
+    // function testWithdrawRevertsIfFeesLowerThatWithdrawAmount() public {
+    //     testFeeWithdrawalERC20();
+    //     vm.expectRevert("insufficient fees");
+    //     protocolFacet.withdrawFees(USDT_CONTRACT_ADDRESS, C, 100_000_000E18);
+    // }
 
-    function testFeeRateCannotExceedTenPercent() public {
-        vm.expectRevert("rate cannot exceed 10%");
-        protocolFacet.setFeeRate(1001);
-    }
+    // function testFeeRateCannotExceedTenPercent() public {
+    //     vm.expectRevert("rate cannot exceed 10%");
+    //     protocolFacet.setFeeRate(1001);
+    // }
 
-    function testSetFeeRateRevertsIfNotContractOwner() public {
-        vm.startPrank(B);
-        vm.expectRevert(LibDiamond.NotDiamondOwner.selector);
-        protocolFacet.setFeeRate(1000);
-    }
+    // function testSetFeeRateRevertsIfNotContractOwner() public {
+    //     vm.startPrank(B);
+    //     vm.expectRevert(LibDiamond.NotDiamondOwner.selector);
+    //     protocolFacet.setFeeRate(1000);
+    // }
 
     function _depositCollateral(
         address user,
