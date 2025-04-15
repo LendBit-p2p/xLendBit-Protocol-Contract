@@ -14,13 +14,10 @@ import "../contracts/model/Event.sol";
 import "../contracts/utils/constants/Constant.sol";
 import "../contracts/utils/validators/Validator.sol";
 import "../contracts/utils/validators/Error.sol";
-
-// MOCK Contracts
 import {MockV3Aggregator} from "@chainlink/contracts/src/v0.8/tests/MockV3Aggregator.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/token/ERC20Mock.sol";
 
 contract ProtocolTest is Test, IDiamondCut {
-    //contract types of facets to be deployed
     Diamond diamond;
     DiamondCutFacet dCutFacet;
     DiamondLoupeFacet dLoupe;
@@ -42,6 +39,7 @@ contract ProtocolTest is Test, IDiamondCut {
     address owner;
     address B;
     address C;
+    address feeRecipent;
 
     address botAddress = address(0x0beaf0BfC5D1f3f3F8d3a6b0F1B6E3f2b0f1b6e3);
     address swapRouterAddress = 0x1689E7B1F10000AE47eBfE339a4f69dECd19F602;
@@ -53,36 +51,19 @@ contract ProtocolTest is Test, IDiamondCut {
         owner = mkaddr("owner");
         B = mkaddr("B address");
         C = mkaddr("C address");
+        feeRecipent = mkaddr("feeRecipient");
 
         switchSigner(owner);
-        //deploy facets
         dCutFacet = new DiamondCutFacet();
         diamond = new Diamond(owner, address(dCutFacet));
         dLoupe = new DiamondLoupeFacet();
         ownerF = new OwnershipFacet();
         protocolFacet = new ProtocolFacet();
 
-        //deploy mock tokens
-        (USDT_CONTRACT_ADDRESS, USDT_USD) = deployERC20ContractAndAddPriceFeed(
-            "USDT",
-            6,
-            1
-        );
-        (DAI_CONTRACT_ADDRESS, DAI_USD) = deployERC20ContractAndAddPriceFeed(
-            "DAI",
-            18,
-            1
-        );
-        (LINK_CONTRACT_ADDRESS, LINK_USD) = deployERC20ContractAndAddPriceFeed(
-            "LINK",
-            18,
-            10
-        );
-        (WETH_CONTRACT_ADDRESS, WETH_USD) = deployERC20ContractAndAddPriceFeed(
-            "WETH",
-            18,
-            2000
-        );
+        (USDT_CONTRACT_ADDRESS, USDT_USD) = deployERC20ContractAndAddPriceFeed("USDT", 6, 1);
+        (DAI_CONTRACT_ADDRESS, DAI_USD) = deployERC20ContractAndAddPriceFeed("DAI", 18, 1);
+        (LINK_CONTRACT_ADDRESS, LINK_USD) = deployERC20ContractAndAddPriceFeed("LINK", 18, 10);
+        (WETH_CONTRACT_ADDRESS, WETH_USD) = deployERC20ContractAndAddPriceFeed("WETH", 18, 2000);
 
         tokens.push(USDT_CONTRACT_ADDRESS);
         tokens.push(DAI_CONTRACT_ADDRESS);
@@ -96,271 +77,53 @@ contract ProtocolTest is Test, IDiamondCut {
         priceFeed.push(WETH_USD);
         priceFeed.push(WETH_USD);
 
-        //upgrade diamond with facets
-
-        //build cut struct
         FacetCut[] memory cut = new FacetCut[](3);
+        cut[0] = FacetCut({
+            facetAddress: address(dLoupe),
+            action: FacetCutAction.Add,
+            functionSelectors: generateSelectors("DiamondLoupeFacet")
+        });
+        cut[1] = FacetCut({
+            facetAddress: address(ownerF),
+            action: FacetCutAction.Add,
+            functionSelectors: generateSelectors("OwnershipFacet")
+        });
+        cut[2] = FacetCut({
+            facetAddress: address(protocolFacet),
+            action: FacetCutAction.Add,
+            functionSelectors: generateSelectors("ProtocolFacet")
+        });
 
-        cut[0] = (
-            FacetCut({
-                facetAddress: address(dLoupe),
-                action: FacetCutAction.Add,
-                functionSelectors: generateSelectors("DiamondLoupeFacet")
-            })
-        );
-
-        cut[1] = (
-            FacetCut({
-                facetAddress: address(ownerF),
-                action: FacetCutAction.Add,
-                functionSelectors: generateSelectors("OwnershipFacet")
-            })
-        );
-
-        cut[2] = (
-            FacetCut({
-                facetAddress: address(protocolFacet),
-                action: FacetCutAction.Add,
-                functionSelectors: generateSelectors("ProtocolFacet")
-            })
-        );
-
-        //upgrade diamond
         IDiamondCut(address(diamond)).diamondCut(cut, address(0x0), "");
-
-        //call a function
         DiamondLoupeFacet(address(diamond)).facetAddresses();
 
-        ///@notice set protocol constructor by the diamond
         diamond.initialize(tokens, priceFeed);
-
         protocolFacet = ProtocolFacet(address(diamond));
-        // protocolFacet.setBotAddress(botAddress);
-        // protocolFacet.setSwapRouter(swapRouterAddress);
-
+        protocolFacet.setProtocolFeeRecipient(feeRecipent);
         ProtocolFacet(address(diamond)).setFeeRate(100);
 
         transferTokenToOwner();
     }
 
     function transferTokenToOwner() public {
-        ERC20Mock(USDT_CONTRACT_ADDRESS).mint(owner, 1000E18);
-        ERC20Mock(DAI_CONTRACT_ADDRESS).mint(owner, 500 ether);
-        ERC20Mock(WETH_CONTRACT_ADDRESS).mint(owner, 500 ether);
-        ERC20Mock(LINK_CONTRACT_ADDRESS).mint(owner, 500 ether);
+        ERC20Mock(USDT_CONTRACT_ADDRESS).mint(owner, 1000e6);
+        ERC20Mock(DAI_CONTRACT_ADDRESS).mint(owner, 500e18);
+        ERC20Mock(WETH_CONTRACT_ADDRESS).mint(owner, 500e18);
+        ERC20Mock(LINK_CONTRACT_ADDRESS).mint(owner, 500e18);
     }
 
-    function _mintTokenToAddress(
-        address _token,
-        address _to,
-        uint256 _amount
-    ) internal {
+    function _mintTokenToAddress(address _token, address _to, uint256 _amount) internal {
         ERC20Mock(_token).mint(_to, _amount);
     }
 
-    function testRequestCannotBeLiquidatedIfRequestNotService() public {
-        _mintTokenToAddress(USDT_CONTRACT_ADDRESS, B, 100000E18);
-        _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 5E18);
-
-        // ProtocolFacet protocol = ProtocolFacet(address(diamond));
-        protocolFacet.createLendingRequest(
-            200E18,
-            500,
-            block.timestamp + (30 days * 3),
-            USDT_CONTRACT_ADDRESS
-        );
-
-
-          vm.expectRevert(abi.encodeWithSelector(Protocol__RequestNotServiced.selector));
-
-        protocolFacet.liquidateUserRequest(1);
-        
-    }
-
-
-    // function testRequestCannotBeLiquidatedIfRequestNotService() public {
-    //     _mintTokenToAddress(USDT_CONTRACT_ADDRESS, B, 100000E18);
-    //     _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 5E18);
-
-    //     // ProtocolFacet protocol = ProtocolFacet(address(diamond));
-    //     protocolFacet.createLendingRequest(
-    //         200E18,
-    //         500,
-    //         block.timestamp + (30 days * 3),
-    //         USDT_CONTRACT_ADDRESS
-    //     );
-
-
-    //       vm.expectRevert(abi.encodeWithSelector(Protocol__RequestNotServiced.selector));
-
-    //     protocolFacet.liquidateUserRequest(1);
-        
-    // }
-
-
-
-   function testRequestCannot_BeLiquidated_WhenIsNotDueDate() public {
-
-        _mintTokenToAddress(USDT_CONTRACT_ADDRESS, B, 100000E18);
-        _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 5E18);
-
-        // ProtocolFacet protocol = ProtocolFacet(address(diamond));
-        protocolFacet.createLendingRequest(
-            200E18,
-            500,
-            block.timestamp + (30 days * 3),
-            USDT_CONTRACT_ADDRESS
-        );
-    
-        switchSigner(B);
-            ERC20Mock(USDT_CONTRACT_ADDRESS).approve(address(diamond),  200E18);
-        protocolFacet.serviceRequest(1, USDT_CONTRACT_ADDRESS);
-
-
-        vm.expectRevert(abi.encodeWithSelector(Protocol__NotLiquidatable.selector));
-
-        protocolFacet.liquidateUserRequest(1);
-        
-    }
-
-
-    function testRequestCannotBeLiquidated_WhenHealthFactorNotBroken() public {
-
-        _mintTokenToAddress(USDT_CONTRACT_ADDRESS, B, 100000E18);
-        _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 200E18);
-
-        // ProtocolFacet protocol = ProtocolFacet(address(diamond));
-        protocolFacet.createLendingRequest(
-            200E18,
-            500,
-            block.timestamp + (30 days * 3),
-            USDT_CONTRACT_ADDRESS
-        );
-    
-        switchSigner(B);
-        ERC20Mock(USDT_CONTRACT_ADDRESS).approve(address(diamond),  200E18);
-        protocolFacet.serviceRequest(1, USDT_CONTRACT_ADDRESS);
-
-         vm.warp(block.timestamp + (30 days * 3) + 1);
-
-        vm.expectRevert(abi.encodeWithSelector(Protocol__NotLiquidatable.selector));
-
-        protocolFacet.liquidateUserRequest(1);
-        
-    }
-function testRequestCannotBeLiquidated_WithoutSufficientAllowance() public {
-    // Mint USDT to account B for servicing the loan
-    _mintTokenToAddress(USDT_CONTRACT_ADDRESS, B, 100000e18);
-    // Deposit WETH collateral for the owner
-    _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 200e18);
-
-    // Create a lending request for 200 USDT
-    protocolFacet.createLendingRequest(
-        200e18,
-        500, // 5% interest
-        block.timestamp + (30 days * 3),
-        USDT_CONTRACT_ADDRESS
-    );
-
-    // Account B services the loan
-    switchSigner(B);
-    ERC20Mock(USDT_CONTRACT_ADDRESS).approve(address(diamond), 200e18);
-    protocolFacet.serviceRequest(1, USDT_CONTRACT_ADDRESS);
-
-    // Warp past return date to make the loan overdue
-    vm.warp(block.timestamp + (30 days * 3) + 1);
-
-    // Break health factor by updating the WETH price feed
-    MockV3Aggregator(WETH_USD).updateAnswer(1); // Set WETH price to $0.00000001 (1 * 1e8 / 1e8)
-
-    // Mint USDT to account C (liquidator) to ensure balance is not the issue
-    switchSigner(C);
-    _mintTokenToAddress(USDT_CONTRACT_ADDRESS, C, 300e18); // Enough to cover totalDebt (200 + 5% = 210 USDT)
-
-    // Expect revert due to insufficient allowance (C has not approved)
-    vm.expectRevert();
-    protocolFacet.liquidateUserRequest(1);
-}
-
-
-
-
-
-
-    function testRequestOwnerCannotLiquidateRequest() public {
-
-        _mintTokenToAddress(USDT_CONTRACT_ADDRESS, B, 100000E18);
-        _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 5E18);
-
-        // ProtocolFacet protocol = ProtocolFacet(address(diamond));
-        protocolFacet.createLendingRequest(
-            200E18,
-            500,
-            block.timestamp + (30 days * 3),
-            USDT_CONTRACT_ADDRESS
-        );
-    
-        switchSigner(B);
-         ERC20Mock(USDT_CONTRACT_ADDRESS).approve(address(diamond), type(uint).max);
-
-        protocolFacet.serviceRequest(1, USDT_CONTRACT_ADDRESS);
-
-        switchSigner(owner);
-        vm.expectRevert(abi.encodeWithSelector(Protocol__OwnerCantLiquidateRequest.selector));
-
-        protocolFacet.liquidateUserRequest(1);
-        
-    }
-
-    function testRequestCanBeLiquate() external {
-
-    // Mint USDT to account B for servicing the loan
-    _mintTokenToAddress(USDT_CONTRACT_ADDRESS, B, 100000e18);
-    // Deposit WETH collateral for the owner
-    _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 200e18);
-
-    // Create a lending request for 200 USDT
-    protocolFacet.createLendingRequest(
-        200e18,
-        500, // 5% interest
-        block.timestamp + (30 days * 3),
-        USDT_CONTRACT_ADDRESS
-    );
-
-    // Account B services the loan
-    switchSigner(B);
-    ERC20Mock(USDT_CONTRACT_ADDRESS).approve(address(diamond), 200e18);
-    protocolFacet.serviceRequest(1, USDT_CONTRACT_ADDRESS);
-
-    // Warp past return date to make the loan overdue
-    vm.warp(block.timestamp + (30 days * 3) + 1);
-
-    // Break health factor by updating the WETH price feed
-    MockV3Aggregator(WETH_USD).updateAnswer(1); // Set WETH price to $0.00000001 (1 * 1e8 / 1e8)
-
-    // Mint USDT to account C (liquidator) to ensure balance is not the issue
-    switchSigner(C);
-    _mintTokenToAddress(USDT_CONTRACT_ADDRESS, C, 300e18); // Enough to cover totalDebt (200 + 5% = 210 USDT)
-
-    ERC20Mock(USDT_CONTRACT_ADDRESS).approve(address(diamond), type(uint).max);
-
-    // Expect revert due to insufficient allowance (C has not approved)
-    protocolFacet.liquidateUserRequest(1);
-
-    }
-
-    function _depositCollateral(
-        address user,
-        address token,
-        uint256 amount
-    ) internal {
+    function _depositCollateral(address user, address token, uint256 amount) internal {
         switchSigner(user);
         if (token == ETH_CONTRACT_ADDRESS) {
             vm.deal(user, amount);
             protocolFacet.depositCollateral{value: amount}(token, amount);
             return;
         }
-        IERC20(token).approve(address(protocolFacet), type(uint).max);
+        IERC20(token).approve(address(protocolFacet), type(uint256).max);
         protocolFacet.depositCollateral(token, amount);
     }
 
@@ -370,14 +133,382 @@ function testRequestCannotBeLiquidated_WithoutSufficientAllowance() public {
         int256 _initialAnswer
     ) internal returns (address, address) {
         ERC20Mock _erc20 = new ERC20Mock();
-        MockV3Aggregator _priceFeed = new MockV3Aggregator(
-            _decimals,
-            _initialAnswer * 1e8
-        );
+        MockV3Aggregator _priceFeed = new MockV3Aggregator(_decimals, _initialAnswer * 1e8);
         vm.label(address(_priceFeed), "Price Feed");
         vm.label(address(_erc20), _name);
         return (address(_erc20), address(_priceFeed));
     }
+
+    // Existing Tests (Fixed)
+    function testRequestCannotBeLiquidatedIfRequestNotService() public {
+        _mintTokenToAddress(USDT_CONTRACT_ADDRESS, B, 100000e6);
+        _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 5e18);
+
+        protocolFacet.createLendingRequest(
+            200e6,
+            500,
+            block.timestamp + (30 days * 3),
+            USDT_CONTRACT_ADDRESS
+        );
+
+        vm.expectRevert(abi.encodeWithSelector(Protocol__RequestNotServiced.selector));
+        protocolFacet.liquidateUserRequest(1);
+    }
+
+    function testRequestCannot_BeLiquidated_WhenIsNotDueDate() public {
+        _mintTokenToAddress(USDT_CONTRACT_ADDRESS, B, 100000e6);
+        _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 200e18);
+
+        protocolFacet.createLendingRequest(
+            200e6,
+            500,
+            block.timestamp + (30 days * 3),
+            USDT_CONTRACT_ADDRESS
+        );
+
+        switchSigner(B);
+        ERC20Mock(USDT_CONTRACT_ADDRESS).approve(address(diamond), 200e6);
+        protocolFacet.serviceRequest(1, USDT_CONTRACT_ADDRESS);
+
+        vm.expectRevert(abi.encodeWithSelector(Protocol__NotLiquidatable.selector));
+        protocolFacet.liquidateUserRequest(1);
+    }
+
+    function testRequestCannotBeLiquidated_WhenHealthFactorNotBroken() public {
+        _mintTokenToAddress(USDT_CONTRACT_ADDRESS, B, 100000e6);
+        _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 200e18);
+
+        protocolFacet.createLendingRequest(
+            200e6,
+            500,
+            block.timestamp + (30 days * 3),
+            USDT_CONTRACT_ADDRESS
+        );
+
+        switchSigner(B);
+        ERC20Mock(USDT_CONTRACT_ADDRESS).approve(address(diamond), 200e6);
+        protocolFacet.serviceRequest(1, USDT_CONTRACT_ADDRESS);
+
+        vm.warp(block.timestamp + (30 days * 3) + 1);
+
+        vm.expectRevert(abi.encodeWithSelector(Protocol__NotLiquidatable.selector));
+        protocolFacet.liquidateUserRequest(1);
+    }
+
+    function testRequestCannotBeLiquidated_WithoutSufficientAllowance() public {
+        _mintTokenToAddress(USDT_CONTRACT_ADDRESS, B, 100000e6);
+        _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 200e18);
+
+        protocolFacet.createLendingRequest(
+            200e6,
+            500,
+            block.timestamp + (30 days * 3),
+            USDT_CONTRACT_ADDRESS
+        );
+
+        switchSigner(B);
+        ERC20Mock(USDT_CONTRACT_ADDRESS).approve(address(diamond), 200e6);
+        protocolFacet.serviceRequest(1, USDT_CONTRACT_ADDRESS);
+
+        vm.warp(block.timestamp + (30 days * 3) + 1);
+        MockV3Aggregator(WETH_USD).updateAnswer(1);
+
+        switchSigner(C);
+        _mintTokenToAddress(USDT_CONTRACT_ADDRESS, C, 300e6);
+
+        vm.expectRevert();
+        protocolFacet.liquidateUserRequest(1);
+    }
+
+    function testRequestOwnerCannotLiquidateRequest() public {
+        _mintTokenToAddress(USDT_CONTRACT_ADDRESS, B, 100000e6);
+        _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 200e18);
+
+        protocolFacet.createLendingRequest(
+            200e6,
+            500,
+            block.timestamp + (30 days * 3),
+            USDT_CONTRACT_ADDRESS
+        );
+
+        switchSigner(B);
+        ERC20Mock(USDT_CONTRACT_ADDRESS).approve(address(diamond), type(uint256).max);
+        protocolFacet.serviceRequest(1, USDT_CONTRACT_ADDRESS);
+
+        switchSigner(owner);
+        vm.expectRevert(abi.encodeWithSelector(Protocol__OwnerCantLiquidateRequest.selector));
+        protocolFacet.liquidateUserRequest(1);
+    }
+
+  function testRequestCanBeLiquate() external {
+    _mintTokenToAddress(USDT_CONTRACT_ADDRESS, B, 100000e6);
+    _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 200e18);
+
+    assertEq(IERC20(WETH_CONTRACT_ADDRESS).balanceOf(address(diamond)), 200e18, "Diamond should hold 200 WETH");
+
+    protocolFacet.createLendingRequest(
+        200e6,
+        500,
+        block.timestamp + (30 days * 3),
+        USDT_CONTRACT_ADDRESS
+    );
+
+    switchSigner(B);
+    ERC20Mock(USDT_CONTRACT_ADDRESS).approve(address(diamond), 200e6);
+    protocolFacet.serviceRequest(1, USDT_CONTRACT_ADDRESS);
+
+    vm.warp(block.timestamp + (30 days * 3) + 1);
+    MockV3Aggregator(WETH_USD).updateAnswer(1);
+
+    switchSigner(C);
+    _mintTokenToAddress(USDT_CONTRACT_ADDRESS, C, 300e6);
+    ERC20Mock(USDT_CONTRACT_ADDRESS).approve(address(diamond), type(uint256).max);
+
+    uint256 lenderBalanceBefore = IERC20(USDT_CONTRACT_ADDRESS).balanceOf(B);
+    uint256 liquidatorBalanceBefore = IERC20(WETH_CONTRACT_ADDRESS).balanceOf(C);
+    uint256 feeRecipientBalanceBefore = IERC20(WETH_CONTRACT_ADDRESS).balanceOf(feeRecipent);
+
+    protocolFacet.liquidateUserRequest(1);
+
+    uint256 totalDebt = 200e6 * 105 / 100;
+    uint256 discountedAmount = (200e18 * (10000 - 1000)) / 10000;
+    uint256 protocolFee = 200e18 - discountedAmount;
+
+    assertEq(IERC20(USDT_CONTRACT_ADDRESS).balanceOf(B), lenderBalanceBefore + totalDebt, "Lender should receive total debt");
+    assertEq(IERC20(WETH_CONTRACT_ADDRESS).balanceOf(C), liquidatorBalanceBefore + discountedAmount, "Liquidator should receive discounted collateral");
+    assertEq(IERC20(WETH_CONTRACT_ADDRESS).balanceOf(feeRecipent), feeRecipientBalanceBefore + protocolFee, "Fee recipient should receive protocol fee");
+}
+
+    // // New Tests
+    // function testOnlyPriceManipulationCausesLiquidation() public {
+    //     _mintTokenToAddress(USDT_CONTRACT_ADDRESS, B, 100000e6);
+    //     _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 200e18);
+
+    //     protocolFacet.createLendingRequest(
+    //         200e6,
+    //         500,
+    //         block.timestamp + (30 days * 3),
+    //         USDT_CONTRACT_ADDRESS
+    //     );
+
+    //     switchSigner(B);
+    //     ERC20Mock(USDT_CONTRACT_ADDRESS).approve(address(diamond), 200e6);
+    //     protocolFacet.serviceRequest(1, USDT_CONTRACT_ADDRESS);
+
+    //     vm.warp(block.timestamp + (30 days * 3) + 1);
+
+    //     switchSigner(C);
+    //     _mintTokenToAddress(USDT_CONTRACT_ADDRESS, C, 300e6);
+    //     ERC20Mock(USDT_CONTRACT_ADDRESS).approve(address(diamond), 300e6);
+
+    //     vm.expectRevert(abi.encodeWithSelector(Protocol__NotLiquidatable.selector));
+    //     protocolFacet.liquidateUserRequest(1);
+
+    //     MockV3Aggregator(WETH_USD).updateAnswer(1);
+    //     protocolFacet.liquidateUserRequest(1);
+    // }
+
+    // function testEthDebtCanBeLiquidated() public {
+    //     _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 200e18);
+
+    //     protocolFacet.createLendingRequest(
+    //         1e18,
+    //         500,
+    //         block.timestamp + (30 days * 3),
+    //         ETH_CONTRACT_ADDRESS
+    //     );
+
+    //     switchSigner(B);
+    //     vm.deal(B, 2e18);
+    //     protocolFacet.serviceRequest{value: 1e18}(1, ETH_CONTRACT_ADDRESS);
+
+    //     vm.warp(block.timestamp + (30 days * 3) + 1);
+    //     MockV3Aggregator(WETH_USD).updateAnswer(1);
+
+    //     switchSigner(C);
+    //     vm.deal(C, 2e18);
+
+    //     uint256 lenderBalanceBefore = B.balance;
+    //     uint256 liquidatorBalanceBefore = C.balance;
+    //     uint256 feeRecipientBalanceBefore = feeRecipent.balance;
+
+    //     protocolFacet.liquidateUserRequest{value: 1.05e18}(1);
+
+    //     uint256 totalDebt = 1e18 * 105 / 100;
+    //     uint256 discountedAmount = (200e18 * (10000 - Constants.LIQUIDATION_DISCOUNT)) / 10000;
+    //     uint256 protocolFee = 200e18 - discountedAmount;
+
+    //     assertEq(B.balance, lenderBalanceBefore + totalDebt, "Lender should receive total debt");
+    //     assertEq(IERC20(WETH_CONTRACT_ADDRESS).balanceOf(C), discountedAmount, "Liquidator should receive discounted WETH");
+    //     assertEq(IERC20(WETH_CONTRACT_ADDRESS).balanceOf(feeRecipent), protocolFee, "Fee recipient should receive WETH fee");
+    // }
+
+    // function testEthDebtLiquidationFailsWithInsufficientEth() public {
+    //     _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 200e18);
+
+    //     protocolFacet.createLendingRequest(
+    //         1e18,
+    //         500,
+    //         block.timestamp + (30 days * 3),
+    //         ETH_CONTRACT_ADDRESS
+    //     );
+
+    //     switchSigner(B);
+    //     vm.deal(B, 2e18);
+    //     protocolFacet.serviceRequest{value: 1e18}(1, ETH_CONTRACT_ADDRESS);
+
+    //     vm.warp(block.timestamp + (30 days * 3) + 1);
+    //     MockV3Aggregator(WETH_USD).updateAnswer(1);
+
+    //     switchSigner(C);
+    //     vm.deal(C, 1e18);
+
+    //     vm.expectRevert(abi.encodeWithSelector(Protocol__InsufficientETH.selector));
+    //     protocolFacet.liquidateUserRequest{value: 0.5e18}(1);
+    // }
+
+    // function testLiquidationBalanceChanges() public {
+    //     _mintTokenToAddress(USDT_CONTRACT_ADDRESS, B, 100000e6);
+    //     _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 200e18);
+
+    //     protocolFacet.createLendingRequest(
+    //         200e6,
+    //         500,
+    //         block.timestamp + (30 days * 3),
+    //         USDT_CONTRACT_ADDRESS
+    //     );
+
+    //     switchSigner(B);
+    //     ERC20Mock(USDT_CONTRACT_ADDRESS).approve(address(diamond), 200e6);
+    //     protocolFacet.serviceRequest(1, USDT_CONTRACT_ADDRESS);
+
+    //     vm.warp(block.timestamp + (30 days * 3) + 1);
+    //     MockV3Aggregator(WETH_USD).updateAnswer(1);
+
+    //     switchSigner(C);
+    //     _mintTokenToAddress(USDT_CONTRACT_ADDRESS, C, 300e6);
+    //     ERC20Mock(USDT_CONTRACT_ADDRESS).approve(address(diamond), 300e6);
+
+    //     uint256 lenderBalanceBefore = IERC20(USDT_CONTRACT_ADDRESS).balanceOf(B);
+    //     uint256 liquidatorBalanceBefore = IERC20(WETH_CONTRACT_ADDRESS).balanceOf(C);
+    //     uint256 feeRecipientBalanceBefore = IERC20(WETH_CONTRACT_ADDRESS).balanceOf(feeRecipent);
+    //     uint256 borrowerBalanceBefore = IERC20(WETH_CONTRACT_ADDRESS).balanceOf(owner);
+
+    //     protocolFacet.liquidateUserRequest(1);
+
+    //     uint256 totalDebt = 200e6 * 105 / 100;
+    //     uint256 discountedAmount = (200e18 * (10000 - Constants.LIQUIDATION_DISCOUNT)) / 10000;
+    //     uint256 protocolFee = 200e18 - discountedAmount;
+
+    //     assertEq(IERC20(USDT_CONTRACT_ADDRESS).balanceOf(B), lenderBalanceBefore + totalDebt, "Lender balance incorrect");
+    //     assertEq(IERC20(WETH_CONTRACT_ADDRESS).balanceOf(C), liquidatorBalanceBefore + discountedAmount, "Liquidator balance incorrect");
+    //     assertEq(IERC20(WETH_CONTRACT_ADDRESS).balanceOf(feeRecipent), feeRecipientBalanceBefore + protocolFee, "Fee recipient balance incorrect");
+    //     assertEq(IERC20(WETH_CONTRACT_ADDRESS).balanceOf(owner), borrowerBalanceBefore, "Borrower balance should not change");
+    // }
+
+    // function testLiquidationWithZeroFeeRecipient() public {
+    //     protocolFacet.setProtocolFeeRecipient(address(0));
+
+    //     _mintTokenToAddress(USDT_CONTRACT_ADDRESS, B, 100000e6);
+    //     _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 200e18);
+
+    //     protocolFacet.createLendingRequest(
+    //         200e6,
+    //         500,
+    //         block.timestamp + (30 days * 3),
+    //         USDT_CONTRACT_ADDRESS
+    //     );
+
+    //     switchSigner(B);
+    //     ERC20Mock(USDT_CONTRACT_ADDRESS).approve(address(diamond), 200e6);
+    //     protocolFacet.serviceRequest(1, USDT_CONTRACT_ADDRESS);
+
+    //     vm.warp(block.timestamp + (30 days * 3) + 1);
+    //     MockV3Aggregator(WETH_USD).updateAnswer(1);
+
+    //     switchSigner(C);
+    //     _mintTokenToAddress(USDT_CONTRACT_ADDRESS, C, 300e6);
+    //     ERC20Mock(USDT_CONTRACT_ADDRESS).approve(address(diamond), 300e6);
+
+    //     uint256 liquidatorBalanceBefore = IERC20(WETH_CONTRACT_ADDRESS).balanceOf(C);
+
+    //     protocolFacet.liquidateUserRequest(1);
+
+    //     uint256 discountedAmount = (200e18 * (10000 - Constants.LIQUIDATION_DISCOUNT)) / 10000;
+    //     assertEq(IERC20(WETH_CONTRACT_ADDRESS).balanceOf(C), liquidatorBalanceBefore + discountedAmount, "Liquidator should receive discounted collateral");
+    //     assertEq(IERC20(WETH_CONTRACT_ADDRESS).balanceOf(feeRecipent), 0, "Fee recipient should receive nothing");
+    // }
+
+    // function testLiquidationWithMultipleCollateral() public {
+    //     _mintTokenToAddress(USDT_CONTRACT_ADDRESS, B, 100000e6);
+    //     _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 100e18);
+    //     _depositCollateral(owner, DAI_CONTRACT_ADDRESS, 1000e18);
+
+    //     protocolFacet.createLendingRequest(
+    //         200e6,
+    //         500,
+    //         block.timestamp + (30 days * 3),
+    //         USDT_CONTRACT_ADDRESS
+    //     );
+
+    //     switchSigner(B);
+    //     ERC20Mock(USDT_CONTRACT_ADDRESS).approve(address(diamond), 200e6);
+    //     protocolFacet.serviceRequest(1, USDT_CONTRACT_ADDRESS);
+
+    //     vm.warp(block.timestamp + (30 days * 3) + 1);
+    //     MockV3Aggregator(WETH_USD).updateAnswer(1);
+    //     MockV3Aggregator(DAI_USD).updateAnswer(1);
+
+    //     switchSigner(C);
+    //     _mintTokenToAddress(USDT_CONTRACT_ADDRESS, C, 300e6);
+    //     ERC20Mock(USDT_CONTRACT_ADDRESS).approve(address(diamond), 300e6);
+
+    //     uint256 liquidatorWethBefore = IERC20(WETH_CONTRACT_ADDRESS).balanceOf(C);
+    //     uint256 liquidatorDaiBefore = IERC20(DAI_CONTRACT_ADDRESS).balanceOf(C);
+    //     uint256 feeRecipientWethBefore = IERC20(WETH_CONTRACT_ADDRESS).balanceOf(feeRecipent);
+    //     uint256 feeRecipientDaiBefore = IERC20(DAI_CONTRACT_ADDRESS).balanceOf(feeRecipent);
+
+    //     protocolFacet.liquidateUserRequest(1);
+
+    //     uint256 wethDiscounted = (100e18 * (10000 - Constants.LIQUIDATION_DISCOUNT)) / 10000;
+    //     uint256 wethFee = 100e18 - wethDiscounted;
+    //     uint256 daiDiscounted = (1000e18 * (10000 - Constants.LIQUIDATION_DISCOUNT)) / 10000;
+    //     uint256 daiFee = 1000e18 - daiDiscounted;
+
+    //     assertEq(IERC20(WETH_CONTRACT_ADDRESS).balanceOf(C), liquidatorWethBefore + wethDiscounted, "Liquidator WETH incorrect");
+    //     assertEq(IERC20(DAI_CONTRACT_ADDRESS).balanceOf(C), liquidatorDaiBefore + daiDiscounted, "Liquidator DAI incorrect");
+    //     assertEq(IERC20(WETH_CONTRACT_ADDRESS).balanceOf(feeRecipent), feeRecipientWethBefore + wethFee, "Fee recipient WETH incorrect");
+    //     assertEq(IERC20(DAI_CONTRACT_ADDRESS).balanceOf(feeRecipent), feeRecipientDaiBefore + daiFee, "Fee recipient DAI incorrect");
+    // }
+
+    // function testLiquidationEmitsEvent() public {
+    //     _mintTokenToAddress(USDT_CONTRACT_ADDRESS, B, 100000e6);
+    //     _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 200e18);
+
+    //     protocolFacet.createLendingRequest(
+    //         200e6,
+    //         500,
+    //         block.timestamp + (30 days * 3),
+    //         USDT_CONTRACT_ADDRESS
+    //     );
+
+    //     switchSigner(B);
+    //     ERC20Mock(USDT_CONTRACT_ADDRESS).approve(address(diamond), 200e6);
+    //     protocolFacet.serviceRequest(1, USDT_CONTRACT_ADDRESS);
+
+    //     vm.warp(block.timestamp + (30 days * 3) + 1);
+    //     MockV3Aggregator(WETH_USD).updateAnswer(1);
+
+    //     switchSigner(C);
+    //     _mintTokenToAddress(USDT_CONTRACT_ADDRESS, C, 300e6);
+    //     ERC20Mock(USDT_CONTRACT_ADDRESS).approve(address(diamond), 300e6);
+
+    //     vm.expectEmit(true, true, true, true);
+    //     emit RequestLiquidated(1, C, owner, B, 0);
+    //     protocolFacet.liquidateUserRequest(1);
+    // }
+
+    // Unchanged helper functions: generateSelectors, mkaddr, switchSigner, diamondCut
 
     function generateSelectors(
         string memory _facetName
