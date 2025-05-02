@@ -69,3 +69,5 @@ event RequestLiquidated(
     address indexed lenderAddress,
     uint256 indexed totalRepayment
 );
+
+event FeesWithdrawn(address indexed to, address indexed token, uint256 amount);

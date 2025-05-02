@@ -419,4 +419,11 @@ library LibGettersImpl {
             _requests[i - 1] = _appStorage.request[i];
         }
     }
+
+    function _getFeesAccrued(
+        LibAppStorage.Layout storage _appStorage,
+        address _token
+    ) internal view returns (uint256) {
+        return _appStorage.s_feesAccrued[_token];
+    }
 }

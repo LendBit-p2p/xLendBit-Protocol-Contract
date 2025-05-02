@@ -287,12 +287,11 @@ contract Operations is AppStorage {
         );
 
         // Calculate the total repayment amount including interest
-        uint256 _totalRepayment = amountToLend +
-            Utils.calculateLoanInterest(
-                _foundRequest.returnDate,
-                _foundRequest.amount,
-                _foundRequest.interest
-            );
+        uint256 _totalRepayment = Utils.calculateLoanInterest(
+            _foundRequest.returnDate,
+            _foundRequest.amount,
+            _foundRequest.interest
+        );
         _foundRequest.totalRepayment = _totalRepayment;
 
         // Update total loan collected in USD for the borrower
@@ -879,6 +878,11 @@ contract Operations is AppStorage {
             _request.totalRepayment -= _amount;
         }
 
+        (, uint256 _amountAfterFees) = _settleFees(
+            _request.loanRequestAddr,
+            _amount
+        );
+
         // Update borrower’s loan collected metrics in USD
         uint8 decimal = LibGettersImpl._getTokenDecimal(
             _request.loanRequestAddr
@@ -886,7 +890,7 @@ contract Operations is AppStorage {
         uint256 _loanUsdValue = LibGettersImpl._getUsdValue(
             _appStorage,
             _request.loanRequestAddr,
-            _amount,
+            _amountAfterFees,
             decimal
         );
         uint256 loanCollected = LibGettersImpl._getLoanCollectedInUsd(
@@ -897,10 +901,10 @@ contract Operations is AppStorage {
         // Deposit the repayment amount to the lender's available balance
         _appStorage.s_addressToCollateralDeposited[_request.lender][
             _request.loanRequestAddr
-        ] += _amount;
+        ] += _amountAfterFees;
         _appStorage.s_addressToAvailableBalance[_request.lender][
             _request.loanRequestAddr
-        ] += _amount;
+        ] += _amountAfterFees;
 
         // Adjust the borrower's total loan collected
         if (loanCollected > _loanUsdValue) {
@@ -1104,5 +1108,47 @@ contract Operations is AppStorage {
 
         // Sets the swap router address in storage, enabling token swaps within the protocol
         _appStorage.swapRouter = _swapRouter;
+    }
+
+    function setFeeRate(uint16 _rateBps) external {
+        LibDiamond.enforceIsContractOwner();
+        require(_rateBps <= 1000, "rate cannot exceed 10%");
+
+        _appStorage.feeRateBps = _rateBps;
+    }
+
+    function withdrawFees(
+        address _token,
+        address _to,
+        uint256 amount
+    ) external {
+        LibDiamond.enforceIsContractOwner();
+        require(_to != address(0), "invalid address");
+
+        uint256 _feesAccrued = _appStorage.s_feesAccrued[_token];
+        require(_feesAccrued >= amount, "insufficient fees");
+        _appStorage.s_feesAccrued[_token] = _feesAccrued - amount;
+        if (_token == Constants.NATIVE_TOKEN) {
+            (bool sent, ) = payable(_to).call{value: amount}("");
+            require(sent, "failed to send Ether");
+        } else {
+            IERC20(_token).safeTransfer(_to, amount);
+        }
+        emit FeesWithdrawn(_to, _token, amount);
+    }
+
+    function _settleFees(
+        address _token,
+        uint256 _amount
+    ) internal returns (uint256, uint256) {
+        uint16 _feeRate = _appStorage.feeRateBps;
+
+        uint256 _fee = Utils.calculatePercentage(_amount, _feeRate);
+
+        _appStorage.s_feesAccrued[_token] =
+            _appStorage.s_feesAccrued[_token] +
+            _fee;
+
+        return (_amount, (_amount - _fee));
     }
 }

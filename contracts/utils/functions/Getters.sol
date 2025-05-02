@@ -291,4 +291,14 @@ contract Getters is AppStorage {
     {
         _requests = LibGettersImpl._getAllRequest(_appStorage);
     }
+
+    function getFeesAccrued(
+        address _token
+    ) external view returns (uint256 _feesAccrued) {
+        _feesAccrued = LibGettersImpl._getFeesAccrued(_appStorage, _token);
+    }
+
+    function getFeesRateBps() external view returns (uint16 _feeRate) {
+        _feeRate = _appStorage.feeRateBps;
+    }
 }
