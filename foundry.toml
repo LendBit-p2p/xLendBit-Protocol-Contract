@@ -1,6 +1,7 @@
 [profile.default]
 src = 'contracts'
 out = 'out'
+--via-ir = true
 libs = [
     'lib'
 ]

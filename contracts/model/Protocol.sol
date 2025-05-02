@@ -11,6 +11,7 @@ struct User {
     address userAddr;
     uint8 gitCoinPoint;
     uint256 totalLoanCollected;
+    uint256 totalLiquidationAmount;
 }
 
 /**
@@ -72,7 +73,8 @@ struct LoanListing {
 enum Status {
     OPEN,
     SERVICED,
-    CLOSED
+    CLOSED,
+    LIQUIDATED
 }
 
 /**

@@ -919,196 +919,338 @@ contract Operations is AppStorage {
         emit LoanRepayment(msg.sender, _requestId, _amount);
     }
 
+    
     /**
-     * @dev Liquidates the collateral associated with a loan request and compensates the lender.
-     * @param requestId The unique identifier of the loan request to be liquidated.
-     *
-     * Requirements:
-     * - Only a designated bot can execute this function.
-     * - The loan must be in a state eligible for liquidation.
-     *
-     * Emits:
-     * - `RequestLiquidated` after successfully liquidating the collateral and transferring the repayment.
-     */
-    function liquidateUserRequest(uint96 requestId) external {
-        Validator._onlyBot(_appStorage.botAddress, msg.sender);
+ * @notice Liquidates an undercollateralized P2P loan and transfers assets
+ * @dev This function performs the following actions:
+ *      1. Verifies the loan is active and eligible for liquidation
+ *      2. Calculates health factor based on collateral value vs loan value
+ *      3. Repays the loan amount to the lender on behalf of the borrower
+ *      4. Transfers collateral to the liquidator with a discount
+ *      5. Sends liquidation fee to the protocol
+ * @param requestId The unique identifier of the loan request to liquidate
+ * @return bool True if liquidation was successful
+ */
+function liquidateUserRequest(uint96 requestId)
+ external
+ payable
+ returns (bool)
+    {
+    // Get the loan request from storage
+    Request storage request = _appStorage.request[requestId];
+    
+    // Verify loan is in active state
+    if (request.status != Status.SERVICED) revert Protocol__RequestNotServiced();
 
-        Request memory _activeRequest = _appStorage.request[requestId];
-        address loanCurrency = _activeRequest.loanRequestAddr;
-        address lenderAddress = _activeRequest.lender;
-        uint256 swappedAmount = 0;
+    if(request.author == msg.sender) revert Protocol__OwnerCantLiquidateRequest();
 
-        // Loop through each collateral token and swap to loan currency if applicable
-        for (
-            uint96 index = 0;
-            index < _activeRequest.collateralTokens.length;
-            index++
-        ) {
-            address collateralToken = _activeRequest.collateralTokens[index];
-            uint256 amountOfCollateralToken = _appStorage
-                .s_idToCollateralTokenAmount[requestId][collateralToken];
+    
 
-            if (amountOfCollateralToken > 0) {
-                // Attempt to swap collateral token to loan currency
-                uint256[] memory loanCurrencyAmount = swapToLoanCurrency(
-                    collateralToken,
-                    amountOfCollateralToken,
-                    loanCurrency
-                );
+    
+    // Store key loan details for easier reference and gas optimization
+    address borrower = request.author;
+    address lender = request.lender;
+    address loanToken = request.loanRequestAddr;
+    uint256 totalDebt = request.totalRepayment;
+    
+    // Calculate loan value in USD
+    uint8 loanTokenDecimal = LibGettersImpl._getTokenDecimal(loanToken);
+    uint256 loanUsdValue = LibGettersImpl._getUsdValue(
+        _appStorage,
+        loanToken,
+        totalDebt,
+        loanTokenDecimal
+    );
+    
+    // Calculate total value of collateral in USD
+    uint256 totalCollateralValue = 0;
+    for (uint i = 0; i < request.collateralTokens.length; i++) {
+        address collateralToken = request.collateralTokens[i];
+        uint256 collateralAmount = _appStorage.s_idToCollateralTokenAmount[requestId][collateralToken];
+        
+        if (collateralAmount > 0) {
+            uint8 collateralDecimal = LibGettersImpl._getTokenDecimal(collateralToken);
+            totalCollateralValue += LibGettersImpl._getUsdValue(
+                _appStorage,
+                collateralToken,
+                collateralAmount,
+                collateralDecimal
+            );
+        }
+    }
+    
 
-                // Update the collateral deposited for the user
-                _appStorage.s_addressToCollateralDeposited[
-                    _activeRequest.author
-                ][collateralToken] -= amountOfCollateralToken;
+        // Check if loan is past due date (liquidation only allowed for overdue loans)
+    bool isPastDue = block.timestamp > request.returnDate;
+        // Verify loan is undercollateralized (health factor check)
+    // Health factor broken when loan value exceeds collateral value
+    bool isUnhealthy = loanUsdValue > totalCollateralValue;
+    if (!isPastDue || !isUnhealthy) revert Protocol__NotLiquidatable();
 
-                // Add swapped amount to the total; if swap failed, fallback to using collateral amount
-                if (loanCurrencyAmount.length > 0) {
-                    swappedAmount += loanCurrencyAmount[1];
-                } else {
-                    swappedAmount += amountOfCollateralToken;
-                }
-
-                // Mark collateral as fully used
-                _appStorage.s_idToCollateralTokenAmount[requestId][
-                    collateralToken
-                ] = 0;
+    
+    // Update request status to prevent re-entrancy and multiple liquidations
+    request.status = Status.LIQUIDATED;
+    
+    // Handle debt repayment from liquidator to lender
+    if (loanToken == Constants.NATIVE_TOKEN) {
+        // For native token (ETH), ensure sufficient ETH was sent
+        if (msg.value < totalDebt) revert Protocol__InsufficientETH();
+        
+        // Refund excess ETH to liquidator
+        uint256 excess = msg.value - totalDebt;
+        if (excess > 0) {
+            (bool refundSent, ) = payable(msg.sender).call{value: excess}("");
+            if (!refundSent) revert Protocol__RefundFailed();
+        }
+        
+        // Transfer the debt amount to the lender
+        (bool lenderSent, ) = payable(lender).call{value: totalDebt}("");
+        if (!lenderSent) revert Protocol__ETHTransferFailed();
+    } else {
+        // For ERC20 tokens, transfer from liquidator to lender
+        IERC20(loanToken).safeTransferFrom(msg.sender, lender, totalDebt);
+    }
+    
+    // Process each collateral token and transfer to liquidator with discount
+    for (uint i = 0; i < request.collateralTokens.length; i++) {
+        address collateralToken = request.collateralTokens[i];
+        uint256 collateralAmount = _appStorage.s_idToCollateralTokenAmount[requestId][collateralToken];
+        
+        if (collateralAmount > 0) {
+            // Calculate discounted amount (apply liquidation discount)
+            uint256 discountedAmount = (collateralAmount * (10000 - Constants.LIQUIDATION_DISCOUNT)) / 10000;
+            
+            // Transfer discounted amount to liquidator
+            if (collateralToken == Constants.NATIVE_TOKEN) {
+                (bool sent, ) = payable(msg.sender).call{value: discountedAmount}("");
+                if (!sent) revert Protocol__ETHTransferFailed();
+            } else {
+                IERC20(collateralToken).safeTransfer(msg.sender, discountedAmount);
             }
+            
+            // The difference between original collateral and discounted amount goes to protocol as fee
+            uint256 protocolAmount = collateralAmount - discountedAmount;
+            if (protocolAmount > 0 && _appStorage.s_protocolFeeRecipient != address(0)) {
+                if (collateralToken == Constants.NATIVE_TOKEN) {
+                    (bool sent, ) = payable(_appStorage.s_protocolFeeRecipient).call{value: protocolAmount}("");
+                    if (!sent) revert Protocol__ETHFeeTransferFailed();
+                } else {
+                    IERC20(collateralToken).safeTransfer(_appStorage.s_protocolFeeRecipient, protocolAmount);
+                }
+            }
+            
+            // Reset collateral tracking to prevent double-spending
+            _appStorage.s_idToCollateralTokenAmount[requestId][collateralToken] = 0;
         }
-
-        // Transfer loan currency to the lender, ensuring not to exceed total repayment
-        if (swappedAmount >= _activeRequest.totalRepayment) {
-            IERC20(loanCurrency).safeTransfer(
-                lenderAddress,
-                _activeRequest.totalRepayment
-            );
-        } else {
-            IERC20(loanCurrency).safeTransfer(lenderAddress, swappedAmount);
-        }
-
-        // Mark request as closed post liquidation
-        _activeRequest.status = Status.CLOSED;
-
-        emit RequestLiquidated(
-            requestId,
-            lenderAddress,
-            _activeRequest.totalRepayment
-        );
     }
+    
+    // Update liquidator's activity metrics for potential rewards
+    User storage liquidator = _appStorage.addressToUser[msg.sender];
+    liquidator.totalLiquidationAmount += totalCollateralValue;
+    
+    // Emit event for off-chain tracking and transparency
+    emit RequestLiquidated(requestId, msg.sender, borrower, lender, totalCollateralValue);
+    
+}
 
-    /**
-     * @dev Swaps a specified collateral token into the loan currency using Uniswap.
-     * @param collateralToken The token used as collateral.
-     * @param collateralAmount The amount of collateral to swap.
-     * @param loanCurrency The target currency for the loan.
-     * @return loanCurrencyAmount Array containing amounts received for each token in the path.
-     */
-    function swapToLoanCurrency(
-        address collateralToken,
-        uint256 collateralAmount,
-        address loanCurrency
-    ) public returns (uint256[] memory loanCurrencyAmount) {
-        uint256 amountOfTokenOut_ = 0;
-        uint[] memory amountsOut;
 
-        // Early exit if collateral and loan currencies are the same
-        if (loanCurrency == collateralToken) {
-            return amountsOut;
-        }
-
-        // Ensure ETH tokens are wrapped as WETH for compatibility with Uniswap
-        if (collateralToken == Constants.NATIVE_TOKEN) {
-            collateralToken = Constants.WETH;
-        }
-        if (loanCurrency == Constants.NATIVE_TOKEN) {
-            loanCurrency = Constants.WETH;
-        }
-
-        // Define the swap path from collateral to loan currency
-        address[] memory path = new address[](2);
-        path[0] = collateralToken;
-        path[1] = loanCurrency;
-
-        // Handle ETH to ERC20 swap
-        if (collateralToken == Constants.WETH) {
-            amountsOut = IUniswapV2Router02(_appStorage.swapRouter)
-                .swapExactETHForTokens{value: collateralAmount}(
-                amountOfTokenOut_,
-                path,
-                address(this),
-                block.timestamp + 300
-            );
-
-            // Handle ERC20 to ETH swap
-        } else if (loanCurrency == Constants.WETH) {
-            // Approve Uniswap router to transfer collateral tokens
-            IERC20(collateralToken).approve(
-                _appStorage.swapRouter,
-                collateralAmount
-            );
-
-            amountsOut = IUniswapV2Router02(_appStorage.swapRouter)
-                .swapExactTokensForETH(
-                    collateralAmount,
-                    amountOfTokenOut_,
-                    path,
-                    address(this),
-                    block.timestamp + 300
-                );
-
-            // Handle ERC20 to ERC20 swap
-        } else {
-            // Approve Uniswap router to transfer collateral tokens
-            IERC20(collateralToken).approve(
-                _appStorage.swapRouter,
-                collateralAmount
-            );
-
-            amountsOut = IUniswapV2Router02(_appStorage.swapRouter)
-                .swapExactTokensForTokens(
-                    collateralAmount,
-                    amountOfTokenOut_,
-                    path,
-                    address(this),
-                    block.timestamp + 300
-                );
-        }
-
-        // Return the output amount in the target loan currency
-        return amountsOut;
-    }
-
-    /**
-     * @notice Sets the bot address for the protocol.
-     * @dev This function allows the contract owner to set an address for automated bot actions within the protocol,
-     *      such as monitoring and liquidating undercollateralized loans. Only callable by the contract owner.
-     * @param _botAddress The address designated as the bot for handling automated protocol tasks.
-     *        It should be a valid external or contract address with necessary permissions.
-     * @custom:access Only callable by the contract owner.
-     */
-    function setBotAddress(address _botAddress) external {
-        // Ensures only the contract owner can call this function
+    
+    function setProtocolFeeRecipient(address _feeRecipient) external {
         LibDiamond.enforceIsContractOwner();
-
-        // Sets the bot address in storage, enabling bot actions within the protocol
-        _appStorage.botAddress = _botAddress;
+        _appStorage.s_protocolFeeRecipient = _feeRecipient;
+        emit ProtocolFeeRecipientSet(_feeRecipient);
     }
 
-    /**
-     * @notice Sets the swap router address for handling token exchanges within the protocol.
-     * @dev This function allows the contract owner to set the router address used for token swaps
-     *      (e.g., using Uniswap or a compatible DEX) as part of the protocol's operations.
-     *      Only callable by the contract owner.
-     * @param _swapRouter The address of the swap router, typically a Uniswap or similar DEX router
-     *        that supports token exchange functionality required by the protocol.
-     * @custom:access Only callable by the contract owner.
-     */
-    function setSwapRouter(address _swapRouter) external {
-        // Ensures only the contract owner can call this function
-        LibDiamond.enforceIsContractOwner();
+    // /**
+    //  * @dev Liquidates the collateral associated with a loan request and compensates the lender.
+    //  * @param requestId The unique identifier of the loan request to be liquidated.
+    //  *
+    //  * Requirements:
+    //  * - Only a designated bot can execute this function.
+    //  * - The loan must be in a state eligible for liquidation.
+    //  *
+    //  * Emits:
+    //  * - `RequestLiquidated` after successfully liquidating the collateral and transferring the repayment.
+    //  */
+    // function liquidateUserRequest(uint96 requestId) external {
+    //     Validator._onlyBot(_appStorage.botAddress, msg.sender);
 
-        // Sets the swap router address in storage, enabling token swaps within the protocol
-        _appStorage.swapRouter = _swapRouter;
-    }
+    //     Request memory _activeRequest = _appStorage.request[requestId];
+    //     address loanCurrency = _activeRequest.loanRequestAddr;
+    //     address lenderAddress = _activeRequest.lender;
+    //     uint256 swappedAmount = 0;
+
+    //     // Loop through each collateral token and swap to loan currency if applicable
+    //     for (
+    //         uint96 index = 0;
+    //         index < _activeRequest.collateralTokens.length;
+    //         index++
+    //     ) {
+    //         address collateralToken = _activeRequest.collateralTokens[index];
+    //         uint256 amountOfCollateralToken = _appStorage
+    //             .s_idToCollateralTokenAmount[requestId][collateralToken];
+
+    //         if (amountOfCollateralToken > 0) {
+    //             // Attempt to swap collateral token to loan currency
+    //             uint256[] memory loanCurrencyAmount = swapToLoanCurrency(
+    //                 collateralToken,
+    //                 amountOfCollateralToken,
+    //                 loanCurrency
+    //             );
+
+    //             // Update the collateral deposited for the user
+    //             _appStorage.s_addressToCollateralDeposited[
+    //                 _activeRequest.author
+    //             ][collateralToken] -= amountOfCollateralToken;
+
+    //             // Add swapped amount to the total; if swap failed, fallback to using collateral amount
+    //             if (loanCurrencyAmount.length > 0) {
+    //                 swappedAmount += loanCurrencyAmount[1];
+    //             } else {
+    //                 swappedAmount += amountOfCollateralToken;
+    //             }
+
+    //             // Mark collateral as fully used
+    //             _appStorage.s_idToCollateralTokenAmount[requestId][
+    //                 collateralToken
+    //             ] = 0;
+    //         }
+    //     }
+
+    //     // Transfer loan currency to the lender, ensuring not to exceed total repayment
+    //     if (swappedAmount >= _activeRequest.totalRepayment) {
+    //         IERC20(loanCurrency).safeTransfer(
+    //             lenderAddress,
+    //             _activeRequest.totalRepayment
+    //         );
+    //     } else {
+    //         IERC20(loanCurrency).safeTransfer(lenderAddress, swappedAmount);
+    //     }
+
+    //     // Mark request as closed post liquidation
+    //     _activeRequest.status = Status.CLOSED;
+
+    //     emit RequestLiquidated(
+    //         requestId,
+    //         lenderAddress,
+    //         _activeRequest.totalRepayment
+    //     );
+    // }
+
+    // /**
+    //  * @dev Swaps a specified collateral token into the loan currency using Uniswap.
+    //  * @param collateralToken The token used as collateral.
+    //  * @param collateralAmount The amount of collateral to swap.
+    //  * @param loanCurrency The target currency for the loan.
+    //  * @return loanCurrencyAmount Array containing amounts received for each token in the path.
+    //  */
+    // function swapToLoanCurrency(
+    //     address collateralToken,
+    //     uint256 collateralAmount,
+    //     address loanCurrency
+    // ) public returns (uint256[] memory loanCurrencyAmount) {
+    //     uint256 amountOfTokenOut_ = 0;
+    //     uint[] memory amountsOut;
+
+    //     // Early exit if collateral and loan currencies are the same
+    //     if (loanCurrency == collateralToken) {
+    //         return amountsOut;
+    //     }
+
+    //     // Ensure ETH tokens are wrapped as WETH for compatibility with Uniswap
+    //     if (collateralToken == Constants.NATIVE_TOKEN) {
+    //         collateralToken = Constants.WETH;
+    //     }
+    //     if (loanCurrency == Constants.NATIVE_TOKEN) {
+    //         loanCurrency = Constants.WETH;
+    //     }
+
+    //     // Define the swap path from collateral to loan currency
+    //     address[] memory path = new address[](2);
+    //     path[0] = collateralToken;
+    //     path[1] = loanCurrency;
+
+    //     // Handle ETH to ERC20 swap
+    //     if (collateralToken == Constants.WETH) {
+    //         amountsOut = IUniswapV2Router02(_appStorage.swapRouter)
+    //             .swapExactETHForTokens{value: collateralAmount}(
+    //             amountOfTokenOut_,
+    //             path,
+    //             address(this),
+    //             block.timestamp + 300
+    //         );
+
+    //         // Handle ERC20 to ETH swap
+    //     } else if (loanCurrency == Constants.WETH) {
+    //         // Approve Uniswap router to transfer collateral tokens
+    //         IERC20(collateralToken).approve(
+    //             _appStorage.swapRouter,
+    //             collateralAmount
+    //         );
+
+    //         amountsOut = IUniswapV2Router02(_appStorage.swapRouter)
+    //             .swapExactTokensForETH(
+    //                 collateralAmount,
+    //                 amountOfTokenOut_,
+    //                 path,
+    //                 address(this),
+    //                 block.timestamp + 300
+    //             );
+
+    //         // Handle ERC20 to ERC20 swap
+    //     } else {
+    //         // Approve Uniswap router to transfer collateral tokens
+    //         IERC20(collateralToken).approve(
+    //             _appStorage.swapRouter,
+    //             collateralAmount
+    //         );
+
+    //         amountsOut = IUniswapV2Router02(_appStorage.swapRouter)
+    //             .swapExactTokensForTokens(
+    //                 collateralAmount,
+    //                 amountOfTokenOut_,
+    //                 path,
+    //                 address(this),
+    //                 block.timestamp + 300
+    //             );
+    //     }
+
+    //     // Return the output amount in the target loan currency
+    //     return amountsOut;
+    // }
+
+    // /**
+    //  * @notice Sets the bot address for the protocol.
+    //  * @dev This function allows the contract owner to set an address for automated bot actions within the protocol,
+    //  *      such as monitoring and liquidating undercollateralized loans. Only callable by the contract owner.
+    //  * @param _botAddress The address designated as the bot for handling automated protocol tasks.
+    //  *        It should be a valid external or contract address with necessary permissions.
+    //  * @custom:access Only callable by the contract owner.
+    //  */
+    // function setBotAddress(address _botAddress) external {
+    //     // Ensures only the contract owner can call this function
+    //     LibDiamond.enforceIsContractOwner();
+
+    //     // Sets the bot address in storage, enabling bot actions within the protocol
+    //     _appStorage.botAddress = _botAddress;
+    // }
+
+    // /**
+    //  * @notice Sets the swap router address for handling token exchanges within the protocol.
+    //  * @dev This function allows the contract owner to set the router address used for token swaps
+    //  *      (e.g., using Uniswap or a compatible DEX) as part of the protocol's operations.
+    //  *      Only callable by the contract owner.
+    //  * @param _swapRouter The address of the swap router, typically a Uniswap or similar DEX router
+    //  *        that supports token exchange functionality required by the protocol.
+    //  * @custom:access Only callable by the contract owner.
+    //  */
+    // function setSwapRouter(address _swapRouter) external {
+    //     // Ensures only the contract owner can call this function
+    //     LibDiamond.enforceIsContractOwner();
+
+    //     // Sets the swap router address in storage, enabling token swaps within the protocol
+    //     _appStorage.swapRouter = _swapRouter;
+    // }
 
     function setFeeRate(uint16 _rateBps) external {
         LibDiamond.enforceIsContractOwner();

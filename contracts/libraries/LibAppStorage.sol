@@ -36,5 +36,7 @@ library LibAppStorage {
         address swapRouter;
         /// @dev fees rate in basis points
         uint16 feeRateBps;
+
+       address s_protocolFeeRecipient;
     }
 }

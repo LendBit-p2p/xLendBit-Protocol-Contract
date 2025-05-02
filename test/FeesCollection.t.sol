@@ -134,8 +134,8 @@ contract ProtocolTest is Test, IDiamondCut {
         diamond.initialize(tokens, priceFeed);
 
         protocolFacet = ProtocolFacet(address(diamond));
-        protocolFacet.setBotAddress(botAddress);
-        protocolFacet.setSwapRouter(swapRouterAddress);
+        // protocolFacet.setBotAddress(botAddress);
+        // protocolFacet.setSwapRouter(swapRouterAddress);
 
         ProtocolFacet(address(diamond)).setFeeRate(100);
 

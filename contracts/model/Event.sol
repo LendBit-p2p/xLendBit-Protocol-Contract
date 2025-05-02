@@ -71,3 +71,7 @@ event RequestLiquidated(
 );
 
 event FeesWithdrawn(address indexed to, address indexed token, uint256 amount);
+
+
+event RequestLiquidated(uint96 indexed requestId, address indexed sender,address indexed borrower, address lender, uint256 totalCollateralValue);
+event ProtocolFeeRecipientSet(address indexed _feeRecipient);
