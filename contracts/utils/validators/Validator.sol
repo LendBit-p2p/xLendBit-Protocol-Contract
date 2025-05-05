@@ -2,6 +2,7 @@
 pragma solidity ^0.8.9;
 import "./Error.sol";
 import "../constants/Constant.sol";
+import "../../model/Protocol.sol";
 
 /**
  * @title Validator
@@ -83,5 +84,25 @@ library Validator {
         if (_token == Constants.NATIVE_TOKEN && _value == 0) {
             revert Protocol__MustBeMoreThanZero();
         }
+    }
+
+    /**
+     * @dev Validates the address is whitelisted by checking if the address is present in the whitelist.
+     *
+     * @param _listing The listing object containing the whitelist.
+     *
+     * @notice Reverts with `Protocol__NotWhitelisted` if the sender's address is not in the whitelist.
+     */
+    function _addressIsWhitelisted(LoanListing storage _listing) internal view {
+        address[] memory _whitelist = _listing.whitelist;
+        if (_whitelist.length == 0) {
+            return;
+        }
+        for (uint256 i = 0; i < _whitelist.length; i++) {
+            if (_whitelist[i] == msg.sender) {
+                return;
+            }
+        }
+        revert Protocol__NotWhitelisted();
     }
 }

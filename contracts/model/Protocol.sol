@@ -56,6 +56,7 @@ struct LoanListing {
     uint96 listingId;
     address author;
     address tokenAddress;
+    address[] whitelist;
     uint256 amount;
     uint256 min_amount;
     uint256 max_amount;

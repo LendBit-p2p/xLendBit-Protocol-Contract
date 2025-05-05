@@ -329,13 +329,15 @@ contract ProtocolTest is Test, IDiamondCut {
         uint256 _returnDate = 365 days;
         uint256 _min_amount = 2E10;
         uint256 _max_amount = 10E10;
+        address[] memory _whitelist = new address[](0);
         protocolFacet.createLoanListing{value: 100 ether}(
             _amount,
             _min_amount,
             _max_amount,
             _returnDate,
             _interestRate,
-            ETH_CONTRACT_ADDRESS
+            ETH_CONTRACT_ADDRESS,
+            _whitelist
         );
 
         LoanListing memory _listing = protocolFacet.getLoanListing(1);
@@ -448,8 +450,6 @@ contract ProtocolTest is Test, IDiamondCut {
         IERC20(LINK_CONTRACT_ADDRESS).approve(address(protocolFacet), 1 ether);
 
         protocolFacet.depositCollateral(LINK_CONTRACT_ADDRESS, 1 ether);
-        uint256 _amountQualaterized = protocolFacet
-            .getAddressToCollateralDeposited(owner, LINK_CONTRACT_ADDRESS);
 
         uint128 requestAmount = 0.5 ether;
         uint16 interestRate = 500;
@@ -557,6 +557,7 @@ contract ProtocolTest is Test, IDiamondCut {
         uint256 requestAmount = 1000;
         uint16 interestRate = 500;
         uint256 returnDate = block.timestamp + 365 days;
+        address[] memory whitelist = new address[](0);
 
         protocolFacet.createLoanListing(
             requestAmount,
@@ -564,7 +565,8 @@ contract ProtocolTest is Test, IDiamondCut {
             requestAmount,
             returnDate,
             interestRate,
-            DIA_CONTRACT_ADDRESS
+            DIA_CONTRACT_ADDRESS,
+            whitelist
         );
         protocolFacet.createLoanListing(
             requestAmount,
@@ -572,7 +574,8 @@ contract ProtocolTest is Test, IDiamondCut {
             requestAmount,
             returnDate,
             interestRate,
-            DIA_CONTRACT_ADDRESS
+            DIA_CONTRACT_ADDRESS,
+            whitelist
         );
 
         switchSigner(B);
@@ -589,6 +592,7 @@ contract ProtocolTest is Test, IDiamondCut {
         uint128 requestAmount = 10000;
         uint16 interestRate = 500;
         uint256 returnDate = block.timestamp + 365 days;
+        address[] memory whitelist = new address[](0);
 
         protocolFacet.createLoanListing(
             requestAmount,
@@ -596,7 +600,8 @@ contract ProtocolTest is Test, IDiamondCut {
             requestAmount,
             returnDate,
             interestRate,
-            DIA_CONTRACT_ADDRESS
+            DIA_CONTRACT_ADDRESS,
+            whitelist
         );
         protocolFacet.createLoanListing(
             requestAmount,
@@ -604,7 +609,8 @@ contract ProtocolTest is Test, IDiamondCut {
             requestAmount,
             returnDate,
             interestRate,
-            DIA_CONTRACT_ADDRESS
+            DIA_CONTRACT_ADDRESS,
+            whitelist
         );
 
         uint256 _balanceBeforeClosingListing = IERC20(DIA_CONTRACT_ADDRESS)
@@ -837,13 +843,15 @@ contract ProtocolTest is Test, IDiamondCut {
         uint256 _returnDate = 365 days;
         uint256 _min_amount = 2E10;
         uint256 _max_amount = 10E10;
+        address[] memory _whitelist = new address[](0);
         protocolFacet.createLoanListing(
             _amount,
             _min_amount,
             _max_amount,
             _returnDate,
             _interestRate,
-            DIA_CONTRACT_ADDRESS
+            DIA_CONTRACT_ADDRESS,
+            _whitelist
         );
 
         LoanListing memory _listing = protocolFacet.getLoanListing(1);
@@ -890,13 +898,15 @@ contract ProtocolTest is Test, IDiamondCut {
             address(protocolFacet),
             type(uint256).max
         );
+        address[] memory whitelist = new address[](0);
         protocolFacet.createLoanListing(
             10E10,
             2E10,
             10E10,
             block.timestamp + 365 days,
             500,
-            DIA_CONTRACT_ADDRESS
+            DIA_CONTRACT_ADDRESS,
+            whitelist
         );
     }
 

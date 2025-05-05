@@ -47,12 +47,11 @@ error Protocol__OwnerCreatedListing();
 error Protocol__InsufficientAmount();
 error Protocol__OnlyBotCanAccess();
 
-
-
-error  Protocol__OwnerCantLiquidateRequest();
+error Protocol__OwnerCantLiquidateRequest();
 error Protocol__NotLiquidatable();
 error Protocol__HealthFactorNotBroken();
 error Protocol__InsufficientETH();
 error Protocol__RefundFailed();
 error Protocol__ETHTransferFailed();
 error Protocol__ETHFeeTransferFailed();
+error Protocol__NotWhitelisted();
