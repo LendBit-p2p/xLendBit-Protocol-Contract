@@ -3,6 +3,11 @@ pragma solidity ^0.8.9;
 import {LibInterestRateModel} from "./LibInterestRateModel.sol";
 import "../model/Protocol.sol";
 
+
+/**
+ * @title LibInterestAccure
+ * @dev Library for calculating interest accrual in a lending protocol
+ */
 library LibInterestAccure {
    
    
