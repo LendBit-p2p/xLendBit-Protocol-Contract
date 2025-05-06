@@ -209,15 +209,15 @@ contract ProtocolTest is Test, IDiamondCut {
         );
         (
             address token,
-            uint256 totalSupply,
-            uint256 totalBorrows,
+            ,
+            ,
             uint256 reserveFactor,
             uint256 optimalUtilization,
-            uint256 baseRate,
-            uint256 slopeRate,
+            ,
+            ,
             bool isActive,
-            bool initialize
-        ) = liquidityPoolFacet.getProtocolPoolConfig();
+
+        ) = liquidityPoolFacet.getProtocolPoolConfig(DAI_CONTRACT_ADDRESS);
 
         assertEq(token, DAI_CONTRACT_ADDRESS);
         assertEq(_reserveFactor, reserveFactor);
@@ -247,15 +247,15 @@ contract ProtocolTest is Test, IDiamondCut {
         );
         (
             address token,
-            uint256 totalSupply,
-            uint256 totalBorrows,
+            ,
+            ,
             uint256 reserveFactor,
             uint256 optimalUtilization,
-            uint256 baseRate,
-            uint256 slopeRate,
+            ,
+            ,
             bool isActive,
-            bool initialize
-        ) = liquidityPoolFacet.getProtocolPoolConfig();
+
+        ) = liquidityPoolFacet.getProtocolPoolConfig(ETH_CONTRACT_ADDRESS);
 
         assertEq(token, ETH_CONTRACT_ADDRESS);
         assertEq(_reserveFactor, reserveFactor);

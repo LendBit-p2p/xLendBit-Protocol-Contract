@@ -7,6 +7,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {LibDiamond} from "../libraries/LibDiamond.sol";
 import {Constants} from "../utils/constants/Constant.sol";
+import {ProtocolPool} from "../model/Protocol.sol";
 import "../model/Event.sol";
 import "../utils/validators/Error.sol";
 
@@ -39,9 +40,9 @@ contract LiquidityPoolFacet is AppStorage {
         LibDiamond.enforceIsContractOwner();
 
         // Validate protocol state
-        if (_appStorage.s_protocolPool.isActive)
+        if (_appStorage.s_protocolPool[_token].isActive)
             revert ProtocolPool__IsNotActive();
-        if (_appStorage.s_protocolPool.initialize)
+        if (_appStorage.s_protocolPool[_token].initialize)
             revert ProtocolPool__AlreadyInitialized();
         if (!_appStorage.s_isLoanable[_token])
             revert ProtocolPool__TokenNotSupported();
@@ -73,14 +74,16 @@ contract LiquidityPoolFacet is AppStorage {
             );
         }
 
+        ProtocolPool storage _protocolPool = _appStorage.s_protocolPool[_token];
+
         // Set protocol pool parameters
-        _appStorage.s_protocolPool.token = _token;
-        _appStorage.s_protocolPool.reserveFactor = reserveFactor;
-        _appStorage.s_protocolPool.optimalUtilization = optimalUtilization;
-        _appStorage.s_protocolPool.baseRate = baseRate;
-        _appStorage.s_protocolPool.slopeRate = slopeRate;
-        _appStorage.s_protocolPool.isActive = true;
-        _appStorage.s_protocolPool.initialize = true;
+        _protocolPool.token = _token;
+        _protocolPool.reserveFactor = reserveFactor;
+        _protocolPool.optimalUtilization = optimalUtilization;
+        _protocolPool.baseRate = baseRate;
+        _protocolPool.slopeRate = slopeRate;
+        _protocolPool.isActive = true;
+        _protocolPool.initialize = true;
 
         // Initialize token data
         _appStorage.s_tokenData[_token].lastUpdateTimestamp = block.timestamp;
@@ -88,7 +91,6 @@ contract LiquidityPoolFacet is AppStorage {
             _appStorage.s_tokenData[_token].normalizedPoolDebt = 1e18; // Initialize normalized debt to 1
         }
 
-        _appStorage.s_isProtocolPoolInitialized = true;
         emit ProtocolPoolInitialized(_token, reserveFactor);
     }
 
@@ -104,7 +106,9 @@ contract LiquidityPoolFacet is AppStorage {
      * @return isActive Whether the pool is active
      * @return initialize Whether the pool is initialized
      */
-    function getProtocolPoolConfig()
+    function getProtocolPoolConfig(
+        address _token
+    )
         external
         view
         returns (
@@ -119,17 +123,16 @@ contract LiquidityPoolFacet is AppStorage {
             bool initialize
         )
     {
-        // LibAppStorage.Layout storage s = _appStorage();
         return (
-            _appStorage.s_protocolPool.token,
-            _appStorage.s_protocolPool.totalSupply,
-            _appStorage.s_protocolPool.totalBorrows,
-            _appStorage.s_protocolPool.reserveFactor,
-            _appStorage.s_protocolPool.optimalUtilization,
-            _appStorage.s_protocolPool.baseRate,
-            _appStorage.s_protocolPool.slopeRate,
-            _appStorage.s_protocolPool.isActive,
-            _appStorage.s_protocolPool.initialize
+            _appStorage.s_protocolPool[_token].token,
+            _appStorage.s_protocolPool[_token].totalSupply,
+            _appStorage.s_protocolPool[_token].totalBorrows,
+            _appStorage.s_protocolPool[_token].reserveFactor,
+            _appStorage.s_protocolPool[_token].optimalUtilization,
+            _appStorage.s_protocolPool[_token].baseRate,
+            _appStorage.s_protocolPool[_token].slopeRate,
+            _appStorage.s_protocolPool[_token].isActive,
+            _appStorage.s_protocolPool[_token].initialize
         );
     }
 
@@ -145,16 +148,14 @@ contract LiquidityPoolFacet is AppStorage {
         uint256 amount
     ) external payable returns (uint256 shares) {
         // Validate deposit
-        if (!_appStorage.s_isProtocolPoolInitialized)
+        if (!_appStorage.s_protocolPool[token].initialize)
             revert ProtocolPool__NotInitialized();
 
         if (amount == 0) revert ProtocolPool__ZeroAmount();
         if (!_appStorage.s_isLoanable[token])
             revert ProtocolPool__TokenNotSupported();
-        if (!_appStorage.s_protocolPool.isActive)
+        if (!_appStorage.s_protocolPool[token].isActive)
             revert ProtocolPool__IsNotActive();
-        if (_appStorage.s_protocolPool.token != token)
-            revert ProtocolPool__TokenNotSupported();
 
         // Handle deposit based on token type
         if (token == Constants.NATIVE_TOKEN) {

@@ -36,19 +36,12 @@ library LibAppStorage {
         address swapRouter;
         /// @dev fees rate in basis points
         uint16 feeRateBps;
-
         /// @dev maps token address to token data
         mapping(address token => TokenData) s_tokenData;
         mapping(address => mapping(address => uint256)) s_addressToUserPoolDeposit;
-
         ///@dev Liquidity PoolConfig
-        ProtocolPool s_protocolPool;
-
-       address s_protocolFeeRecipient;
-
-       bool s_isProtocolPoolInitialized;
-
-       bool isProtocolPoolActive;
-     
+        mapping(address => ProtocolPool) s_protocolPool;
+        address s_protocolFeeRecipient;
+        bool isProtocolPoolActive;
     }
 }
