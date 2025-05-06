@@ -13,7 +13,4 @@ library Constants {
     uint256 constant MAX_LIQUIDATION_BONUS = 10000; // 100%
     uint256 constant LIQUIDATION_DISCOUNT = 1000; // 10%
     uint256 constant MAX_RESERVE_FACTOR = 5000; // 50%
-    
-
-
 }

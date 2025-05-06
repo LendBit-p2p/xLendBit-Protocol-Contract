@@ -13,7 +13,7 @@ import "../contracts/model/Protocol.sol";
 import "../contracts/model/Event.sol";
 import "../contracts/utils/constants/Constant.sol";
 import "../contracts/utils/validators/Validator.sol";
-import {LiquidityPoolFacet} from "../contracts/facets/LiquidityPoolfacet.sol";
+import {LiquidityPoolFacet} from "../contracts/facets/LiquidityPoolFacet.sol";
 import {LibAppStorage} from "../contracts/libraries/LibAppStorage.sol";
 // MOCK Contracts
 import {MockV3Aggregator} from "@chainlink/contracts/src/v0.8/tests/MockV3Aggregator.sol";
@@ -28,9 +28,6 @@ contract ProtocolTest is Test, IDiamondCut {
     OwnershipFacet ownerF;
     ProtocolFacet protocolFacet;
     LiquidityPoolFacet liquidityPoolFacet;
-
- 
-
 
     address USDT_USD;
     address DAI_USD;
@@ -68,7 +65,6 @@ contract ProtocolTest is Test, IDiamondCut {
         protocolFacet = new ProtocolFacet();
         liquidityPoolFacet = new LiquidityPoolFacet();
 
-
         //deploy mock tokens
         (USDT_CONTRACT_ADDRESS, USDT_USD) = deployERC20ContractAndAddPriceFeed(
             "USDT",
@@ -102,7 +98,6 @@ contract ProtocolTest is Test, IDiamondCut {
         priceFeed.push(LINK_USD);
         priceFeed.push(WETH_USD);
         priceFeed.push(WETH_USD);
-    
 
         //upgrade diamond with facets
 
@@ -150,7 +145,7 @@ contract ProtocolTest is Test, IDiamondCut {
         diamond.initialize(tokens, priceFeed);
 
         protocolFacet = ProtocolFacet(address(diamond));
-        liquidityPoolFacet  = LiquidityPoolFacet(address(diamond));
+        liquidityPoolFacet = LiquidityPoolFacet(address(diamond));
         // protocolFacet.setBotAddress(botAddress);
         // protocolFacet.setSwapRouter(swapRouterAddress);
 
@@ -166,34 +161,33 @@ contract ProtocolTest is Test, IDiamondCut {
         ERC20Mock(LINK_CONTRACT_ADDRESS).mint(owner, 500 ether);
     }
 
-    // function testOnlyWhitelistedUserCanRequestLoan() public {
-    //     _depositCollateral(C, ETH_CONTRACT_ADDRESS, 1E18);
-    //     // switchSigner(owner);
-    //     IERC20(DAI_CONTRACT_ADDRESS).approve(
-    //         address(protocolFacet),
-    //         type(uint256).max
-    //     );
-    //     address[] memory whitelist = new address[](1);
-    //     whitelist[0] = B;
-    //     protocolFacet.createLoanListing(
-    //         10E10,
-    //         2E10,
-    //         10E10,
-    //         block.timestamp + 365 days,
-    //         500,
-    //         DAI_CONTRACT_ADDRESS,
-    //         whitelist
-    //     );
+    function testOnlyWhitelistedUserCanRequestLoan() public {
+        _depositCollateral(C, ETH_CONTRACT_ADDRESS, 1E18);
+        switchSigner(owner);
+        IERC20(DAI_CONTRACT_ADDRESS).approve(
+            address(protocolFacet),
+            type(uint256).max
+        );
+        address[] memory whitelist = new address[](1);
+        whitelist[0] = B;
+        protocolFacet.createLoanListing(
+            10E10,
+            2E10,
+            10E10,
+            block.timestamp + 365 days,
+            500,
+            DAI_CONTRACT_ADDRESS,
+            whitelist
+        );
 
-    //     switchSigner(C);
-    //     vm.expectRevert(
-    //         abi.encodeWithSelector(Protocol__NotWhitelisted.selector)
-    //     );
-    //     protocolFacet.requestLoanFromListing(1, 5E10);
-    // }
+        switchSigner(C);
+        vm.expectRevert(
+            abi.encodeWithSelector(Protocol__NotWhitelisted.selector)
+        );
+        protocolFacet.requestLoanFromListing(1, 5E10);
+    }
 
-
-       // Test successful initialization with ERC20 (DAI)
+    // Test successful initialization with ERC20 (DAI)
     function testProtocolPoolCanBeInitializedWithERC20() public {
         // switchSigner(owner);
         _depositCollateral(owner, DAI_CONTRACT_ADDRESS, 200 ether);
@@ -205,28 +199,31 @@ contract ProtocolTest is Test, IDiamondCut {
         uint256 _slopeRate = 2000; // 20%
         uint256 _initialSupply = 100 ether;
 
-
-        liquidityPoolFacet.initializeProtocolPool(DAI_CONTRACT_ADDRESS, _reserveFactor, _optimalUtilization, _baseRate, _slopeRate, _initialSupply);
-  (
-        address token,
-        uint256 totalSupply,
-        uint256 totalBorrows,
-        uint256 reserveFactor,
-        uint256 optimalUtilization,
-        uint256 baseRate,
-        uint256 slopeRate,
-        bool isActive,
-        bool initialize
-    ) = liquidityPoolFacet.getProtocolPoolConfig();
+        liquidityPoolFacet.initializeProtocolPool(
+            DAI_CONTRACT_ADDRESS,
+            _reserveFactor,
+            _optimalUtilization,
+            _baseRate,
+            _slopeRate,
+            _initialSupply
+        );
+        (
+            address token,
+            uint256 totalSupply,
+            uint256 totalBorrows,
+            uint256 reserveFactor,
+            uint256 optimalUtilization,
+            uint256 baseRate,
+            uint256 slopeRate,
+            bool isActive,
+            bool initialize
+        ) = liquidityPoolFacet.getProtocolPoolConfig();
 
         assertEq(token, DAI_CONTRACT_ADDRESS);
         assertEq(_reserveFactor, reserveFactor);
         assertEq(_optimalUtilization, optimalUtilization);
         assertTrue(isActive);
-
     }
-
-
 
     // Test successful initialization with ETH
     function testProtocolPoolCanBeInitializedWithETH() public {
@@ -240,20 +237,25 @@ contract ProtocolTest is Test, IDiamondCut {
         uint256 _slopeRate = 2000; // 20%
         uint256 _initialSupply = 100 ether;
 
-
-        liquidityPoolFacet.initializeProtocolPool{value: _initialSupply}
-        (ETH_CONTRACT_ADDRESS, _reserveFactor, _optimalUtilization, _baseRate, _slopeRate, _initialSupply);
-  (
-        address token,
-        uint256 totalSupply,
-        uint256 totalBorrows,
-        uint256 reserveFactor,
-        uint256 optimalUtilization,
-        uint256 baseRate,
-        uint256 slopeRate,
-        bool isActive,
-        bool initialize
-    ) = liquidityPoolFacet.getProtocolPoolConfig();
+        liquidityPoolFacet.initializeProtocolPool{value: _initialSupply}(
+            ETH_CONTRACT_ADDRESS,
+            _reserveFactor,
+            _optimalUtilization,
+            _baseRate,
+            _slopeRate,
+            _initialSupply
+        );
+        (
+            address token,
+            uint256 totalSupply,
+            uint256 totalBorrows,
+            uint256 reserveFactor,
+            uint256 optimalUtilization,
+            uint256 baseRate,
+            uint256 slopeRate,
+            bool isActive,
+            bool initialize
+        ) = liquidityPoolFacet.getProtocolPoolConfig();
 
         assertEq(token, ETH_CONTRACT_ADDRESS);
         assertEq(_reserveFactor, reserveFactor);
@@ -264,49 +266,50 @@ contract ProtocolTest is Test, IDiamondCut {
     function testDepositInsideTheLiquidityPool() public {
         testProtocolPoolCanBeInitializedWithERC20();
         liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, 100 ether);
-        uint256 poolDeposit = liquidityPoolFacet.getUserPoolDeposit(owner, DAI_CONTRACT_ADDRESS);
+        uint256 poolDeposit = liquidityPoolFacet.getUserPoolDeposit(
+            owner,
+            DAI_CONTRACT_ADDRESS
+        );
         assertEq(poolDeposit, 100 ether);
     }
-    
 
+    function testListingWithZeroWhitelistAddressIsOpenForAllAddress() public {
+        _depositCollateral(C, ETH_CONTRACT_ADDRESS, 1E18);
+        _depositCollateral(B, ETH_CONTRACT_ADDRESS, 1E18);
+        switchSigner(owner);
+        IERC20(DAI_CONTRACT_ADDRESS).approve(
+            address(protocolFacet),
+            type(uint256).max
+        );
+        address[] memory whitelist = new address[](0);
+        protocolFacet.createLoanListing(
+            10E10,
+            2E10,
+            10E10,
+            block.timestamp + 365 days,
+            500,
+            DAI_CONTRACT_ADDRESS,
+            whitelist
+        );
 
-    // function testListingWithZeroWhitelistAddressIsOpenForAllAddress() public {
-    //     _depositCollateral(C, ETH_CONTRACT_ADDRESS, 1E18);
-    //     _depositCollateral(B, ETH_CONTRACT_ADDRESS, 1E18);
-    //     switchSigner(owner);
-    //     IERC20(DAI_CONTRACT_ADDRESS).approve(
-    //         address(protocolFacet),
-    //         type(uint256).max
-    //     );
-    //     address[] memory whitelist = new address[](0);
-    //     protocolFacet.createLoanListing(
-    //         10E10,
-    //         2E10,
-    //         10E10,
-    //         block.timestamp + 365 days,
-    //         500,
-    //         DAI_CONTRACT_ADDRESS,
-    //         whitelist
-    //     );
+        switchSigner(C);
+        vm.expectEmit(true, true, true, true);
+        emit RequestCreated(C, 1, 5E10, 500);
+        protocolFacet.requestLoanFromListing(1, 5E10);
 
-    //     switchSigner(C);
-    //     vm.expectEmit(true, true, true, true);
-    //     emit RequestCreated(C, 1, 5E10, 500);
-    //     protocolFacet.requestLoanFromListing(1, 5E10);
+        switchSigner(B);
+        vm.expectEmit(true, true, true, true);
+        emit RequestCreated(B, 2, 5E10, 500);
+        protocolFacet.requestLoanFromListing(1, 5E10);
+    }
 
-    //     switchSigner(B);
-    //     vm.expectEmit(true, true, true, true);
-    //     emit RequestCreated(B, 2, 5E10, 500);
-    //     protocolFacet.requestLoanFromListing(1, 5E10);
-    // }
-
-    // function _mintTokenToAddress(
-    //     address _token,
-    //     address _to,
-    //     uint256 _amount
-    // ) internal {
-    //     ERC20Mock(_token).mint(_to, _amount);
-    // }
+    function _mintTokenToAddress(
+        address _token,
+        address _to,
+        uint256 _amount
+    ) internal {
+        ERC20Mock(_token).mint(_to, _amount);
+    }
 
     function _depositCollateral(
         address user,

@@ -56,19 +56,18 @@ error Protocol__ETHTransferFailed();
 error Protocol__ETHFeeTransferFailed();
 error Protocol__NotWhitelisted();
 
-
-    // Custom errors
-    /// @notice Thrown when trying to interact with a protocol pool that is not active
-    error ProtocolPool__IsNotActive();
-    /// @notice Thrown when trying to initialize an already initialized protocol pool
-    error ProtocolPool__AlreadyInitialized();
-    /// @notice Thrown when trying to use a token that is not supported by the protocol
-    error ProtocolPool__TokenNotSupported();
-    /// @notice Thrown when attempting an operation with zero amount
-    error ProtocolPool__ZeroAmount();
-    /// @notice Thrown when trying to use a protocol pool that has not been initialized
-    error ProtocolPool__NotInitialized();
-    /// @notice Thrown when a user tries to withdraw more than their balance
-    error ProtocolPool__InsufficientBalance();
-    /// @notice Thrown when a withdrawal is not possible due to insufficient liquidity
-    error ProtocolPool__InsufficientLiquidity();
+// Custom errors
+/// @notice Thrown when trying to interact with a protocol pool that is not active
+error ProtocolPool__IsNotActive();
+/// @notice Thrown when trying to initialize an already initialized protocol pool
+error ProtocolPool__AlreadyInitialized();
+/// @notice Thrown when trying to use a token that is not supported by the protocol
+error ProtocolPool__TokenNotSupported();
+/// @notice Thrown when attempting an operation with zero amount
+error ProtocolPool__ZeroAmount();
+/// @notice Thrown when trying to use a protocol pool that has not been initialized
+error ProtocolPool__NotInitialized();
+/// @notice Thrown when a user tries to withdraw more than their balance
+error ProtocolPool__InsufficientBalance();
+/// @notice Thrown when a withdrawal is not possible due to insufficient liquidity
+error ProtocolPool__InsufficientLiquidity();

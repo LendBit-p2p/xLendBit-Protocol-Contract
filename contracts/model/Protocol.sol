@@ -65,29 +65,26 @@ struct LoanListing {
     ListingStatus listingStatus;
 }
 
+struct ProtocolPool {
+    address token;
+    bool initialize;
+    uint256 totalSupply;
+    uint256 totalBorrows;
+    uint256 reserveFactor;
+    uint256 optimalUtilization;
+    uint256 baseRate;
+    uint256 slopeRate;
+    bool isActive;
+}
 
-  struct ProtocolPool {
-        address token;
-        bool initialize;
-        uint256 totalSupply;
-        uint256 totalBorrows;
-        uint256 reserveFactor;
-        uint256 optimalUtilization;
-        uint256 baseRate;
-        uint256 slopeRate;
-        bool isActive;
+struct TokenData {
+    uint256 totalSupply;
+    uint256 poolLiquidity;
+    uint256 totalBorrows;
+    uint256 lastUpdateTimestamp;
+    uint256 normalizedPoolDebt;
+}
 
-    }
-
-
-    struct TokenData {
-        uint256 totalSupply;
-        uint256 poolLiquidity;
-        uint256 totalBorrows;
-        uint256 lastUpdateTimestamp;
-        uint256 normalizedPoolDebt;
-    }
-    
 /**
  * @dev Enum representing the status of a loan request.
  * OPEN - The loan request is open and waiting for a lender.

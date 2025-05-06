@@ -18,9 +18,6 @@ import "../utils/validators/Error.sol";
 contract LiquidityPoolFacet is AppStorage {
     using SafeERC20 for IERC20;
 
-
-
-
     /**
      * @notice Initializes the protocol pool with the given parameters
      * @dev Only callable by contract owner
@@ -37,27 +34,43 @@ contract LiquidityPoolFacet is AppStorage {
         uint256 baseRate,
         uint256 slopeRate,
         uint256 initialSupply
-    ) external payable{
+    ) external payable {
         // Check caller is contract owner
         LibDiamond.enforceIsContractOwner();
-        
+
         // Validate protocol state
-        if(_appStorage.s_protocolPool.isActive) revert ProtocolPool__IsNotActive();
-        if(_appStorage.s_protocolPool.initialize) revert ProtocolPool__AlreadyInitialized();
-        if(!_appStorage.s_isLoanable[_token]) revert ProtocolPool__TokenNotSupported();
-        
+        if (_appStorage.s_protocolPool.isActive)
+            revert ProtocolPool__IsNotActive();
+        if (_appStorage.s_protocolPool.initialize)
+            revert ProtocolPool__AlreadyInitialized();
+        if (!_appStorage.s_isLoanable[_token])
+            revert ProtocolPool__TokenNotSupported();
+
         // Validate parameters
-        require(reserveFactor <= Constants.MAX_RESERVE_FACTOR, "Reserve factor too high");
+        require(
+            reserveFactor <= Constants.MAX_RESERVE_FACTOR,
+            "Reserve factor too high"
+        );
         require(optimalUtilization <= 9000, "Optimal utilization too high");
         require(baseRate <= 1000, "Base rate too high");
-
 
         if (_token == Constants.NATIVE_TOKEN) {
             require(msg.value == initialSupply, "Incorrect ETH amount");
         } else {
-            require(IERC20(_token).balanceOf(msg.sender) >= initialSupply, "Insufficient token balance");
-            require(IERC20(_token).allowance(msg.sender, address(this)) >= initialSupply, "Insufficient token allowance");
-            IERC20(_token).safeTransferFrom(msg.sender, address(this), initialSupply);
+            require(
+                IERC20(_token).balanceOf(msg.sender) >= initialSupply,
+                "Insufficient token balance"
+            );
+            require(
+                IERC20(_token).allowance(msg.sender, address(this)) >=
+                    initialSupply,
+                "Insufficient token allowance"
+            );
+            IERC20(_token).safeTransferFrom(
+                msg.sender,
+                address(this),
+                initialSupply
+            );
         }
 
         // Set protocol pool parameters
@@ -75,12 +88,9 @@ contract LiquidityPoolFacet is AppStorage {
             _appStorage.s_tokenData[_token].normalizedPoolDebt = 1e18; // Initialize normalized debt to 1
         }
 
-        _appStorage.s_isProtocolPoolInitialized = true; 
+        _appStorage.s_isProtocolPoolInitialized = true;
         emit ProtocolPoolInitialized(_token, reserveFactor);
     }
-
-
-
 
     /**
      * @notice Gets the configuration of the protocol pool
@@ -94,17 +104,21 @@ contract LiquidityPoolFacet is AppStorage {
      * @return isActive Whether the pool is active
      * @return initialize Whether the pool is initialized
      */
-    function getProtocolPoolConfig() external view returns (
-        address token,
-        uint256 totalSupply,
-        uint256 totalBorrows,
-        uint256 reserveFactor,
-        uint256 optimalUtilization,
-        uint256 baseRate,
-        uint256 slopeRate,
-        bool isActive,
-        bool initialize
-    ) {
+    function getProtocolPoolConfig()
+        external
+        view
+        returns (
+            address token,
+            uint256 totalSupply,
+            uint256 totalBorrows,
+            uint256 reserveFactor,
+            uint256 optimalUtilization,
+            uint256 baseRate,
+            uint256 slopeRate,
+            bool isActive,
+            bool initialize
+        )
+    {
         // LibAppStorage.Layout storage s = _appStorage();
         return (
             _appStorage.s_protocolPool.token,
@@ -126,14 +140,21 @@ contract LiquidityPoolFacet is AppStorage {
      * @param amount The amount of tokens to deposit
      * @return shares The number of LP shares minted for the deposit
      */
-    function deposit(address token, uint256 amount) external payable returns (uint256 shares) {
+    function deposit(
+        address token,
+        uint256 amount
+    ) external payable returns (uint256 shares) {
         // Validate deposit
-        if(!_appStorage.s_isProtocolPoolInitialized) revert ProtocolPool__NotInitialized();
+        if (!_appStorage.s_isProtocolPoolInitialized)
+            revert ProtocolPool__NotInitialized();
 
-        if(amount == 0) revert ProtocolPool__ZeroAmount();
-        if(!_appStorage.s_isLoanable[token]) revert ProtocolPool__TokenNotSupported();
-        if(!_appStorage.s_protocolPool.isActive) revert ProtocolPool__IsNotActive();
-        if(_appStorage.s_protocolPool.token != token) revert ProtocolPool__TokenNotSupported();
+        if (amount == 0) revert ProtocolPool__ZeroAmount();
+        if (!_appStorage.s_isLoanable[token])
+            revert ProtocolPool__TokenNotSupported();
+        if (!_appStorage.s_protocolPool.isActive)
+            revert ProtocolPool__IsNotActive();
+        if (_appStorage.s_protocolPool.token != token)
+            revert ProtocolPool__TokenNotSupported();
 
         // Handle deposit based on token type
         if (token == Constants.NATIVE_TOKEN) {
@@ -143,8 +164,7 @@ contract LiquidityPoolFacet is AppStorage {
             IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
         }
         // Calculate shares based on the amount deposited
-        // calculate user interest 
-
+        // calculate user interest
 
         // Update state variables
         _appStorage.s_tokenData[token].poolLiquidity += amount;
@@ -154,10 +174,10 @@ contract LiquidityPoolFacet is AppStorage {
         emit Deposit(msg.sender, token, amount, shares);
     }
 
-
-    function getUserPoolDeposit(address user, address token) external view returns (uint256) {
+    function getUserPoolDeposit(
+        address user,
+        address token
+    ) external view returns (uint256) {
         return _appStorage.s_addressToUserPoolDeposit[user][token];
     }
-
-  
 }
