@@ -19,6 +19,7 @@ import {LibAppStorage} from "../contracts/libraries/LibAppStorage.sol";
 import {MockV3Aggregator} from "@chainlink/contracts/src/v0.8/tests/MockV3Aggregator.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/token/ERC20Mock.sol";
 import {Constants} from "../contracts/utils/constants/Constant.sol";
+import "../contracts/utils/validators/Error.sol";
 
 contract ProtocolTest is Test, IDiamondCut {
     //contract types of facets to be deployed
@@ -356,6 +357,97 @@ function testBorrowInsideALiquidityPool() public {
     assertEq(totalBorrows, BORROW_AMOUNT, "Total borrows should be updated");
         
     }
+
+
+
+function testUser_CantBorrowInLow_LiquidityPool() public {
+    initializeTokenPool(DAI_CONTRACT_ADDRESS);
+
+    uint256 DEPOSIT_AMOUNT = 100 ether;
+    uint256 BORROW_AMOUNT = 10000 ether; // Large borrow to exceed the pool amount value
+    vm.deal(B, 200000 ether);
+
+    // Owner deposits to the pool
+    liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, DEPOSIT_AMOUNT);
+
+    // Deposit minimal collateral as B
+    _depositCollateral(B, ETH_CONTRACT_ADDRESS, 0.001 ether); // ~$2 USD at $2000/ETH
+
+    // Attempt to borrow as B
+   
+    vm.expectRevert(ProtocolPool__NotEnoughLiquidity.selector);
+    liquidityPoolFacet.borrowFromPool(DAI_CONTRACT_ADDRESS, BORROW_AMOUNT);
+ 
+}
+
+    function testBorrowWithInsufficientCollateral() public {
+    initializeTokenPool(DAI_CONTRACT_ADDRESS);
+
+    uint256 DEPOSIT_AMOUNT = 100 ether;
+    uint256 BORROW_AMOUNT = 10 ether; // Large borrow to exceed collateral value
+    vm.deal(B, 200000 ether);
+
+    // Owner deposits to the pool
+    liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, DEPOSIT_AMOUNT);
+
+    // Deposit minimal collateral as B
+    _depositCollateral(B, ETH_CONTRACT_ADDRESS, 0.001 ether); // ~$2 USD at $2000/ETH
+
+    // Attempt to borrow as B
+   
+    vm.expectRevert(ProtocolPool__InsufficientCollateral.selector);
+    liquidityPoolFacet.borrowFromPool(DAI_CONTRACT_ADDRESS, BORROW_AMOUNT);
+ 
+}
+
+function testUserCant_BorrowFrom_UninitializedPool() public {
+    uint256 BORROW_AMOUNT = 10 ether;
+    vm.deal(B, 200000 ether);
+
+    // Deposit collateral as B
+    _depositCollateral(B, ETH_CONTRACT_ADDRESS, 200 ether);
+
+    // Attempt to borrow without initializing the pool
+    vm.expectRevert(ProtocolPool__NotInitialized.selector);
+    liquidityPoolFacet.borrowFromPool(DAI_CONTRACT_ADDRESS, BORROW_AMOUNT);
+    vm.stopPrank();
+}
+
+function testSameUserCanMake_MultipleBorrows() public {
+    initializeTokenPool(DAI_CONTRACT_ADDRESS);
+
+    uint256 DEPOSIT_AMOUNT = 100 ether;
+    uint256 BORROW_AMOUNT_1 = 10 ether;
+    uint256 BORROW_AMOUNT_2 = 20 ether;
+    vm.deal(B, 200000 ether);
+
+    // Owner deposits to the pool
+    liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, DEPOSIT_AMOUNT);
+
+    // Deposit collateral as B
+    _depositCollateral(B, ETH_CONTRACT_ADDRESS, 200 ether);
+
+    // First borrow as B
+    liquidityPoolFacet.borrowFromPool(DAI_CONTRACT_ADDRESS, BORROW_AMOUNT_1);
+
+    // Second borrow as B
+    liquidityPoolFacet.borrowFromPool(DAI_CONTRACT_ADDRESS, BORROW_AMOUNT_2);
+
+    // Verify user debt
+    (uint256 borrowedAmount, , , bool isActive) =
+        liquidityPoolFacet.getUserBorrowData(B, DAI_CONTRACT_ADDRESS);
+    assertEq(borrowedAmount, BORROW_AMOUNT_1 + BORROW_AMOUNT_2, "Debt should accumulate");
+    assertTrue(isActive);
+
+    // Verify pool state
+    (uint256 totalSupply, uint256 poolLiquidity, uint256 totalBorrows, ) =
+        liquidityPoolFacet.getPoolTokenData(DAI_CONTRACT_ADDRESS);
+    assertEq(poolLiquidity, DEPOSIT_AMOUNT - (BORROW_AMOUNT_1 + BORROW_AMOUNT_2), "Pool liquidity should be reduced");
+    assertEq(totalBorrows, BORROW_AMOUNT_1 + BORROW_AMOUNT_2, "Total borrows should be updated");
+}
+
+
+
 function testProtocolPoolCanAccrueInterest() public {
     uint256 DEPOSIT_AMOUNT = 100 ether;
     uint256 BORROW_AMOUNT = 10 ether;
@@ -436,6 +528,62 @@ function testRepayPartial() public {
     
     // Verify remaining debt
     assertEq(borrowedAmount, BORROW_AMOUNT - repayAmount, "Remaining debt should be updated");
+}
+
+
+function testRepayPartialWithInterest() public {
+    initializeTokenPool(DAI_CONTRACT_ADDRESS);
+     // Mint enough DAI to B to cover partial repayment
+    _mintTokenToAddress(DAI_CONTRACT_ADDRESS, B, 1);
+
+    uint256 DEPOSIT_AMOUNT = 100 ether;
+    uint256 BORROW_AMOUNT = 10 ether;
+    vm.deal(B, 200000 ether);
+
+    // Owner deposits to the pool
+    liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, DEPOSIT_AMOUNT);
+
+    // Deposit collateral as B
+    _depositCollateral(B, ETH_CONTRACT_ADDRESS, 200 ether);
+
+    // Borrow as B
+
+    liquidityPoolFacet.borrowFromPool(DAI_CONTRACT_ADDRESS, BORROW_AMOUNT);
+
+    uint256 balanceAfterBorrow =  IERC20(DAI_CONTRACT_ADDRESS).balanceOf(B);
+
+    // Advance time to accrue interest
+    vm.warp(block.timestamp + 30 days);
+
+    // Get current debt
+    uint256 currentDebt = liquidityPoolFacet.getUserDebt(B, DAI_CONTRACT_ADDRESS);
+    assertGt(currentDebt, BORROW_AMOUNT, "Debt should include interest");
+
+
+
+    // Partial repayment (half of current debt)
+    uint256 repayAmount = currentDebt / 2;
+
+    IERC20(DAI_CONTRACT_ADDRESS).approve(address(liquidityPoolFacet), repayAmount);
+    liquidityPoolFacet.repay(DAI_CONTRACT_ADDRESS, repayAmount);
+
+    uint256 balanceAfterRepayment =  IERC20(DAI_CONTRACT_ADDRESS).balanceOf(B);
+
+
+    // Verify remaining debt
+    (uint256 borrowedAmount, , , bool isActive) =
+        liquidityPoolFacet.getUserBorrowData(B, DAI_CONTRACT_ADDRESS);
+    assertApproxEqAbs(borrowedAmount, currentDebt - repayAmount, 1e10, "Remaining debt should be updated");
+    assertTrue(isActive, "Borrow position should remain active");
+
+    // Verify pool state
+    (uint256 totalSupply, uint256 poolLiquidity, uint256 totalBorrows, ) =
+        liquidityPoolFacet.getPoolTokenData(DAI_CONTRACT_ADDRESS);
+    assertEq(poolLiquidity, DEPOSIT_AMOUNT - BORROW_AMOUNT + repayAmount, "Pool liquidity should increase");
+    assertEq(balanceAfterRepayment,balanceAfterBorrow - repayAmount, "Balance should be unchanged");
+
+
+
 }
 
 function testRepayFull() public {
