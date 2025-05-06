@@ -261,6 +261,14 @@ contract ProtocolTest is Test, IDiamondCut {
         assertTrue(isActive);
     }
 
+    function testDepositInsideTheLiquidityPool() public {
+        testProtocolPoolCanBeInitializedWithERC20();
+        liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, 100 ether);
+        uint256 poolDeposit = liquidityPoolFacet.getUserPoolDeposit(owner, DAI_CONTRACT_ADDRESS);
+        assertEq(poolDeposit, 100 ether);
+    }
+    
+
 
     // function testListingWithZeroWhitelistAddressIsOpenForAllAddress() public {
     //     _depositCollateral(C, ETH_CONTRACT_ADDRESS, 1E18);

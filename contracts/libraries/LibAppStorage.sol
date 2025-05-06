@@ -39,6 +39,7 @@ library LibAppStorage {
 
         /// @dev maps token address to token data
         mapping(address token => TokenData) s_tokenData;
+        mapping(address => mapping(address => uint256)) s_addressToUserPoolDeposit;
 
         ///@dev Liquidity PoolConfig
         ProtocolPool s_protocolPool;

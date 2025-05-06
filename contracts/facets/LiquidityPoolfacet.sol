@@ -164,199 +164,45 @@ contract LiquidityPoolFacet is AppStorage {
         );
     }
 
+    /**
+     * @notice Allows users to deposit tokens into the liquidity pool
+     * @dev Handles both native token (ETH) and ERC20 deposits
+     * @param token The address of the token to deposit
+     * @param amount The amount of tokens to deposit
+     * @return shares The number of LP shares minted for the deposit
+     */
+    function deposit(address token, uint256 amount) external payable returns (uint256 shares) {
+        // Validate deposit
+        if(!_appStorage.s_isProtocolPoolInitialized) revert ProtocolPool__NotInitialized();
+
+        if(amount == 0) revert ProtocolPool__ZeroAmount();
+        if(!_appStorage.s_isLoanable[token]) revert ProtocolPool__TokenNotSupported();
+        if(!_appStorage.s_protocolPool.isActive) revert ProtocolPool__IsNotActive();
+        if(_appStorage.s_protocolPool.token != token) revert ProtocolPool__TokenNotSupported();
+
+        // Handle deposit based on token type
+        if (token == Constants.NATIVE_TOKEN) {
+            require(msg.value == amount, "Incorrect ETH amount");
+        } else {
+            require(msg.value == 0, "ETH sent with token deposit");
+            IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
+        }
+        // Calculate shares based on the amount deposited
+        // calculate user interest 
 
 
+        // Update state variables
+        _appStorage.s_tokenData[token].poolLiquidity += amount;
+        _appStorage.s_tokenData[token].lastUpdateTimestamp = block.timestamp;
+        _appStorage.s_addressToUserPoolDeposit[msg.sender][token] += amount;
+
+        emit Deposit(msg.sender, token, amount, shares);
+    }
 
 
-    // /**
-    //  * @notice Allows users to deposit tokens into the liquidity pool
-    //  * @dev Handles both native token (ETH) and ERC20 deposits
-    //  * @param token The address of the token to deposit
-    //  * @param amount The amount of tokens to deposit
-    //  * @return shares The number of LP shares minted for the deposit
-    //  */
-    // function deposit(address token, uint256 amount) external payable returns (uint256 shares) {
-    //     // Validate deposit
-    //     if(!_appStorage.s_isProtocolPoolInitialized) revert ProtocolPool__NotInitialized();
+    function getUserPoolDeposit(address user, address token) external view returns (uint256) {
+        return _appStorage.s_addressToUserPoolDeposit[user][token];
+    }
 
-    //     if(amount == 0) revert ProtocolPool__ZeroAmount();
-    //     if(!_appStorage.s_isLoanable[token]) revert ProtocolPool__TokenNotSupported();
-
-    //     // Update pool state before the deposit to accrue any pending interest
-    //     // _updatePoolState(token);
-
-    //     // Handle deposit based on token type
-    //     if (token == Constants.NATIVE_TOKEN) {
-    //         require(msg.value == amount, "Incorrect ETH amount");
-    //     } else {
-    //         require(msg.value == 0, "ETH sent with token deposit");
-    //         IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
-    //     }
-
-    //     // Calculate shares to mint based on current pool state
-    //     // shares = _calculateSharesToMint(token, amount);
-        
-    //     // Update state variables
-    //     _appStorage.s_tokenData[token].totalSupply += shares;
-    //     _appStorage.s_tokenData[token].poolLiquidity += amount;
-    //     _appStorage.s_userShares[msg.sender][token] += shares;
-
-    //     emit Deposit(msg.sender, token, amount, shares);
-    //     // return shares;
-    // }
-
-    // /**
-    //  * @notice Allows users to withdraw tokens from the liquidity pool
-    //  * @dev Burns LP shares and returns the corresponding amount of tokens
-    //  * @param token The address of the token to withdraw
-    //  * @param shares The amount of LP shares to burn
-    //  * @return amount The amount of tokens received
-    //  */
-    // function withdraw(address token, uint256 shares) external returns (uint256 amount) {
-    //     // Validate withdrawal
-    //     if(!_appStorage.s_isProtocolPoolInitialized) revert ProtocolPool__NotInitialized();
-    //     if(shares == 0) revert ProtocolPool__ZeroAmount();
-    //     if(_appStorage.s_userShares[msg.sender][token] < shares) revert ProtocolPool__InsufficientBalance();
-
-    //     // Update pool state before withdrawal to accrue any pending interest
-    //     _updatePoolState(token);
-
-    //     // Calculate tokens to withdraw based on shares
-    //     amount = _calculateAmountToWithdraw(token, shares);
-        
-    //     // Verify there is enough liquidity in the pool
-    //     if(_appStorage.s_tokenData[token].poolLiquidity < amount) revert ProtocolPool__InsufficientLiquidity();
-        
-    //     // Update state before transfer
-    //     _appStorage.s_tokenData[token].totalSupply -= shares;
-    //     _appStorage.s_tokenData[token].poolLiquidity -= amount;
-    //     _appStorage.s_userShares[msg.sender][token] -= shares;
-
-    //     // Transfer tokens to user
-    //     if (token == Constants.NATIVE_TOKEN) {
-    //         (bool success, ) = payable(msg.sender).call{value: amount}("");
-    //         require(success, "ETH transfer failed");
-    //     } else {
-    //         IERC20(token).safeTransfer(msg.sender, amount);
-    //     }
-
-    //     emit Withdraw(msg.sender, token, amount, shares);
-    //     return amount;
-    // }
-
-    // /**
-    //  * @notice Updates the pool state, including interest accrual
-    //  * @dev Called before any deposit or withdrawal to ensure accurate accounting
-    //  * @param token The token address to update
-    //  */
-    // function _updatePoolState(address token) internal {
-    //     uint256 currentTimestamp = block.timestamp;
-    //     uint256 lastUpdateTimestamp = _appStorage.s_tokenData[token].lastUpdateTimestamp;
-        
-    //     if (currentTimestamp > lastUpdateTimestamp) {
-    //         uint256 timeElapsed = currentTimestamp - lastUpdateTimestamp;
-            
-    //         // Calculate interest rate based on utilization
-    //         uint256 utilization = _calculateUtilization(token);
-    //         uint256 interestRate = _calculateInterestRate(
-    //             utilization,
-    //             _appStorage.s_protocolPool.baseRate,
-    //             _appStorage.s_protocolPool.slopeRate,
-    //             _appStorage.s_protocolPool.optimalUtilization
-    //         );
-            
-    //         // Update normalized debt with accumulated interest
-    //         if (_appStorage.s_tokenData[token].totalBorrows > 0) {
-    //             // Calculate interest factor based on time elapsed and annual rate
-    //             uint256 interestFactor = 1e18 + ((interestRate * timeElapsed) / 365 days);
-                
-    //             // Calculate old and new total debt
-    //             uint256 oldNormalizedDebt = _appStorage.s_tokenData[token].normalizedPoolDebt;
-    //             uint256 newNormalizedDebt = (oldNormalizedDebt * interestFactor) / 1e18;
-                
-    //             // Update normalized debt
-    //             _appStorage.s_tokenData[token].normalizedPoolDebt = newNormalizedDebt;
-                
-    //             // Calculate and emit actual interest accrued
-    //             uint256 totalDebtBefore = _appStorage.s_tokenData[token].totalBorrows;
-    //             uint256 totalDebtAfter = (totalDebtBefore * newNormalizedDebt) / oldNormalizedDebt;
-    //             uint256 interestAccrued = totalDebtAfter - totalDebtBefore;
-                
-    //             // Emit interest accrual event
-    //             emit InterestAccrued(token, interestAccrued);
-    //         }
-            
-    //         // Update last update timestamp
-    //         _appStorage.s_tokenData[token].lastUpdateTimestamp = currentTimestamp;
-    //     }
-    // }
-
- 
-
-    // /**
-    //  * @notice Gets user's share balance for a specific token
-    //  * @param user The user address
-    //  * @param token The token address
-    //  * @return The user's share balance
-    //  */
-    // function getUserShares(address user, address token) external view returns (uint256) {
-    //     return _appStorage.s_userShares[user][token];
-    // }
-
-    // /**
-    //  * @notice Gets the current pool data for a token
-    //  * @param token The token address
-    //  * @return totalSupply Total supply of shares
-    //  * @return poolLiquidity Available liquidity in the pool
-    //  * @return totalBorrows Total amount borrowed from the pool
-    //  * @return utilization Current utilization rate (scaled by 10000)
-    //  * @return interestRate Current annual interest rate (scaled by 1e18)
-    //  */
-    // function getPoolData(address token) external view returns (
-    //     uint256 totalSupply,
-    //     uint256 poolLiquidity,
-    //     uint256 totalBorrows,
-    //     uint256 utilization,
-    //     uint256 interestRate
-    // ) {
-    //     totalSupply = _appStorage.s_tokenData[token].totalSupply;
-    //     poolLiquidity = _appStorage.s_tokenData[token].poolLiquidity;
-    //     totalBorrows = _appStorage.s_tokenData[token].totalBorrows;
-    //     utilization = _calculateUtilization(token);
-    //     interestRate = _calculateInterestRate(
-    //         utilization,
-    //         _appStorage.s_protocolPool.baseRate,
-    //         _appStorage.s_protocolPool.slopeRate,
-    //         _appStorage.s_protocolPool.optimalUtilization
-    //     );
-        
-    //     return (totalSupply, poolLiquidity, totalBorrows, utilization, interestRate);
-    // }
-    
-    // /**
-    //  * @notice Gets the amount of underlying tokens that a given amount of shares represents
-    //  * @dev This is useful for users to know how much they can withdraw with their shares
-    //  * @param token The token address
-    //  * @param shares The number of shares
-    //  * @return The amount of tokens the shares represent
-    //  */
-    // function getTokenAmountFromShares(address token, uint256 shares) external view returns (uint256) {
-    //     return _calculateAmountToWithdraw(token, shares);
-    // }
-    
-    // /**
-    //  * @notice Gets the amount of shares needed to withdraw a specific token amount
-    //  * @dev Inverse of getTokenAmountFromShares
-    //  * @param token The token address
-    //  * @param amount The token amount
-    //  * @return The number of shares needed
-    //  */
-    // function getSharesForTokenAmount(address token, uint256 amount) external view returns (uint256) {
-    //     uint256 totalSupply = _appStorage.s_tokenData[token].totalSupply;
-    //     uint256 poolLiquidity = _appStorage.s_tokenData[token].poolLiquidity;
-        
-    //     if (poolLiquidity == 0) return 0;
-        
-    //     return (amount * totalSupply) / poolLiquidity;
-    // }
+  
 }
