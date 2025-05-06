@@ -38,7 +38,8 @@ library LibAppStorage {
         uint16 feeRateBps;
         /// @dev maps token address to token data
         mapping(address token => TokenData) s_tokenData;
-        mapping(address => mapping(address => uint256)) s_addressToUserPoolDeposit;
+        // mapping(address => mapping(address => uint256)) s_addressToUserPoolDeposit;
+        mapping(address => mapping(address => uint256)) s_addressToUserPoolShare;
         ///@dev Liquidity PoolConfig
         mapping(address => ProtocolPool) s_protocolPool;
         address s_protocolFeeRecipient;

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.9;
 
 import {Constants} from "../constants/Constant.sol";
+import {TokenData} from "../../model/Protocol.sol";
 import "../validators/Error.sol";
 
 library Utils {
@@ -72,5 +73,40 @@ library Utils {
         _value =
             (_loanUsdValue * 100 * Constants.PRECISION) /
             _maxLoanableAmount;
+    }
+
+    function convertToShares(
+        TokenData memory _token,
+        uint256 _amount
+    ) internal pure returns (uint256 _shares) {
+        // Calculate shares based on the amount deposited and the total supply of the token
+        if (_token.totalSupply == 0) {
+            _shares = _amount;
+        } else {
+            _shares = (_amount * _token.totalSupply) / _token.poolLiquidity;
+        }
+    }
+
+    function convertToAmount(
+        TokenData memory _token,
+        uint256 _shares
+    ) internal pure returns (uint256 _amount) {
+        // Calculate amount based on shares and the total supply of the token
+        if (_token.totalSupply == 0) {
+            _amount = _shares;
+        } else {
+            _amount = (_shares * _token.poolLiquidity) / _token.totalSupply;
+        }
+    }
+
+    function pricePerShare(
+        TokenData memory _token
+    ) internal pure returns (uint256 _price) {
+        // Calculate price per share based on the total supply and pool liquidity
+        if (_token.totalSupply == 0) {
+            _price = 0;
+        } else {
+            _price = _token.poolLiquidity / _token.totalSupply;
+        }
     }
 }

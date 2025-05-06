@@ -7,9 +7,10 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {LibDiamond} from "../libraries/LibDiamond.sol";
 import {Constants} from "../utils/constants/Constant.sol";
-import {ProtocolPool} from "../model/Protocol.sol";
+import {ProtocolPool, TokenData} from "../model/Protocol.sol";
 import "../model/Event.sol";
 import "../utils/validators/Error.sol";
+import {Utils} from "../utils/functions/Utils.sol";
 
 /**
  * @title LiquidityPoolFacet
@@ -33,8 +34,7 @@ contract LiquidityPoolFacet is AppStorage {
         uint256 reserveFactor,
         uint256 optimalUtilization,
         uint256 baseRate,
-        uint256 slopeRate,
-        uint256 initialSupply
+        uint256 slopeRate // uint256 initialSupply
     ) external payable {
         // Check caller is contract owner
         LibDiamond.enforceIsContractOwner();
@@ -55,24 +55,24 @@ contract LiquidityPoolFacet is AppStorage {
         require(optimalUtilization <= 9000, "Optimal utilization too high");
         require(baseRate <= 1000, "Base rate too high");
 
-        if (_token == Constants.NATIVE_TOKEN) {
-            require(msg.value == initialSupply, "Incorrect ETH amount");
-        } else {
-            require(
-                IERC20(_token).balanceOf(msg.sender) >= initialSupply,
-                "Insufficient token balance"
-            );
-            require(
-                IERC20(_token).allowance(msg.sender, address(this)) >=
-                    initialSupply,
-                "Insufficient token allowance"
-            );
-            IERC20(_token).safeTransferFrom(
-                msg.sender,
-                address(this),
-                initialSupply
-            );
-        }
+        // if (_token == Constants.NATIVE_TOKEN) {
+        //     require(msg.value == initialSupply, "Incorrect ETH amount");
+        // } else {
+        //     require(
+        //         IERC20(_token).balanceOf(msg.sender) >= initialSupply,
+        //         "Insufficient token balance"
+        //     );
+        //     require(
+        //         IERC20(_token).allowance(msg.sender, address(this)) >=
+        //             initialSupply,
+        //         "Insufficient token allowance"
+        //     );
+        //     IERC20(_token).safeTransferFrom(
+        //         msg.sender,
+        //         address(this),
+        //         initialSupply
+        //     );
+        // }
 
         ProtocolPool storage _protocolPool = _appStorage.s_protocolPool[_token];
 
@@ -166,11 +166,14 @@ contract LiquidityPoolFacet is AppStorage {
         }
         // Calculate shares based on the amount deposited
         // calculate user interest
+        shares = Utils.convertToShares(_appStorage.s_tokenData[token], amount);
 
         // Update state variables
+        _appStorage.s_protocolPool[token].totalSupply += shares;
         _appStorage.s_tokenData[token].poolLiquidity += amount;
         _appStorage.s_tokenData[token].lastUpdateTimestamp = block.timestamp;
-        _appStorage.s_addressToUserPoolDeposit[msg.sender][token] += amount;
+        // _appStorage.s_addressToUserPoolDeposit[msg.sender][token] += amount;
+        _appStorage.s_addressToUserPoolShare[msg.sender][token] += shares;
 
         emit Deposit(msg.sender, token, amount, shares);
     }
@@ -179,6 +182,52 @@ contract LiquidityPoolFacet is AppStorage {
         address user,
         address token
     ) external view returns (uint256) {
-        return _appStorage.s_addressToUserPoolDeposit[user][token];
+        return maxRedeemable(user, token);
+    }
+
+    /**
+     * @notice gets token data for a specific token
+     * @param token The address of the token
+     * @return totalSupply The total supply of the token
+     * @return poolLiquidity The total liquidity in the pool for the token
+     * @return totalBorrows The total amount borrowed from the pool for the token
+     * @return lastUpdateTimestamp The last time the token data was updated
+     * @return normalizedPoolDebt The normalized pool debt for the token
+     */
+    function getPoolTokenData(
+        address token
+    )
+        external
+        view
+        returns (
+            uint256 totalSupply,
+            uint256 poolLiquidity,
+            uint256 totalBorrows,
+            uint256 lastUpdateTimestamp,
+            uint256 normalizedPoolDebt
+        )
+    {
+        return (
+            _appStorage.s_tokenData[token].totalSupply,
+            _appStorage.s_tokenData[token].poolLiquidity,
+            _appStorage.s_tokenData[token].totalBorrows,
+            _appStorage.s_tokenData[token].lastUpdateTimestamp,
+            _appStorage.s_tokenData[token].normalizedPoolDebt
+        );
+    }
+
+    function maxRedeemable(
+        address user,
+        address token
+    ) internal view returns (uint256) {
+        // Check if the user has any shares in the pool
+        uint256 _shares = _appStorage.s_addressToUserPoolShare[user][token];
+        if (_shares == 0) return 0;
+
+        TokenData memory _token = _appStorage.s_tokenData[token];
+        // Calculate the maximum redeemable amount based on shares and pool liquidity
+        uint256 _maxRedeemableAmount = Utils.convertToAmount(_token, _shares);
+
+        return _maxRedeemableAmount;
     }
 }

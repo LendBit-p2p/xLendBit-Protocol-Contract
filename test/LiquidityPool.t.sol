@@ -197,15 +197,14 @@ contract ProtocolTest is Test, IDiamondCut {
         uint256 _optimalUtilization = 8000; // 80%
         uint256 _baseRate = 500; // 5%
         uint256 _slopeRate = 2000; // 20%
-        uint256 _initialSupply = 100 ether;
+        // uint256 _initialSupply = 100 ether;
 
         liquidityPoolFacet.initializeProtocolPool(
             DAI_CONTRACT_ADDRESS,
             _reserveFactor,
             _optimalUtilization,
             _baseRate,
-            _slopeRate,
-            _initialSupply
+            _slopeRate
         );
         (
             address token,
@@ -242,8 +241,7 @@ contract ProtocolTest is Test, IDiamondCut {
             _reserveFactor,
             _optimalUtilization,
             _baseRate,
-            _slopeRate,
-            _initialSupply
+            _slopeRate
         );
         (
             address token,
@@ -303,6 +301,20 @@ contract ProtocolTest is Test, IDiamondCut {
         protocolFacet.requestLoanFromListing(1, 5E10);
     }
 
+    function testUserSharesAreCalculatedCorrectly() public {
+        initializeTokenPool(DAI_CONTRACT_ADDRESS);
+        // IERC20(DAI_CONTRACT_ADDRESS).approve(
+        //     address(protocolFacet),
+        //     type(uint256).max
+        // );
+        uint256 amount = 100 ether;
+        uint256 shares = liquidityPoolFacet.deposit(
+            DAI_CONTRACT_ADDRESS,
+            amount
+        );
+        assertEq(shares, amount);
+    }
+
     function _mintTokenToAddress(
         address _token,
         address _to,
@@ -339,6 +351,28 @@ contract ProtocolTest is Test, IDiamondCut {
         vm.label(address(_priceFeed), "Price Feed");
         vm.label(address(_erc20), _name);
         return (address(_erc20), address(_priceFeed));
+    }
+
+    function initializeTokenPool(address _token) internal {
+        switchSigner(owner);
+        uint256 _reserveFactor = 2000; // 20%
+        uint256 _optimalUtilization = 8000; // 80%
+        uint256 _baseRate = 500; // 5%
+        uint256 _slopeRate = 2000; // 20%
+        // uint256 _initialSupply = 100 ether;
+
+        IERC20(DAI_CONTRACT_ADDRESS).approve(
+            address(protocolFacet),
+            type(uint256).max
+        );
+
+        liquidityPoolFacet.initializeProtocolPool(
+            _token,
+            _reserveFactor,
+            _optimalUtilization,
+            _baseRate,
+            _slopeRate
+        );
     }
 
     function generateSelectors(
