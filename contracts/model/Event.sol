@@ -75,3 +75,38 @@ event FeesWithdrawn(address indexed to, address indexed token, uint256 amount);
 
 event RequestLiquidated(uint96 indexed requestId, address indexed sender,address indexed borrower, address lender, uint256 totalCollateralValue);
 event ProtocolFeeRecipientSet(address indexed _feeRecipient);
+
+
+    /**
+     * @notice Emitted when a protocol pool is initialized
+     * @param token The address of the token used for the pool
+     * @param reserveFactor The reserve factor set for the pool
+     */
+    event ProtocolPoolInitialized(address indexed token, uint256 reserveFactor);
+
+    
+    
+    /**
+     * @notice Emitted when a user deposits into a liquidity pool
+     * @param user The address of the user making the deposit
+     * @param token The address of the token deposited
+     * @param amount The amount of tokens deposited
+     * @param sharesMinted The amount of LP shares minted to the user
+     */
+    event Deposit(address indexed user, address indexed token, uint256 amount, uint256 sharesMinted);
+    
+    /**
+     * @notice Emitted when a user withdraws from a liquidity pool
+     * @param user The address of the user making the withdrawal
+     * @param token The address of the token withdrawn
+     * @param amount The amount of tokens withdrawn
+     * @param sharesBurned The amount of LP shares burned
+     */
+    event Withdraw(address indexed user, address indexed token, uint256 amount, uint256 sharesBurned);
+    
+    /**
+     * @notice Emitted when interest is accrued in a pool
+     * @param token The address of the token for which interest was accrued
+     * @param interestAccrued The amount of interest accrued
+     */
+    event InterestAccrued(address indexed token, uint256 interestAccrued);

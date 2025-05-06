@@ -7,6 +7,8 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {LibDiamond} from "../libraries/LibDiamond.sol";
 import {Constants} from "../utils/constants/Constant.sol";
+import "../model/Event.sol";
+import "../utils/validators/Error.sol";
 
 /**
  * @title LiquidityPoolFacet
@@ -16,55 +18,8 @@ import {Constants} from "../utils/constants/Constant.sol";
 contract LiquidityPoolFacet is AppStorage {
     using SafeERC20 for IERC20;
 
-    /**
-     * @notice Emitted when a protocol pool is initialized
-     * @param token The address of the token used for the pool
-     * @param reserveFactor The reserve factor set for the pool
-     */
-    event ProtocolPoolInitialized(address indexed token, uint256 reserveFactor);
 
-    
-    
-    /**
-     * @notice Emitted when a user deposits into a liquidity pool
-     * @param user The address of the user making the deposit
-     * @param token The address of the token deposited
-     * @param amount The amount of tokens deposited
-     * @param sharesMinted The amount of LP shares minted to the user
-     */
-    event Deposit(address indexed user, address indexed token, uint256 amount, uint256 sharesMinted);
-    
-    /**
-     * @notice Emitted when a user withdraws from a liquidity pool
-     * @param user The address of the user making the withdrawal
-     * @param token The address of the token withdrawn
-     * @param amount The amount of tokens withdrawn
-     * @param sharesBurned The amount of LP shares burned
-     */
-    event Withdraw(address indexed user, address indexed token, uint256 amount, uint256 sharesBurned);
-    
-    /**
-     * @notice Emitted when interest is accrued in a pool
-     * @param token The address of the token for which interest was accrued
-     * @param interestAccrued The amount of interest accrued
-     */
-    event InterestAccrued(address indexed token, uint256 interestAccrued);
 
-    // Custom errors
-    /// @notice Thrown when trying to interact with a protocol pool that is not active
-    error ProtocolPool__IsNotActive();
-    /// @notice Thrown when trying to initialize an already initialized protocol pool
-    error ProtocolPool__AlreadyInitialized();
-    /// @notice Thrown when trying to use a token that is not supported by the protocol
-    error ProtocolPool__TokenNotSupported();
-    /// @notice Thrown when attempting an operation with zero amount
-    error ProtocolPool__ZeroAmount();
-    /// @notice Thrown when trying to use a protocol pool that has not been initialized
-    error ProtocolPool__NotInitialized();
-    /// @notice Thrown when a user tries to withdraw more than their balance
-    error ProtocolPool__InsufficientBalance();
-    /// @notice Thrown when a withdrawal is not possible due to insufficient liquidity
-    error ProtocolPool__InsufficientLiquidity();
 
     /**
      * @notice Initializes the protocol pool with the given parameters
