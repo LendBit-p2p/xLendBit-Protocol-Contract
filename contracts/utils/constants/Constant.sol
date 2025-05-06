@@ -12,5 +12,8 @@ library Constants {
     address constant WETH = 0x4200000000000000000000000000000000000006;
     uint256 constant MAX_LIQUIDATION_BONUS = 10000; // 100%
     uint256 constant LIQUIDATION_DISCOUNT = 1000; // 10%
+    uint256 constant MAX_RESERVE_FACTOR = 5000; // 50%
+    
+
 
 }

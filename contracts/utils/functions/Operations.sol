@@ -933,11 +933,10 @@ contract Operations is AppStorage {
      *      4. Transfers collateral to the liquidator with a discount
      *      5. Sends liquidation fee to the protocol
      * @param requestId The unique identifier of the loan request to liquidate
-     * @return bool True if liquidation was successful
      */
     function liquidateUserRequest(
         uint96 requestId
-    ) external payable returns (bool) {
+    ) external payable {
         // Get the loan request from storage
         Request storage request = _appStorage.request[requestId];
 
