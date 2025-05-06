@@ -400,6 +400,30 @@ function testUser_CantBorrowInLow_LiquidityPool() public {
  
 }
 
+function testBorrowFromInactivePool() public {
+    initializeTokenPool(DAI_CONTRACT_ADDRESS);
+
+    uint256 DEPOSIT_AMOUNT = 100 ether;
+    uint256 BORROW_AMOUNT = 10 ether;
+    vm.deal(B, 200000 ether);
+
+    // Owner deposits to the pool
+    liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, DEPOSIT_AMOUNT);
+
+    liquidityPoolFacet.setPoolActive(DAI_CONTRACT_ADDRESS, false); // Add this function if needed
+   
+
+    // Deposit collateral as B
+    _depositCollateral(B, ETH_CONTRACT_ADDRESS, 200 ether);
+
+    vm.expectRevert(ProtocolPool__IsNotActive.selector);
+    liquidityPoolFacet.borrowFromPool(DAI_CONTRACT_ADDRESS, BORROW_AMOUNT);
+    vm.stopPrank();
+}
+
+
+
+
 function testUserCant_BorrowFrom_UninitializedPool() public {
     uint256 BORROW_AMOUNT = 10 ether;
     vm.deal(B, 200000 ether);
@@ -640,8 +664,6 @@ function testRepayFull() public {
     assertEq(borrowedAmount, 0, "Debt should be fully cleared");
     assertFalse(isActive, "Borrow position should be inactive");
 }
-
-
 
 
     function _depositCollateral(

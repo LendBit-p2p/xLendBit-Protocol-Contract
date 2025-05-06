@@ -453,6 +453,22 @@ function getUserDebt(address user, address token) external view returns (uint256
 
     return debt;
 }
+    
+        /////////////////////////
+        /////ONLY OWNER FUNCTION///
+        /////////////////////////
+        
+
+    /**
+     * @notice Sets the active status of a protocol pool
+     * @param token The address of the token
+     * @param isActive The new active status
+     */
+    function setPoolActive(address token, bool isActive) external {
+        LibDiamond.enforceIsContractOwner();
+        _appStorage.s_protocolPool[token].isActive = isActive;
+    }
+
 
     /////////////////////////
     /////INTERNAL FUNCTION///
