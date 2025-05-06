@@ -109,4 +109,8 @@ event ProtocolFeeRecipientSet(address indexed _feeRecipient);
      * @param token The address of the token for which interest was accrued
      * @param interestAccrued The amount of interest accrued
      */
+
+    
     event InterestAccrued(address indexed token, uint256 interestAccrued);
+event Borrow(address indexed sender,address indexed token, uint256 indexed amount);
+ event Repay(address indexed sender, address indexed token,uint256 indexed amountRepaid);

@@ -15,6 +15,28 @@ struct User {
 }
 
 /**
+ * @title User Borrow Data
+ * @notice Structure to track individual user borrowing information
+ */
+struct UserBorrowData {
+    uint256 borrowedAmount;           // Original amount borrowed
+    uint256 borrowIndex;              // Index at time of borrowing (normalized)
+    uint256 lastUpdateTimestamp;      // Last time user data was updated
+    bool isActive;                    // Whether the borrow is active
+}
+
+struct TokenData {
+    uint256 totalSupply;
+    uint256 poolLiquidity;
+    uint256 totalBorrows;
+    uint256 lastUpdateTimestamp;
+    uint256 borrowIndex;
+    uint256 totalReserves;
+}
+
+
+
+/**
  * @dev Struct to store information about a loan request.
  * @param requestId Unique identifier for the loan request.
  * @param author Address of the user who created the request.
@@ -77,13 +99,7 @@ struct ProtocolPool {
     bool isActive;
 }
 
-struct TokenData {
-    uint256 totalSupply;
-    uint256 poolLiquidity;
-    uint256 totalBorrows;
-    uint256 lastUpdateTimestamp;
-    uint256 normalizedPoolDebt;
-}
+
 
 /**
  * @dev Enum representing the status of a loan request.
