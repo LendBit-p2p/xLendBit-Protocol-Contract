@@ -152,17 +152,17 @@ contract LiquidityPoolFacet is AppStorage {
 
 
          // Update borrow index to accrue interest
-            LibInterestAccure.updateBorrowIndex(tokenData, _protocolPool);
+        LibInterestAccure.updateBorrowIndex(tokenData, _protocolPool);
 
 
             // Verify user has sufficient collateral
-    uint8 tokenDecimals = LibGettersImpl._getTokenDecimal(token);
-    uint256 loanUsdValue = LibGettersImpl._getUsdValue(
-        _appStorage,
-        token,
-        amount,
-        tokenDecimals
-    );
+        uint8 tokenDecimals = LibGettersImpl._getTokenDecimal(token);
+        uint256 loanUsdValue = LibGettersImpl._getUsdValue(
+            _appStorage,
+            token,
+            amount,
+            tokenDecimals
+        );
     
     // Check health factor after potential borrow
     if (LibGettersImpl._healthFactor(_appStorage, msg.sender, loanUsdValue) < 1e18) {
@@ -278,6 +278,65 @@ function repay(address token, uint256 amount) external payable returns (uint256 
     emit Repay(msg.sender, token, amountRepaid);
 }
 
+
+/**
+ * @notice Allows users to withdraw tokens from the liquidity pool
+ * @param token The address of the token to withdraw
+ * @param shares The amount of shares to burn and withdraw corresponding tokens
+ * @return amountWithdrawn The actual amount of tokens withdrawn
+ */
+function withdrawn(
+    address token,
+    uint256 shares
+) external returns (uint256 amountWithdrawn) {
+    // Validate withdraw conditions
+    if (!_appStorage.s_protocolPool[token].initialize)
+        revert ProtocolPool__NotInitialized();
+    if (shares == 0) revert ProtocolPool__ZeroAmount();
+    if (!_appStorage.s_isLoanable[token])
+        revert ProtocolPool__TokenNotSupported();
+
+    // Check user has sufficient shares
+    uint256 userShares = _appStorage.s_addressToUserPoolShare[msg.sender][token];
+    if (userShares < shares) revert ProtocolPool__InsufficientShares();
+
+    // Get storage references
+    TokenData storage tokenData = _appStorage.s_tokenData[token];
+    ProtocolPool storage protocolPool = _appStorage.s_protocolPool[token];
+
+    // Ensure pool has liquidity
+    if (tokenData.poolLiquidity == 0) revert ProtocolPool__NoLiquidity(); 
+    // Update borrow index to accrue interest before withdrawal
+    LibInterestAccure.updateBorrowIndex(tokenData, protocolPool);
+
+    // Calculate amount to withdraw based on shares
+     amountWithdrawn = Utils.convertToAmount(tokenData, shares);
+
+    // Ensure pool has enough liquidity to fulfill the withdrawal
+    if (tokenData.poolLiquidity < amountWithdrawn)
+        revert ProtocolPool__NotEnoughLiquidity();
+
+    // Update user's share balance
+    _appStorage.s_addressToUserPoolShare[msg.sender][token] -= shares;
+
+    // Update protocol pool state
+    protocolPool.totalSupply -= shares;
+    tokenData.poolLiquidity -= amountWithdrawn;
+    tokenData.lastUpdateTimestamp = block.timestamp;
+
+    // Transfer tokens to user
+    if (token == Constants.NATIVE_TOKEN) {
+        (bool success, ) = payable(msg.sender).call{value: amountWithdrawn}("");
+        require(success, "ETH transfer failed");
+    } else {
+       uint balance =  IERC20(token).balanceOf(msg.sender);
+       if(balance < amountWithdrawn) revert ProtocolPool__InsufficientBalance();
+
+        IERC20(token).safeTransfer(msg.sender, amountWithdrawn);
+    }
+
+    emit Withdraw(msg.sender, token, amountWithdrawn, shares);
+}
 
 
 

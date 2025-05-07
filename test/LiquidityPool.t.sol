@@ -358,8 +358,6 @@ function testBorrowInsideALiquidityPool() public {
         
     }
 
-
-
 function testUser_CantBorrowInLow_LiquidityPool() public {
     initializeTokenPool(DAI_CONTRACT_ADDRESS);
 
@@ -664,6 +662,215 @@ function testRepayFull() public {
     assertEq(borrowedAmount, 0, "Debt should be fully cleared");
     assertFalse(isActive, "Borrow position should be inactive");
 }
+
+
+    function testWithdrawFromPool() public {
+        // Setup: User deposits tokens first
+    initializeTokenPool(DAI_CONTRACT_ADDRESS);
+    _mintTokenToAddress(DAI_CONTRACT_ADDRESS, B, 1000 ether);
+
+    uint256 DEPOSIT_AMOUNT = 100 ether;
+    uint256 BORROW_AMOUNT = 10 ether;
+    vm.deal(B, 200000 ether);
+
+    liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, 100 ether);
+
+    uint256 poolDeposit = liquidityPoolFacet.getUserPoolDeposit(
+            owner,
+            DAI_CONTRACT_ADDRESS
+        );
+    assertEq(poolDeposit, 100 ether);
+  
+
+    (uint256 totalSupply,uint256 poolLiquidity,uint256 totalBorrows,uint256 lastUpdateTimestamp) = liquidityPoolFacet.getPoolTokenData(DAI_CONTRACT_ADDRESS);
+
+    assertEq(poolLiquidity, DEPOSIT_AMOUNT, "Pool liquidity should be 100 dia");
+
+    switchSigner(B);
+        IERC20(DAI_CONTRACT_ADDRESS).approve(address(liquidityPoolFacet), 200 ether);
+
+    liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, 100 ether);
+      
+    uint256 poolDeposit_2 = liquidityPoolFacet.getUserPoolDeposit(
+            B,
+            DAI_CONTRACT_ADDRESS
+        );
+
+    assertEq(poolDeposit_2, 100 ether);
+
+    // Get user's shares after deposit
+    uint256 userShares = liquidityPoolFacet.getUserPoolDeposit(B, DAI_CONTRACT_ADDRESS);
+    assertGt(userShares, 0, "User should have shares after deposit");
+
+        // Get initial token balance before withdrawal
+    uint256 initialBalance = IERC20(DAI_CONTRACT_ADDRESS).balanceOf(B);
+        
+        // Withdraw all shares
+        liquidityPoolFacet.withdrawn(DAI_CONTRACT_ADDRESS, userShares);
+
+        uint256 sharesafterWithdrawn = liquidityPoolFacet.getUserPoolDeposit(B, DAI_CONTRACT_ADDRESS);
+        assertEq(sharesafterWithdrawn, 0, "All shares should be withdrawn");        
+    }
+    
+    function testPartialWithdrawFromPool() public {
+           // Setup: User deposits tokens first
+    initializeTokenPool(DAI_CONTRACT_ADDRESS);
+    _mintTokenToAddress(DAI_CONTRACT_ADDRESS, B, 1000 ether);
+
+    uint256 DEPOSIT_AMOUNT = 100 ether;
+    uint256 BORROW_AMOUNT = 10 ether;
+    vm.deal(B, 200000 ether);
+
+    liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, 100 ether);
+
+    uint256 poolDeposit = liquidityPoolFacet.getUserPoolDeposit(
+            owner,
+            DAI_CONTRACT_ADDRESS
+        );
+    assertEq(poolDeposit, 100 ether);
+  
+
+    (uint256 totalSupply,uint256 poolLiquidity,uint256 totalBorrows,uint256 lastUpdateTimestamp) = liquidityPoolFacet.getPoolTokenData(DAI_CONTRACT_ADDRESS);
+
+    assertEq(poolLiquidity, DEPOSIT_AMOUNT, "Pool liquidity should be 100 dia");
+
+    switchSigner(B);
+        IERC20(DAI_CONTRACT_ADDRESS).approve(address(liquidityPoolFacet), 200 ether);
+
+    liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, DEPOSIT_AMOUNT);
+      
+    uint256 poolDeposit_2 = liquidityPoolFacet.getUserPoolDeposit(
+            B,
+            DAI_CONTRACT_ADDRESS
+        );
+
+    assertEq(poolDeposit_2, 100 ether);
+
+    // Get user's shares after deposit
+    uint256 userShares = liquidityPoolFacet.getUserPoolDeposit(B, DAI_CONTRACT_ADDRESS);
+    assertGt(userShares, 0, "User should have shares after deposit");
+
+        // Get initial token balance before withdrawal
+    uint256 initialBalance = IERC20(DAI_CONTRACT_ADDRESS).balanceOf(B);
+        
+        uint256 withdrawnHalfAmount = DEPOSIT_AMOUNT / 2;
+        // Withdraw all shares
+        liquidityPoolFacet.withdrawn(DAI_CONTRACT_ADDRESS, withdrawnHalfAmount);
+
+        uint256 sharesafterWithdrawn = liquidityPoolFacet.getUserPoolDeposit(B, DAI_CONTRACT_ADDRESS);
+        assertEq(sharesafterWithdrawn, DEPOSIT_AMOUNT - withdrawnHalfAmount , "half shares should be withdrawn");        
+    }
+    
+    
+    // function testWithdrawNativeToken() public {
+    //     // Setup: User deposits ETH first
+    //     vm.startPrank(user1);
+    //     LiquidityPoolFacet(diamondAddress).deposit{value: DEPOSIT_AMOUNT}(
+    //         Constants.NATIVE_TOKEN, 
+    //         DEPOSIT_AMOUNT
+    //     );
+        
+    //     // Get user's shares after deposit
+    //     uint256 userShares = getUserShares(user1, Constants.NATIVE_TOKEN);
+        
+    //     // Get initial ETH balance before withdrawal
+    //     uint256 initialBalance = user1.balance;
+        
+    //     // Withdraw all shares
+    //     uint256 amountWithdrawn = LiquidityPoolFacet(diamondAddress).withdraw(
+    //         Constants.NATIVE_TOKEN,
+    //         userShares
+    //     );
+        
+    //     // Verify ETH was received
+    //     uint256 finalBalance = user1.balance;
+    //     assertEq(finalBalance, initialBalance + amountWithdrawn, "User should receive ETH");
+    //     assertEq(amountWithdrawn, DEPOSIT_AMOUNT, "Should withdraw original deposit amount");
+        
+    //     vm.stopPrank();
+    // }
+    
+    // function testFailWithdrawInsufficientShares() public {
+    //     // Setup: User deposits tokens first
+    //     vm.startPrank(user1);
+    //     mockToken.approve(diamondAddress, DEPOSIT_AMOUNT);
+    //     LiquidityPoolFacet(diamondAddress).deposit(address(mockToken), DEPOSIT_AMOUNT);
+        
+    //     // Get user's shares after deposit
+    //     uint256 userShares = getUserShares(user1, address(mockToken));
+        
+    //     // Try to withdraw more shares than user has
+    //     LiquidityPoolFacet(diamondAddress).withdraw(
+    //         address(mockToken),
+    //         userShares + 1
+    //     );
+    //     // This should fail with InsufficientShares error
+        
+    //     vm.stopPrank();
+    // }
+    
+    // function testWithdrawWithBorrows() public {
+    //     // Setup: User1 deposits tokens
+    //     vm.startPrank(user1);
+    //     mockToken.approve(diamondAddress, DEPOSIT_AMOUNT);
+    //     LiquidityPoolFacet(diamondAddress).deposit(address(mockToken), DEPOSIT_AMOUNT);
+    //     vm.stopPrank();
+        
+    //     // User2 borrows some tokens
+    //     vm.startPrank(user2);
+    //     // Note: This would require collateral setup in a real test
+    //     // For simplicity, we're assuming this works
+    //     uint256 borrowAmount = DEPOSIT_AMOUNT / 4;
+    //     // LiquidityPoolFacet(diamondAddress).borrowFromPool(address(mockToken), borrowAmount);
+    //     vm.stopPrank();
+        
+    //     // User1 tries to withdraw all shares
+    //     vm.startPrank(user1);
+    //     uint256 userShares = getUserShares(user1, address(mockToken));
+        
+    //     // This should succeed but withdraw less than the full deposit amount
+    //     uint256 amountWithdrawn = LiquidityPoolFacet(diamondAddress).withdraw(
+    //         address(mockToken),
+    //         userShares
+    //     );
+        
+    //     // Verify tokens were received, but less than original deposit due to borrows
+    //     assertLt(amountWithdrawn, DEPOSIT_AMOUNT, "Should withdraw less than deposit due to borrows");
+        
+    //     vm.stopPrank();
+    // }
+    
+    // function testWithdrawAfterInterestAccrual() public {
+    //     // Setup: User1 deposits tokens
+    //     vm.startPrank(user1);
+    //     mockToken.approve(diamondAddress, DEPOSIT_AMOUNT);
+    //     LiquidityPoolFacet(diamondAddress).deposit(address(mockToken), DEPOSIT_AMOUNT);
+    //     vm.stopPrank();
+        
+    //     // User2 borrows some tokens
+    //     vm.startPrank(user2);
+    //     // Assuming collateral setup
+    //     uint256 borrowAmount = DEPOSIT_AMOUNT / 4;
+    //     // LiquidityPoolFacet(diamondAddress).borrowFromPool(address(mockToken), borrowAmount);
+    //     vm.stopPrank();
+        
+    //     // Fast forward time to accrue interest
+    //     vm.warp(block.timestamp + 365 days);
+        
+    //     // User1 withdraws shares
+    //     vm.startPrank(user1);
+    //     uint256 userShares = getUserShares(user1, address(mockToken));
+    //     uint256 amountWithdrawn = LiquidityPoolFacet(diamondAddress).withdraw(
+    //         address(mockToken),
+    //         userShares
+    //     );
+        
+    //     // With interest accrual, user should receive more than their deposit
+    //     assertGt(amountWithdrawn, DEPOSIT_AMOUNT, "Should withdraw more than deposit due to interest");
+        
+    //     vm.stopPrank();
+    // }
+    
 
 
     function _depositCollateral(
