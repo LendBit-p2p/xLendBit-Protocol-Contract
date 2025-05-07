@@ -44,18 +44,18 @@ contract LiquidityPoolFacet is AppStorage {
         LibDiamond.enforceIsContractOwner();
 
         // Validate protocol state
-        if (_appStorage.s_protocolPool[_token].isActive)
+        if (_appStorage.s_protocolPool[_token].isActive) {
             revert ProtocolPool__IsNotActive();
-        if (_appStorage.s_protocolPool[_token].initialize)
+        }
+        if (_appStorage.s_protocolPool[_token].initialize) {
             revert ProtocolPool__AlreadyInitialized();
-        if (!_appStorage.s_isLoanable[_token])
+        }
+        if (!_appStorage.s_isLoanable[_token]) {
             revert ProtocolPool__TokenNotSupported();
+        }
 
         // Validate parameters
-        require(
-            reserveFactor <= Constants.MAX_RESERVE_FACTOR,
-            "Reserve factor too high"
-        );
+        require(reserveFactor <= Constants.MAX_RESERVE_FACTOR, "Reserve factor too high");
         require(optimalUtilization <= 9000, "Optimal utilization too high");
         require(baseRate <= 1000, "Base rate too high");
 
@@ -74,11 +74,11 @@ contract LiquidityPoolFacet is AppStorage {
         _appStorage.s_tokenData[_token].lastUpdateTimestamp = block.timestamp;
         _appStorage.s_tokenData[_token].borrowIndex = 1e18; // Initialize with 1.0 in 18 decimals
 
-       
         emit ProtocolPoolInitialized(_token, reserveFactor);
     }
 
-   
+
+
     /**
      * @notice Allows users to deposit tokens into the liquidity pool
      * @dev Handles both native token (ETH) and ERC20 deposits
@@ -86,20 +86,18 @@ contract LiquidityPoolFacet is AppStorage {
      * @param amount The amount of tokens to deposit
      * @return shares The number of LP shares minted for the deposit
      */
-    function deposit(
-        address token,
-        uint256 amount
-    ) external payable returns (uint256 shares) {
-
-
-        if (!_appStorage.s_protocolPool[token].initialize)
+    function deposit(address token, uint256 amount) external payable returns (uint256 shares) {
+        if (!_appStorage.s_protocolPool[token].initialize) {
             revert ProtocolPool__NotInitialized();
-
+        }
+        
         if (amount == 0) revert ProtocolPool__ZeroAmount();
-        if (!_appStorage.s_isLoanable[token])
+        if (!_appStorage.s_isLoanable[token]) {
             revert ProtocolPool__TokenNotSupported();
-        if (!_appStorage.s_protocolPool[token].isActive)
+        }
+        if (!_appStorage.s_protocolPool[token].isActive) {
             revert ProtocolPool__IsNotActive();
+        }
 
         // Handle deposit based on token type
         if (token == Constants.NATIVE_TOKEN) {
@@ -122,228 +120,211 @@ contract LiquidityPoolFacet is AppStorage {
         emit Deposit(msg.sender, token, amount, shares);
     }
 
-
-
-
     /**
      * @notice Allows users to withdraw tokens from the liquidity pool
      * @param token The address of the token to withdraw
      * @param amount The amount of tokens to withdraw
      */
-    function borrowFromPool(address token, uint256 amount) external{
-         if (!_appStorage.s_protocolPool[token].initialize)
+    function borrowFromPool(address token, uint256 amount) external {
+        if (!_appStorage.s_protocolPool[token].initialize) {
             revert ProtocolPool__NotInitialized();
+        }
         if (amount == 0) revert ProtocolPool__ZeroAmount();
-        if (!_appStorage.s_isLoanable[token])
+        if (!_appStorage.s_isLoanable[token]) {
             revert ProtocolPool__TokenNotSupported();
+        }
 
         ProtocolPool storage _protocolPool = _appStorage.s_protocolPool[token];
 
-         TokenData storage tokenData = _appStorage.s_tokenData[token];
+        TokenData storage tokenData = _appStorage.s_tokenData[token];
 
         if (_protocolPool.totalSupply == 0) revert ProtocolPool__NoLiquidity();
-        if (_protocolPool.totalBorrows + amount > _protocolPool.totalSupply)
+        if (_protocolPool.totalBorrows + amount > _protocolPool.totalSupply) {
             revert ProtocolPool__NotEnoughLiquidity();
-         
-        if (!_appStorage.s_protocolPool[token].isActive) 
-            revert ProtocolPool__IsNotActive();
-
-        if(tokenData.poolLiquidity < amount) revert ProtocolPool__NotEnoughLiquidity();
-
-
-         // Update borrow index to accrue interest
-        LibInterestAccure.updateBorrowIndex(tokenData, _protocolPool);
-
-
-            // Verify user has sufficient collateral
-        uint8 tokenDecimals = LibGettersImpl._getTokenDecimal(token);
-        uint256 loanUsdValue = LibGettersImpl._getUsdValue(
-            _appStorage,
-            token,
-            amount,
-            tokenDecimals
-        );
-    
-    // Check health factor after potential borrow
-    if (LibGettersImpl._healthFactor(_appStorage, msg.sender, loanUsdValue) < 1e18) {
-        revert ProtocolPool__InsufficientCollateral();
-    }
-        
-     // Update user borrow data
-     UserBorrowData storage userBorrowData = _appStorage.s_userBorrows[msg.sender][token];
-    
-    // If user has an existing borrow, update it with accrued interest first
-    if (userBorrowData.isActive) {
-        uint256 currentDebt = _calculateUserDebt(
-            tokenData,
-            userBorrowData
-        );
-        userBorrowData.borrowedAmount = currentDebt + amount;
-    } else {
-        userBorrowData.borrowedAmount = amount;
-        userBorrowData.isActive = true;
-    }
-    
-    // Update the user's borrow index to current index
-    userBorrowData.borrowIndex = tokenData.borrowIndex;
-    userBorrowData.lastUpdateTimestamp = block.timestamp;
-    
-    // Update pool state
-    tokenData.totalBorrows += amount;
-    tokenData.poolLiquidity -= amount;
-    
-    // Transfer tokens to the user
-    if (token == Constants.NATIVE_TOKEN) {
-        (bool success, ) = payable(msg.sender).call{value: amount}("");
-        require(success, "ETH transfer failed");
-    } else {
-        IERC20(token).safeTransfer(msg.sender, amount);
-    }
-    
-    emit Borrow(msg.sender, token, amount);
-
-    }
-
-
-    /**
- * @notice Allows users to repay their borrowed tokens
- * @param token The address of the token to repay
- * @param amount The amount to repay, use type(uint256).max to repay full debt
- * @return amountRepaid The actual amount repaid
- */
-function repay(address token, uint256 amount) external payable returns (uint256 amountRepaid) {
-    // Validate repay
-    if (!_appStorage.s_protocolPool[token].initialize)
-        revert ProtocolPool__NotInitialized();
-    if (amount == 0) revert ProtocolPool__ZeroAmount();
-    if (!_appStorage.s_isLoanable[token])
-        revert ProtocolPool__TokenNotSupported();
-        
-    // Get storage references
-    ProtocolPool storage protocolPool = _appStorage.s_protocolPool[token];
-    TokenData storage tokenData = _appStorage.s_tokenData[token];
-    UserBorrowData storage userBorrowData = _appStorage.s_userBorrows[msg.sender][token];
-    
-    // If no active borrow, revert
-    if (!userBorrowData.isActive || userBorrowData.borrowedAmount == 0)
-        revert ProtocolPool__NoBorrow();
-    
-        // Update borrow index to accrue interest
-        LibInterestAccure.updateBorrowIndex(tokenData, protocolPool);
-    
-    // Calculate current debt with accrued interest
-    uint256 currentDebt = _calculateUserDebt(
-        tokenData,
-        userBorrowData
-    );
-    
-    // If requested amount is max uint, repay the full debt
-    if (amount == type(uint256).max) {
-        amountRepaid = currentDebt;
-    } else {
-        // Otherwise repay the requested amount, or the full debt if it's less
-        amountRepaid = amount > currentDebt ? currentDebt : amount;
-    }
-    
-    // Handle token transfer
-    if (token == Constants.NATIVE_TOKEN) {
-        require(msg.value >= amountRepaid, "Insufficient ETH sent");
-        
-        // Refund excess ETH if any
-        if (msg.value > amountRepaid) {
-            (bool success, ) = payable(msg.sender).call{value: msg.value - amountRepaid}("");
-            require(success, "ETH refund failed");
         }
-    } else {
-       uint userBalance =  IERC20(token).balanceOf(address(this));
-       if(userBalance < amountRepaid) revert ProtocolPool__InsufficientBalance(); 
-        IERC20(token).safeTransferFrom(msg.sender, address(this), amountRepaid);
-    }
-    
-    // Update user data
-    if (amountRepaid == currentDebt) {
-        // Full repayment
-        delete _appStorage.s_userBorrows[msg.sender][token];
-    } else {
-        // Partial repayment
-        userBorrowData.borrowedAmount = currentDebt - amountRepaid;
+
+        if (!_appStorage.s_protocolPool[token].isActive) {
+            revert ProtocolPool__IsNotActive();
+        }
+
+        if (tokenData.poolLiquidity < amount) revert ProtocolPool__NotEnoughLiquidity();
+        // Update borrow index to accrue interest
+        LibInterestAccure.updateBorrowIndex(tokenData, _protocolPool);
+        // Verify user has sufficient collateral
+        uint8 tokenDecimals = LibGettersImpl._getTokenDecimal(token);
+        uint256 loanUsdValue = LibGettersImpl._getUsdValue(_appStorage, token, amount, tokenDecimals);
+
+        // Check health factor after potential borrow
+        if (LibGettersImpl._healthFactor(_appStorage, msg.sender, loanUsdValue) < 1e18) {
+            revert ProtocolPool__InsufficientCollateral();
+        }
+
+        // Update user borrow data
+        UserBorrowData storage userBorrowData = _appStorage.s_userBorrows[msg.sender][token];
+
+        // If user has an existing borrow, update it with accrued interest first
+        if (userBorrowData.isActive) {
+            uint256 currentDebt = _calculateUserDebt(tokenData, userBorrowData);
+            userBorrowData.borrowedAmount = currentDebt + amount;
+        } else {
+            userBorrowData.borrowedAmount = amount;
+            userBorrowData.isActive = true;
+        }
+
+        // Update the user's borrow index to current index
         userBorrowData.borrowIndex = tokenData.borrowIndex;
         userBorrowData.lastUpdateTimestamp = block.timestamp;
-    }
-    
-    // Update pool state
-    tokenData.totalBorrows -= amountRepaid;
-    tokenData.poolLiquidity += amountRepaid;
-    
-    emit Repay(msg.sender, token, amountRepaid);
-}
 
+        // Update pool state
+        tokenData.totalBorrows += amount;
+        tokenData.poolLiquidity -= amount;
 
-/**
- * @notice Allows users to withdraw tokens from the liquidity pool
- * @param token The address of the token to withdraw
- * @param shares The amount of shares to burn and withdraw corresponding tokens
- * @return amountWithdrawn The actual amount of tokens withdrawn
- */
-function withdrawn(
-    address token,
-    uint256 shares
-) external returns (uint256 amountWithdrawn) {
-    // Validate withdraw conditions
-    if (!_appStorage.s_protocolPool[token].initialize)
-        revert ProtocolPool__NotInitialized();
-    if (shares == 0) revert ProtocolPool__ZeroAmount();
-    if (!_appStorage.s_isLoanable[token])
-        revert ProtocolPool__TokenNotSupported();
+        // Transfer tokens to the user
+        if (token == Constants.NATIVE_TOKEN) {
+            (bool success,) = payable(msg.sender).call{value: amount}("");
+            require(success, "ETH transfer failed");
+        } else {
+            IERC20(token).safeTransfer(msg.sender, amount);
+        }
 
-    // Check user has sufficient shares
-    uint256 userShares = _appStorage.s_addressToUserPoolShare[msg.sender][token];
-    if (userShares < shares) revert ProtocolPool__InsufficientShares();
-
-    // Get storage references
-    TokenData storage tokenData = _appStorage.s_tokenData[token];
-    ProtocolPool storage protocolPool = _appStorage.s_protocolPool[token];
-
-    // Ensure pool has liquidity
-    if (tokenData.poolLiquidity == 0) revert ProtocolPool__NoLiquidity(); 
-    // Update borrow index to accrue interest before withdrawal
-    LibInterestAccure.updateBorrowIndex(tokenData, protocolPool);
-
-    // Calculate amount to withdraw based on shares
-     amountWithdrawn = Utils.convertToAmount(tokenData, shares);
-
-    // Ensure pool has enough liquidity to fulfill the withdrawal
-    if (tokenData.poolLiquidity < amountWithdrawn)
-        revert ProtocolPool__NotEnoughLiquidity();
-
-    // Update user's share balance
-    _appStorage.s_addressToUserPoolShare[msg.sender][token] -= shares;
-
-    // Update protocol pool state
-    protocolPool.totalSupply -= shares;
-    tokenData.poolLiquidity -= amountWithdrawn;
-    tokenData.lastUpdateTimestamp = block.timestamp;
-
-    // Transfer tokens to user
-    if (token == Constants.NATIVE_TOKEN) {
-        (bool success, ) = payable(msg.sender).call{value: amountWithdrawn}("");
-        require(success, "ETH transfer failed");
-    } else {
-       uint balance =  IERC20(token).balanceOf(msg.sender);
-       if(balance < amountWithdrawn) revert ProtocolPool__InsufficientBalance();
-
-        IERC20(token).safeTransfer(msg.sender, amountWithdrawn);
+        emit Borrow(msg.sender, token, amount);
     }
 
-    emit Withdraw(msg.sender, token, amountWithdrawn, shares);
-}
+    /**
+     * @notice Allows users to repay their borrowed tokens
+     * @param token The address of the token to repay
+     * @param amount The amount to repay, use type(uint256).max to repay full debt
+     * @return amountRepaid The actual amount repaid
+     */
+    function repay(address token, uint256 amount) external payable returns (uint256 amountRepaid) {
+        // Validate repay
+        if (!_appStorage.s_protocolPool[token].initialize) {
+            revert ProtocolPool__NotInitialized();
+        }
+        if (amount == 0) revert ProtocolPool__ZeroAmount();
+        if (!_appStorage.s_isLoanable[token]) {
+            revert ProtocolPool__TokenNotSupported();
+        }
 
+        // Get storage references
+        ProtocolPool storage protocolPool = _appStorage.s_protocolPool[token];
+        TokenData storage tokenData = _appStorage.s_tokenData[token];
+        UserBorrowData storage userBorrowData = _appStorage.s_userBorrows[msg.sender][token];
 
+        // If no active borrow, revert
+        if (!userBorrowData.isActive || userBorrowData.borrowedAmount == 0) {
+            revert ProtocolPool__NoBorrow();
+        }
+
+        // Update borrow index to accrue interest
+        LibInterestAccure.updateBorrowIndex(tokenData, protocolPool);
+
+        // Calculate current debt with accrued interest
+        uint256 currentDebt = _calculateUserDebt(tokenData, userBorrowData);
+
+        // If requested amount is max uint, repay the full debt
+        if (amount == type(uint256).max) {
+            amountRepaid = currentDebt;
+        } else {
+            // Otherwise repay the requested amount, or the full debt if it's less
+            amountRepaid = amount > currentDebt ? currentDebt : amount;
+        }
+
+        // Handle token transfer
+        if (token == Constants.NATIVE_TOKEN) {
+            require(msg.value >= amountRepaid, "Insufficient ETH sent");
+
+            // Refund excess ETH if any
+            if (msg.value > amountRepaid) {
+                (bool success,) = payable(msg.sender).call{value: msg.value - amountRepaid}("");
+                require(success, "ETH refund failed");
+            }
+        } else {
+            uint256 userBalance = IERC20(token).balanceOf(address(this));
+            if (userBalance < amountRepaid) revert ProtocolPool__InsufficientBalance();
+            IERC20(token).safeTransferFrom(msg.sender, address(this), amountRepaid);
+        }
+
+        // Update user data
+        if (amountRepaid == currentDebt) {
+            // Full repayment
+            delete _appStorage.s_userBorrows[msg.sender][token];
+        } else {
+            // Partial repayment
+            userBorrowData.borrowedAmount = currentDebt - amountRepaid;
+            userBorrowData.borrowIndex = tokenData.borrowIndex;
+            userBorrowData.lastUpdateTimestamp = block.timestamp;
+        }
+
+        // Update pool state
+        tokenData.totalBorrows -= amountRepaid;
+        tokenData.poolLiquidity += amountRepaid;
+
+        emit Repay(msg.sender, token, amountRepaid);
+    }
+
+    /**
+     * @notice Allows users to withdraw tokens from the liquidity pool
+     * @param token The address of the token to withdraw
+     * @param shares The amount of shares to burn and withdraw corresponding tokens
+     * @return amountWithdrawn The actual amount of tokens withdrawn
+     */
+    function withdrawn(address token, uint256 shares) external returns (uint256 amountWithdrawn) {
+        // Validate withdraw conditions
+        if (!_appStorage.s_protocolPool[token].initialize) {
+            revert ProtocolPool__NotInitialized();
+        }
+        if (shares == 0) revert ProtocolPool__ZeroAmount();
+        if (!_appStorage.s_isLoanable[token]) {
+            revert ProtocolPool__TokenNotSupported();
+        }
+
+        // Check user has sufficient shares
+        uint256 userShares = _appStorage.s_addressToUserPoolShare[msg.sender][token];
+        if (userShares < shares) revert ProtocolPool__InsufficientShares();
+
+        // Get storage references
+        TokenData storage tokenData = _appStorage.s_tokenData[token];
+        ProtocolPool storage protocolPool = _appStorage.s_protocolPool[token];
+
+        // Ensure pool has liquidity
+        if (tokenData.poolLiquidity == 0) revert ProtocolPool__NoLiquidity();
+        // Update borrow index to accrue interest before withdrawal
+        LibInterestAccure.updateBorrowIndex(tokenData, protocolPool);
+
+        // Calculate amount to withdraw based on shares
+        amountWithdrawn = Utils.convertToAmount(tokenData, shares);
+
+        // Ensure pool has enough liquidity to fulfill the withdrawal
+        if (tokenData.poolLiquidity < amountWithdrawn) {
+            revert ProtocolPool__NotEnoughLiquidity();
+        }
+
+        // Update user's share balance
+        _appStorage.s_addressToUserPoolShare[msg.sender][token] -= shares;
+
+        // Update protocol pool state
+        protocolPool.totalSupply -= shares;
+        tokenData.poolLiquidity -= amountWithdrawn;
+        tokenData.lastUpdateTimestamp = block.timestamp;
+
+        // Transfer tokens to user
+        if (token == Constants.NATIVE_TOKEN) {
+            (bool success,) = payable(msg.sender).call{value: amountWithdrawn}("");
+            require(success, "ETH transfer failed");
+        } else {
+            uint256 balance = IERC20(token).balanceOf(msg.sender);
+            if (balance < amountWithdrawn) revert ProtocolPool__InsufficientBalance();
+
+            IERC20(token).safeTransfer(msg.sender, amountWithdrawn);
+        }
+
+        emit Withdraw(msg.sender, token, amountWithdrawn, shares);
+    }
 
     /////////////////////////
     /////READ ONLY FUNCTION///
     /////////////////////////
-
 
     /**
      * @notice Gets the borrow data for a specific user and token
@@ -354,12 +335,10 @@ function withdrawn(
      * @return lastUpdateTimestamp The last update timestamp for the user's borrow data
      * @return isActive Whether the user's borrow is active
      */
-    function getUserBorrowData(address _user, address token) external view returns(
-        uint256 borrowedAmount,
-        uint256 borrowIndex,
-        uint256 lastUpdateTimestamp,
-        bool isActive
-         )
+    function getUserBorrowData(address _user, address token)
+        external
+        view
+        returns (uint256 borrowedAmount, uint256 borrowIndex, uint256 lastUpdateTimestamp, bool isActive)
     {
         return (
             _appStorage.s_userBorrows[_user][token].borrowedAmount,
@@ -369,8 +348,7 @@ function withdrawn(
         );
     }
 
-
-     /**
+    /**
      * @notice Gets the configuration of the protocol pool
      * @return token The token address used in the pool
      * @return totalSupply The total supply of tokens in the pool
@@ -382,9 +360,7 @@ function withdrawn(
      * @return isActive Whether the pool is active
      * @return initialize Whether the pool is initialized
      */
-    function getProtocolPoolConfig(
-        address _token
-    )
+    function getProtocolPoolConfig(address _token)
         external
         view
         returns (
@@ -412,21 +388,15 @@ function withdrawn(
         );
     }
 
-
-
     /**
      * @notice Allows users to withdraw tokens from the liquidity pool
      * @param user The address of the token to withdraw
      * @param token The amount of tokens to withdraw
      * @return sharesBurned The number of LP shares burned for the withdrawal
      */
-    function getUserPoolDeposit(
-        address user,
-        address token
-    ) external view returns (uint256) {
+    function getUserPoolDeposit(address user, address token) external view returns (uint256) {
         return maxRedeemable(user, token);
     }
-
 
     /**
      * @notice gets token data for a specific token
@@ -436,17 +406,10 @@ function withdrawn(
      * @return totalBorrows The total amount borrowed from the pool for the token
      * @return lastUpdateTimestamp The last time the token data was updated
      */
-    function getPoolTokenData(
-        address token
-    )
+    function getPoolTokenData(address token)
         external
         view
-        returns (
-            uint256 totalSupply,
-            uint256 poolLiquidity,
-            uint256 totalBorrows,
-            uint256 lastUpdateTimestamp
-        )
+        returns (uint256 totalSupply, uint256 poolLiquidity, uint256 totalBorrows, uint256 lastUpdateTimestamp)
     {
         return (
             _appStorage.s_tokenData[token].totalSupply,
@@ -456,17 +419,13 @@ function withdrawn(
         );
     }
 
-
     /**
      * @notice Calculates the maximum redeemable amount for a user based on their shares
      * @param user The address of the user
      * @param token The address of the token
      * @return maxRedeemableAmount The maximum redeemable amount for the user
      */
-    function maxRedeemable(
-        address user,
-        address token
-    ) internal view returns (uint256) {
+    function maxRedeemable(address user, address token) internal view returns (uint256) {
         // Check if the user has any shares in the pool
         uint256 _shares = _appStorage.s_addressToUserPoolShare[user][token];
         if (_shares == 0) return 0;
@@ -478,45 +437,42 @@ function withdrawn(
         return _maxRedeemableAmount;
     }
 
-
-
     /**
      * @notice Calculates the current debt for a specific user including accrued interest
      * @param user The address of the user
      * @param token The address of the token
      * @return debt The current debt amount including interest
      */
-function getUserDebt(address user, address token) external view returns (uint256 debt) {
-    UserBorrowData memory userBorrowData = _appStorage.s_userBorrows[user][token];
-    TokenData memory tokenData = _appStorage.s_tokenData[token];
-    ProtocolPool memory protocolPool = _appStorage.s_protocolPool[token];
+    function getUserDebt(address user, address token) external view returns (uint256 debt) {
+        UserBorrowData memory userBorrowData = _appStorage.s_userBorrows[user][token];
+        TokenData memory tokenData = _appStorage.s_tokenData[token];
+        ProtocolPool memory protocolPool = _appStorage.s_protocolPool[token];
 
-    if (!userBorrowData.isActive || userBorrowData.borrowedAmount == 0) {
-        return 0;
+        if (!userBorrowData.isActive || userBorrowData.borrowedAmount == 0) {
+            return 0;
+        }
+
+        if (block.timestamp == tokenData.lastUpdateTimestamp || tokenData.totalBorrows == 0) {
+            return userBorrowData.borrowedAmount;
+        }
+
+        if (userBorrowData.borrowIndex == 0) {
+            return userBorrowData.borrowedAmount;
+        }
+
+        uint256 timeElapsed = block.timestamp - tokenData.lastUpdateTimestamp;
+        uint256 utilization = LibInterestRateModel.calculateUtilization(tokenData.totalBorrows, tokenData.poolLiquidity);
+        uint256 interestRate = LibInterestRateModel.calculateInterestRate(protocolPool, utilization);
+        uint256 factor = ((interestRate * timeElapsed) * 1e18) / (10000 * 31536000);
+        uint256 currentBorrowIndex = tokenData.borrowIndex + ((tokenData.borrowIndex * factor) / 1e18);
+        debt = (userBorrowData.borrowedAmount * currentBorrowIndex) / userBorrowData.borrowIndex;
+
+        return debt;
     }
 
-    if (block.timestamp == tokenData.lastUpdateTimestamp || tokenData.totalBorrows == 0) {
-        return userBorrowData.borrowedAmount;
-    }
-
-    if (userBorrowData.borrowIndex == 0) {
-        return userBorrowData.borrowedAmount;
-    }
-
-    uint256 timeElapsed = block.timestamp - tokenData.lastUpdateTimestamp;
-    uint256 utilization = LibInterestRateModel.calculateUtilization(tokenData.totalBorrows, tokenData.poolLiquidity);
-    uint256 interestRate = LibInterestRateModel.calculateInterestRate(protocolPool, utilization);
-    uint256 factor = ((interestRate * timeElapsed) * 1e18) / (10000 * 31536000);
-    uint256 currentBorrowIndex = tokenData.borrowIndex + ((tokenData.borrowIndex * factor) / 1e18);
-    debt = (userBorrowData.borrowedAmount * currentBorrowIndex) / userBorrowData.borrowIndex;
-
-    return debt;
-}
-    
-        /////////////////////////
-        /////ONLY OWNER FUNCTION///
-        /////////////////////////
-        
+    /////////////////////////
+    /////ONLY OWNER FUNCTION///
+    /////////////////////////
 
     /**
      * @notice Sets the active status of a protocol pool
@@ -528,29 +484,27 @@ function getUserDebt(address user, address token) external view returns (uint256
         _appStorage.s_protocolPool[token].isActive = isActive;
     }
 
-
     /////////////////////////
     /////INTERNAL FUNCTION///
     /////////////////////////
 
-     /**
+    /**
      * @notice Calculates the current debt for a specific user including accrued interest
      * @param tokenData The token data with current index
      * @param userBorrowData The user's borrow data
      * @return The current debt amount including interest
      */
-    function _calculateUserDebt(
-        TokenData memory tokenData,
-        UserBorrowData memory userBorrowData
-    ) internal pure returns (uint256) {
+    function _calculateUserDebt(TokenData memory tokenData, UserBorrowData memory userBorrowData)
+        internal
+        pure
+        returns (uint256)
+    {
         if (userBorrowData.borrowedAmount == 0) return 0;
-        
+
         // Calculate the ratio between current index and user's borrow index
         // This represents how much interest has accumulated since user borrowed
-        uint256 currentDebt = (userBorrowData.borrowedAmount * tokenData.borrowIndex) / 
-                            userBorrowData.borrowIndex;
-                            
+        uint256 currentDebt = (userBorrowData.borrowedAmount * tokenData.borrowIndex) / userBorrowData.borrowIndex;
+
         return currentDebt;
     }
-
 }

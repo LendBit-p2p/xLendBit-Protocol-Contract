@@ -11,7 +11,6 @@ import "../../model/Protocol.sol";
  *
  * Public read-only functions that allow transparency into the state of LendBit
  */
-
 contract Getters is AppStorage {
     /**
      * @notice This gets the USD value of amount of the token passsed.
@@ -21,17 +20,8 @@ contract Getters is AppStorage {
      *
      * @return _value returns the equivalent amount in USD.
      */
-    function getUsdValue(
-        address _token,
-        uint256 _amount,
-        uint8 _decimal
-    ) external view returns (uint256 _value) {
-        _value = LibGettersImpl._getUsdValue(
-            _appStorage,
-            _token,
-            _amount,
-            _decimal
-        );
+    function getUsdValue(address _token, uint256 _amount, uint8 _decimal) external view returns (uint256 _value) {
+        _value = LibGettersImpl._getUsdValue(_appStorage, _token, _amount, _decimal);
     }
 
     /**
@@ -43,17 +33,8 @@ contract Getters is AppStorage {
      *
      * @return _value the amount of `_to` tokens you are expected to get.
      */
-    function getConvertValue(
-        address _from,
-        address _to,
-        uint256 _amount
-    ) external view returns (uint256 _value) {
-        _value = LibGettersImpl._getConvertValue(
-            _appStorage,
-            _from,
-            _to,
-            _amount
-        );
+    function getConvertValue(address _from, address _to, uint256 _amount) external view returns (uint256 _value) {
+        _value = LibGettersImpl._getConvertValue(_appStorage, _from, _to, _amount);
     }
 
     /**
@@ -63,13 +44,8 @@ contract Getters is AppStorage {
      *
      * @return _totalCollateralValueInUsd returns the value of the user deposited collateral in USD.
      */
-    function getAccountCollateralValue(
-        address _user
-    ) external view returns (uint256 _totalCollateralValueInUsd) {
-        _totalCollateralValueInUsd = LibGettersImpl._getAccountCollateralValue(
-            _appStorage,
-            _user
-        );
+    function getAccountCollateralValue(address _user) external view returns (uint256 _totalCollateralValueInUsd) {
+        _totalCollateralValueInUsd = LibGettersImpl._getAccountCollateralValue(_appStorage, _user);
     }
 
     /**
@@ -79,13 +55,8 @@ contract Getters is AppStorage {
      *
      * @return _totalAvailableValueInUsd returns the value of the user available balance in USD
      */
-    function getAccountAvailableValue(
-        address _user
-    ) external view returns (uint256 _totalAvailableValueInUsd) {
-        _totalAvailableValueInUsd = LibGettersImpl._getAccountAvailableValue(
-            _appStorage,
-            _user
-        );
+    function getAccountAvailableValue(address _user) external view returns (uint256 _totalAvailableValueInUsd) {
+        _totalAvailableValueInUsd = LibGettersImpl._getAccountAvailableValue(_appStorage, _user);
     }
 
     /**
@@ -95,9 +66,7 @@ contract Getters is AppStorage {
      *
      * @return _listing The `LoanListing` struct containing details of the specified listing
      */
-    function getLoanListing(
-        uint96 _listingId
-    ) external view returns (LoanListing memory _listing) {
+    function getLoanListing(uint96 _listingId) external view returns (LoanListing memory _listing) {
         _listing = LibGettersImpl._getLoanListing(_appStorage, _listingId);
     }
 
@@ -108,9 +77,7 @@ contract Getters is AppStorage {
      *
      * @return _request The `Request` struct containing details of the specified request
      */
-    function getRequest(
-        uint96 _requestId
-    ) external view returns (Request memory _request) {
+    function getRequest(uint96 _requestId) external view returns (Request memory _request) {
         _request = LibGettersImpl._getRequest(_appStorage, _requestId);
     }
 
@@ -121,9 +88,7 @@ contract Getters is AppStorage {
      *
      * @return _value the health factor which is supoose to be >= 1
      */
-    function getHealthFactor(
-        address _user
-    ) external view returns (uint256 _value) {
+    function getHealthFactor(address _user) external view returns (uint256 _value) {
         _value = LibGettersImpl._healthFactor(_appStorage, _user, 0);
     }
 
@@ -132,11 +97,7 @@ contract Getters is AppStorage {
      *
      * @return _tokens the collection of collateral addresses
      */
-    function getAllCollateralToken()
-        external
-        view
-        returns (address[] memory _tokens)
-    {
+    function getAllCollateralToken() external view returns (address[] memory _tokens) {
         _tokens = _appStorage.s_collateralToken;
     }
 
@@ -148,13 +109,12 @@ contract Getters is AppStorage {
      *
      * @return _value the amount of token deposited.
      */
-    function getAddressToCollateralDeposited(
-        address _sender,
-        address _tokenAddr
-    ) external view returns (uint256 _value) {
-        _value = _appStorage.s_addressToCollateralDeposited[_sender][
-            _tokenAddr
-        ];
+    function getAddressToCollateralDeposited(address _sender, address _tokenAddr)
+        external
+        view
+        returns (uint256 _value)
+    {
+        _value = _appStorage.s_addressToCollateralDeposited[_sender][_tokenAddr];
     }
 
     /**
@@ -165,10 +125,7 @@ contract Getters is AppStorage {
      *
      * @return _value the amount of token available
      */
-    function getAddressToAvailableBalance(
-        address _sender,
-        address _tokenAddr
-    ) external view returns (uint256 _value) {
+    function getAddressToAvailableBalance(address _sender, address _tokenAddr) external view returns (uint256 _value) {
         _value = _appStorage.s_addressToAvailableBalance[_sender][_tokenAddr];
     }
 
@@ -180,10 +137,7 @@ contract Getters is AppStorage {
      *
      * @return _value The amount that as been used to back the loan
      */
-    function getRequestToCollateral(
-        uint96 _requestId,
-        address _token
-    ) external view returns (uint256 _value) {
+    function getRequestToCollateral(uint96 _requestId, address _token) external view returns (uint256 _value) {
         _value = _appStorage.s_idToCollateralTokenAmount[_requestId][_token];
     }
 
@@ -192,11 +146,7 @@ contract Getters is AppStorage {
      *
      * @return _assets An array of all loanable assets
      */
-    function getLoanableAssets()
-        external
-        view
-        returns (address[] memory _assets)
-    {
+    function getLoanableAssets() external view returns (address[] memory _assets) {
         _assets = _appStorage.s_loanableToken;
     }
 
@@ -208,15 +158,8 @@ contract Getters is AppStorage {
      *
      * @return _request The request of the user
      */
-    function getUserRequest(
-        address _user,
-        uint96 _requestId
-    ) external view returns (Request memory _request) {
-        _request = LibGettersImpl._getUserRequest(
-            _appStorage,
-            _user,
-            _requestId
-        );
+    function getUserRequest(address _user, uint96 _requestId) external view returns (Request memory _request) {
+        _request = LibGettersImpl._getUserRequest(_appStorage, _user, _requestId);
     }
 
     /**
@@ -226,9 +169,7 @@ contract Getters is AppStorage {
      *
      * @return _requests An array of active requests
      */
-    function getUserActiveRequests(
-        address _user
-    ) public view returns (Request[] memory _requests) {
+    function getUserActiveRequests(address _user) public view returns (Request[] memory _requests) {
         _requests = LibGettersImpl._getUserActiveRequests(_appStorage, _user);
     }
 
@@ -239,13 +180,8 @@ contract Getters is AppStorage {
      *
      * @return _requests An array of all request serviced by the lender
      */
-    function getServicedRequestByLender(
-        address _lender
-    ) public view returns (Request[] memory _requests) {
-        _requests = LibGettersImpl._getServicedRequestByLender(
-            _appStorage,
-            _lender
-        );
+    function getServicedRequestByLender(address _lender) public view returns (Request[] memory _requests) {
+        _requests = LibGettersImpl._getServicedRequestByLender(_appStorage, _lender);
     }
 
     /**
@@ -255,9 +191,7 @@ contract Getters is AppStorage {
      *
      * @return _value the total amount of collateral in USD.
      */
-    function getLoanCollectedInUsd(
-        address _user
-    ) public view returns (uint256 _value) {
+    function getLoanCollectedInUsd(address _user) public view returns (uint256 _value) {
         _value = LibGettersImpl._getLoanCollectedInUsd(_appStorage, _user);
     }
 
@@ -268,13 +202,8 @@ contract Getters is AppStorage {
      *
      * @return _collaterals An array of address for the collateral tokens.
      */
-    function getUserCollateralTokens(
-        address _user
-    ) public view returns (address[] memory _collaterals) {
-        _collaterals = LibGettersImpl._getUserCollateralTokens(
-            _appStorage,
-            _user
-        );
+    function getUserCollateralTokens(address _user) public view returns (address[] memory _collaterals) {
+        _collaterals = LibGettersImpl._getUserCollateralTokens(_appStorage, _user);
     }
 
     /**
@@ -284,17 +213,11 @@ contract Getters is AppStorage {
      *
      * @return _requests An array of `Request` structs representing all stored requests
      */
-    function getAllRequest()
-        external
-        view
-        returns (Request[] memory _requests)
-    {
+    function getAllRequest() external view returns (Request[] memory _requests) {
         _requests = LibGettersImpl._getAllRequest(_appStorage);
     }
 
-    function getFeesAccrued(
-        address _token
-    ) external view returns (uint256 _feesAccrued) {
+    function getFeesAccrued(address _token) external view returns (uint256 _feesAccrued) {
         _feesAccrued = LibGettersImpl._getFeesAccrued(_appStorage, _token);
     }
 

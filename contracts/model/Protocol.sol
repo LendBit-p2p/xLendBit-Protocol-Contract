@@ -19,10 +19,10 @@ struct User {
  * @notice Structure to track individual user borrowing information
  */
 struct UserBorrowData {
-    uint256 borrowedAmount;           // Original amount borrowed
-    uint256 borrowIndex;              // Index at time of borrowing (normalized)
-    uint256 lastUpdateTimestamp;      // Last time user data was updated
-    bool isActive;                    // Whether the borrow is active
+    uint256 borrowedAmount; // Original amount borrowed
+    uint256 borrowIndex; // Index at time of borrowing (normalized)
+    uint256 lastUpdateTimestamp; // Last time user data was updated
+    bool isActive; // Whether the borrow is active
 }
 
 struct TokenData {
@@ -33,8 +33,6 @@ struct TokenData {
     uint256 borrowIndex;
     uint256 totalReserves;
 }
-
-
 
 /**
  * @dev Struct to store information about a loan request.
@@ -98,8 +96,6 @@ struct ProtocolPool {
     uint256 slopeRate;
     bool isActive;
 }
-
-
 
 /**
  * @dev Enum representing the status of a loan request.

@@ -73,9 +73,9 @@ error ProtocolPool__InsufficientBalance();
 error ProtocolPool__InsufficientLiquidity();
 
 /// protocolpool errors
-error  ProtocolPool__NoLiquidity();
+error ProtocolPool__NoLiquidity();
 error ProtocolPool__NotEnoughLiquidity();
 error ProtocolPool__IsNotActive();
-error  ProtocolPool__InsufficientCollateral();
+error ProtocolPool__InsufficientCollateral();
 error ProtocolPool__NoBorrow();
-error  ProtocolPool__InsufficientShares();
+error ProtocolPool__InsufficientShares();

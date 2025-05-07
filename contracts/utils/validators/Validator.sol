@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: SEE LICENSE IN LICENSE
 pragma solidity ^0.8.9;
+
 import "./Error.sol";
 import "../constants/Constant.sol";
 import "../../model/Protocol.sol";
@@ -73,11 +74,7 @@ library Validator {
      *
      * @notice Reverts with `Protocol__MustBeMoreThanZero` if `_amount` is zero, or if `_token` is the native token and `_value` is zero.
      */
-    function _valueMoreThanZero(
-        uint256 _amount,
-        address _token,
-        uint256 _value
-    ) internal pure {
+    function _valueMoreThanZero(uint256 _amount, address _token, uint256 _value) internal pure {
         if (_amount == 0) {
             revert Protocol__MustBeMoreThanZero();
         }

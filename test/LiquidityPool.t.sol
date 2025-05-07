@@ -67,26 +67,10 @@ contract ProtocolTest is Test, IDiamondCut {
         liquidityPoolFacet = new LiquidityPoolFacet();
 
         //deploy mock tokens
-        (USDT_CONTRACT_ADDRESS, USDT_USD) = deployERC20ContractAndAddPriceFeed(
-            "USDT",
-            6,
-            1
-        );
-        (DAI_CONTRACT_ADDRESS, DAI_USD) = deployERC20ContractAndAddPriceFeed(
-            "DAI",
-            18,
-            1
-        );
-        (LINK_CONTRACT_ADDRESS, LINK_USD) = deployERC20ContractAndAddPriceFeed(
-            "LINK",
-            18,
-            10
-        );
-        (WETH_CONTRACT_ADDRESS, WETH_USD) = deployERC20ContractAndAddPriceFeed(
-            "WETH",
-            18,
-            2000
-        );
+        (USDT_CONTRACT_ADDRESS, USDT_USD) = deployERC20ContractAndAddPriceFeed("USDT", 6, 1);
+        (DAI_CONTRACT_ADDRESS, DAI_USD) = deployERC20ContractAndAddPriceFeed("DAI", 18, 1);
+        (LINK_CONTRACT_ADDRESS, LINK_USD) = deployERC20ContractAndAddPriceFeed("LINK", 18, 10);
+        (WETH_CONTRACT_ADDRESS, WETH_USD) = deployERC20ContractAndAddPriceFeed("WETH", 18, 2000);
 
         tokens.push(USDT_CONTRACT_ADDRESS);
         tokens.push(DAI_CONTRACT_ADDRESS);
@@ -156,38 +140,25 @@ contract ProtocolTest is Test, IDiamondCut {
     }
 
     function transferTokenToOwner() public {
-        ERC20Mock(USDT_CONTRACT_ADDRESS).mint(owner, 1000E18);
+        ERC20Mock(USDT_CONTRACT_ADDRESS).mint(owner, 1000e18);
         ERC20Mock(DAI_CONTRACT_ADDRESS).mint(owner, 10000 ether);
         ERC20Mock(WETH_CONTRACT_ADDRESS).mint(owner, 50000 ether);
         ERC20Mock(LINK_CONTRACT_ADDRESS).mint(owner, 500 ether);
-
-
     }
 
     function testOnlyWhitelistedUserCanRequestLoan() public {
-        _depositCollateral(C, ETH_CONTRACT_ADDRESS, 1E18);
+        _depositCollateral(C, ETH_CONTRACT_ADDRESS, 1e18);
         switchSigner(owner);
-        IERC20(DAI_CONTRACT_ADDRESS).approve(
-            address(protocolFacet),
-            type(uint256).max
-        );
+        IERC20(DAI_CONTRACT_ADDRESS).approve(address(protocolFacet), type(uint256).max);
         address[] memory whitelist = new address[](1);
         whitelist[0] = B;
         protocolFacet.createLoanListing(
-            10E10,
-            2E10,
-            10E10,
-            block.timestamp + 365 days,
-            500,
-            DAI_CONTRACT_ADDRESS,
-            whitelist
+            10e10, 2e10, 10e10, block.timestamp + 365 days, 500, DAI_CONTRACT_ADDRESS, whitelist
         );
 
         switchSigner(C);
-        vm.expectRevert(
-            abi.encodeWithSelector(Protocol__NotWhitelisted.selector)
-        );
-        protocolFacet.requestLoanFromListing(1, 5E10);
+        vm.expectRevert(abi.encodeWithSelector(Protocol__NotWhitelisted.selector));
+        protocolFacet.requestLoanFromListing(1, 5e10);
     }
 
     // Test successful initialization with ERC20 (DAI)
@@ -203,23 +174,10 @@ contract ProtocolTest is Test, IDiamondCut {
         // uint256 _initialSupply = 100 ether;
 
         liquidityPoolFacet.initializeProtocolPool(
-            DAI_CONTRACT_ADDRESS,
-            _reserveFactor,
-            _optimalUtilization,
-            _baseRate,
-            _slopeRate
+            DAI_CONTRACT_ADDRESS, _reserveFactor, _optimalUtilization, _baseRate, _slopeRate
         );
-        (
-            address token,
-            ,
-            ,
-            uint256 reserveFactor,
-            uint256 optimalUtilization,
-            ,
-            ,
-            bool isActive,
-
-        ) = liquidityPoolFacet.getProtocolPoolConfig(DAI_CONTRACT_ADDRESS);
+        (address token,,, uint256 reserveFactor, uint256 optimalUtilization,,, bool isActive,) =
+            liquidityPoolFacet.getProtocolPoolConfig(DAI_CONTRACT_ADDRESS);
 
         assertEq(token, DAI_CONTRACT_ADDRESS);
         assertEq(_reserveFactor, reserveFactor);
@@ -240,23 +198,10 @@ contract ProtocolTest is Test, IDiamondCut {
         uint256 _initialSupply = 100 ether;
 
         liquidityPoolFacet.initializeProtocolPool{value: _initialSupply}(
-            ETH_CONTRACT_ADDRESS,
-            _reserveFactor,
-            _optimalUtilization,
-            _baseRate,
-            _slopeRate
+            ETH_CONTRACT_ADDRESS, _reserveFactor, _optimalUtilization, _baseRate, _slopeRate
         );
-        (
-            address token,
-            ,
-            ,
-            uint256 reserveFactor,
-            uint256 optimalUtilization,
-            ,
-            ,
-            bool isActive,
-
-        ) = liquidityPoolFacet.getProtocolPoolConfig(ETH_CONTRACT_ADDRESS);
+        (address token,,, uint256 reserveFactor, uint256 optimalUtilization,,, bool isActive,) =
+            liquidityPoolFacet.getProtocolPoolConfig(ETH_CONTRACT_ADDRESS);
 
         assertEq(token, ETH_CONTRACT_ADDRESS);
         assertEq(_reserveFactor, reserveFactor);
@@ -264,47 +209,32 @@ contract ProtocolTest is Test, IDiamondCut {
         assertTrue(isActive);
     }
 
-
-
-
     function testDepositInsideTheLiquidityPool() public {
         testProtocolPoolCanBeInitializedWithERC20();
         liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, 100 ether);
-        uint256 poolDeposit = liquidityPoolFacet.getUserPoolDeposit(
-            owner,
-            DAI_CONTRACT_ADDRESS
-        );
+        uint256 poolDeposit = liquidityPoolFacet.getUserPoolDeposit(owner, DAI_CONTRACT_ADDRESS);
         assertEq(poolDeposit, 100 ether);
     }
 
     function testListingWithZeroWhitelistAddressIsOpenForAllAddress() public {
-        _depositCollateral(C, ETH_CONTRACT_ADDRESS, 1E18);
-        _depositCollateral(B, ETH_CONTRACT_ADDRESS, 1E18);
+        _depositCollateral(C, ETH_CONTRACT_ADDRESS, 1e18);
+        _depositCollateral(B, ETH_CONTRACT_ADDRESS, 1e18);
         switchSigner(owner);
-        IERC20(DAI_CONTRACT_ADDRESS).approve(
-            address(protocolFacet),
-            type(uint256).max
-        );
+        IERC20(DAI_CONTRACT_ADDRESS).approve(address(protocolFacet), type(uint256).max);
         address[] memory whitelist = new address[](0);
         protocolFacet.createLoanListing(
-            10E10,
-            2E10,
-            10E10,
-            block.timestamp + 365 days,
-            500,
-            DAI_CONTRACT_ADDRESS,
-            whitelist
+            10e10, 2e10, 10e10, block.timestamp + 365 days, 500, DAI_CONTRACT_ADDRESS, whitelist
         );
 
         switchSigner(C);
         vm.expectEmit(true, true, true, true);
-        emit RequestCreated(C, 1, 5E10, 500);
-        protocolFacet.requestLoanFromListing(1, 5E10);
+        emit RequestCreated(C, 1, 5e10, 500);
+        protocolFacet.requestLoanFromListing(1, 5e10);
 
         switchSigner(B);
         vm.expectEmit(true, true, true, true);
-        emit RequestCreated(B, 2, 5E10, 500);
-        protocolFacet.requestLoanFromListing(1, 5E10);
+        emit RequestCreated(B, 2, 5e10, 500);
+        protocolFacet.requestLoanFromListing(1, 5e10);
     }
 
     function testUserSharesAreCalculatedCorrectly() public {
@@ -314,590 +244,444 @@ contract ProtocolTest is Test, IDiamondCut {
         //     type(uint256).max
         // );
         uint256 amount = 100 ether;
-        uint256 shares = liquidityPoolFacet.deposit(
-            DAI_CONTRACT_ADDRESS,
-            amount
-        );
+        uint256 shares = liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, amount);
         assertEq(shares, amount);
     }
 
-    function _mintTokenToAddress(
-        address _token,
-        address _to,
-        uint256 _amount
-    ) internal {
+    function _mintTokenToAddress(address _token, address _to, uint256 _amount) internal {
         ERC20Mock(_token).mint(_to, _amount);
     }
-event Log(string message);
 
-function testBorrowInsideALiquidityPool() public {
-    initializeTokenPool(DAI_CONTRACT_ADDRESS);
+    event Log(string message);
 
-    uint256 DEPOSIT_AMOUNT = 100 ether;
-    uint256 BORROW_AMOUNT = 10 ether;
-    vm.deal(B, 200000 ether);
+    function testBorrowInsideALiquidityPool() public {
+        initializeTokenPool(DAI_CONTRACT_ADDRESS);
 
-    liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, 100 ether);
-    uint256 poolDeposit = liquidityPoolFacet.getUserPoolDeposit(
-            owner,
-            DAI_CONTRACT_ADDRESS
-        );
-    assertEq(poolDeposit, 100 ether);
-     _depositCollateral(B, ETH_CONTRACT_ADDRESS,200 ether );
-     liquidityPoolFacet.borrowFromPool(DAI_CONTRACT_ADDRESS, BORROW_AMOUNT);
+        uint256 DEPOSIT_AMOUNT = 100 ether;
+        uint256 BORROW_AMOUNT = 10 ether;
+        vm.deal(B, 200000 ether);
+
+        liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, 100 ether);
+        uint256 poolDeposit = liquidityPoolFacet.getUserPoolDeposit(owner, DAI_CONTRACT_ADDRESS);
+        assertEq(poolDeposit, 100 ether);
+        _depositCollateral(B, ETH_CONTRACT_ADDRESS, 200 ether);
+        liquidityPoolFacet.borrowFromPool(DAI_CONTRACT_ADDRESS, BORROW_AMOUNT);
         // Verify user debt
-   ( uint256 borrowedAmount, uint256 borrowIndex, , bool isActive ) =
-    liquidityPoolFacet.getUserBorrowData(B,DAI_CONTRACT_ADDRESS);
+        (uint256 borrowedAmount, uint256 borrowIndex,, bool isActive) =
+            liquidityPoolFacet.getUserBorrowData(B, DAI_CONTRACT_ADDRESS);
         assertEq(borrowedAmount, BORROW_AMOUNT, "Initial debt should equal borrowed amount");
 
-    assertTrue(isActive);
-    (uint256 totalSupply,uint256 poolLiquidity,uint256 totalBorrows,uint256 lastUpdateTimestamp) = liquidityPoolFacet.getPoolTokenData(DAI_CONTRACT_ADDRESS);
+        assertTrue(isActive);
+        (uint256 totalSupply, uint256 poolLiquidity, uint256 totalBorrows, uint256 lastUpdateTimestamp) =
+            liquidityPoolFacet.getPoolTokenData(DAI_CONTRACT_ADDRESS);
 
-    assertEq(poolLiquidity, DEPOSIT_AMOUNT - BORROW_AMOUNT, "Pool liquidity should be reduced");
-    assertEq(totalBorrows, BORROW_AMOUNT, "Total borrows should be updated");
-        
+        assertEq(poolLiquidity, DEPOSIT_AMOUNT - BORROW_AMOUNT, "Pool liquidity should be reduced");
+        assertEq(totalBorrows, BORROW_AMOUNT, "Total borrows should be updated");
     }
 
-function testUser_CantBorrowInLow_LiquidityPool() public {
-    initializeTokenPool(DAI_CONTRACT_ADDRESS);
+    function testUser_CantBorrowInLow_LiquidityPool() public {
+        initializeTokenPool(DAI_CONTRACT_ADDRESS);
 
-    uint256 DEPOSIT_AMOUNT = 100 ether;
-    uint256 BORROW_AMOUNT = 10000 ether; // Large borrow to exceed the pool amount value
-    vm.deal(B, 200000 ether);
+        uint256 DEPOSIT_AMOUNT = 100 ether;
+        uint256 BORROW_AMOUNT = 10000 ether; // Large borrow to exceed the pool amount value
+        vm.deal(B, 200000 ether);
 
-    // Owner deposits to the pool
-    liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, DEPOSIT_AMOUNT);
+        // Owner deposits to the pool
+        liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, DEPOSIT_AMOUNT);
 
-    // Deposit minimal collateral as B
-    _depositCollateral(B, ETH_CONTRACT_ADDRESS, 0.001 ether); // ~$2 USD at $2000/ETH
+        // Deposit minimal collateral as B
+        _depositCollateral(B, ETH_CONTRACT_ADDRESS, 0.001 ether); // ~$2 USD at $2000/ETH
 
-    // Attempt to borrow as B
-   
-    vm.expectRevert(ProtocolPool__NotEnoughLiquidity.selector);
-    liquidityPoolFacet.borrowFromPool(DAI_CONTRACT_ADDRESS, BORROW_AMOUNT);
- 
-}
+        // Attempt to borrow as B
+
+        vm.expectRevert(ProtocolPool__NotEnoughLiquidity.selector);
+        liquidityPoolFacet.borrowFromPool(DAI_CONTRACT_ADDRESS, BORROW_AMOUNT);
+    }
 
     function testBorrowWithInsufficientCollateral() public {
-    initializeTokenPool(DAI_CONTRACT_ADDRESS);
+        initializeTokenPool(DAI_CONTRACT_ADDRESS);
 
-    uint256 DEPOSIT_AMOUNT = 100 ether;
-    uint256 BORROW_AMOUNT = 10 ether; // Large borrow to exceed collateral value
-    vm.deal(B, 200000 ether);
+        uint256 DEPOSIT_AMOUNT = 100 ether;
+        uint256 BORROW_AMOUNT = 10 ether; // Large borrow to exceed collateral value
+        vm.deal(B, 200000 ether);
 
-    // Owner deposits to the pool
-    liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, DEPOSIT_AMOUNT);
+        // Owner deposits to the pool
+        liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, DEPOSIT_AMOUNT);
 
-    // Deposit minimal collateral as B
-    _depositCollateral(B, ETH_CONTRACT_ADDRESS, 0.001 ether); // ~$2 USD at $2000/ETH
+        // Deposit minimal collateral as B
+        _depositCollateral(B, ETH_CONTRACT_ADDRESS, 0.001 ether); // ~$2 USD at $2000/ETH
 
-    // Attempt to borrow as B
-   
-    vm.expectRevert(ProtocolPool__InsufficientCollateral.selector);
-    liquidityPoolFacet.borrowFromPool(DAI_CONTRACT_ADDRESS, BORROW_AMOUNT);
- 
-}
+        // Attempt to borrow as B
 
-function testBorrowFromInactivePool() public {
-    initializeTokenPool(DAI_CONTRACT_ADDRESS);
+        vm.expectRevert(ProtocolPool__InsufficientCollateral.selector);
+        liquidityPoolFacet.borrowFromPool(DAI_CONTRACT_ADDRESS, BORROW_AMOUNT);
+    }
 
-    uint256 DEPOSIT_AMOUNT = 100 ether;
-    uint256 BORROW_AMOUNT = 10 ether;
-    vm.deal(B, 200000 ether);
+    function testBorrowFromInactivePool() public {
+        initializeTokenPool(DAI_CONTRACT_ADDRESS);
 
-    // Owner deposits to the pool
-    liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, DEPOSIT_AMOUNT);
+        uint256 DEPOSIT_AMOUNT = 100 ether;
+        uint256 BORROW_AMOUNT = 10 ether;
+        vm.deal(B, 200000 ether);
 
-    liquidityPoolFacet.setPoolActive(DAI_CONTRACT_ADDRESS, false); // Add this function if needed
-   
+        // Owner deposits to the pool
+        liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, DEPOSIT_AMOUNT);
 
-    // Deposit collateral as B
-    _depositCollateral(B, ETH_CONTRACT_ADDRESS, 200 ether);
+        liquidityPoolFacet.setPoolActive(DAI_CONTRACT_ADDRESS, false); // Add this function if needed
 
-    vm.expectRevert(ProtocolPool__IsNotActive.selector);
-    liquidityPoolFacet.borrowFromPool(DAI_CONTRACT_ADDRESS, BORROW_AMOUNT);
-    vm.stopPrank();
-}
+        // Deposit collateral as B
+        _depositCollateral(B, ETH_CONTRACT_ADDRESS, 200 ether);
 
+        vm.expectRevert(ProtocolPool__IsNotActive.selector);
+        liquidityPoolFacet.borrowFromPool(DAI_CONTRACT_ADDRESS, BORROW_AMOUNT);
+        vm.stopPrank();
+    }
 
+    function testUserCant_BorrowFrom_UninitializedPool() public {
+        uint256 BORROW_AMOUNT = 10 ether;
+        vm.deal(B, 200000 ether);
 
+        // Deposit collateral as B
+        _depositCollateral(B, ETH_CONTRACT_ADDRESS, 200 ether);
 
-function testUserCant_BorrowFrom_UninitializedPool() public {
-    uint256 BORROW_AMOUNT = 10 ether;
-    vm.deal(B, 200000 ether);
+        // Attempt to borrow without initializing the pool
+        vm.expectRevert(ProtocolPool__NotInitialized.selector);
+        liquidityPoolFacet.borrowFromPool(DAI_CONTRACT_ADDRESS, BORROW_AMOUNT);
+        vm.stopPrank();
+    }
 
-    // Deposit collateral as B
-    _depositCollateral(B, ETH_CONTRACT_ADDRESS, 200 ether);
+    function testDifferentUserCanMake_MultipleBorrows() public {
+        initializeTokenPool(DAI_CONTRACT_ADDRESS);
 
-    // Attempt to borrow without initializing the pool
-    vm.expectRevert(ProtocolPool__NotInitialized.selector);
-    liquidityPoolFacet.borrowFromPool(DAI_CONTRACT_ADDRESS, BORROW_AMOUNT);
-    vm.stopPrank();
-}
+        uint256 DEPOSIT_AMOUNT = 100 ether;
+        uint256 BORROW_AMOUNT_1 = 10 ether;
+        uint256 BORROW_AMOUNT_2 = 20 ether;
+        vm.deal(B, 200000 ether);
+        vm.deal(C, 200000 ether);
 
-function testSameUserCanMake_MultipleBorrows() public {
-    initializeTokenPool(DAI_CONTRACT_ADDRESS);
+        // Owner deposits to the pool
+        liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, DEPOSIT_AMOUNT);
 
-    uint256 DEPOSIT_AMOUNT = 100 ether;
-    uint256 BORROW_AMOUNT_1 = 10 ether;
-    uint256 BORROW_AMOUNT_2 = 20 ether;
-    vm.deal(B, 200000 ether);
+        // Deposit collateral as B
+        _depositCollateral(B, ETH_CONTRACT_ADDRESS, 200 ether);
 
-    // Owner deposits to the pool
-    liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, DEPOSIT_AMOUNT);
+        // First borrow as B
+        liquidityPoolFacet.borrowFromPool(DAI_CONTRACT_ADDRESS, BORROW_AMOUNT_1);
 
-    // Deposit collateral as B
-    _depositCollateral(B, ETH_CONTRACT_ADDRESS, 200 ether);
 
-    // First borrow as B
-    liquidityPoolFacet.borrowFromPool(DAI_CONTRACT_ADDRESS, BORROW_AMOUNT_1);
 
-    // Second borrow as B
-    liquidityPoolFacet.borrowFromPool(DAI_CONTRACT_ADDRESS, BORROW_AMOUNT_2);
+        // Deposit collateral as C
+        _depositCollateral(C, ETH_CONTRACT_ADDRESS, 200 ether);
 
-    // Verify user debt
-    (uint256 borrowedAmount, , , bool isActive) =
-        liquidityPoolFacet.getUserBorrowData(B, DAI_CONTRACT_ADDRESS);
-    assertEq(borrowedAmount, BORROW_AMOUNT_1 + BORROW_AMOUNT_2, "Debt should accumulate");
-    assertTrue(isActive);
+        // Second borrow as C
+        liquidityPoolFacet.borrowFromPool(DAI_CONTRACT_ADDRESS, BORROW_AMOUNT_2);
 
-    // Verify pool state
-    (uint256 totalSupply, uint256 poolLiquidity, uint256 totalBorrows, ) =
-        liquidityPoolFacet.getPoolTokenData(DAI_CONTRACT_ADDRESS);
-    assertEq(poolLiquidity, DEPOSIT_AMOUNT - (BORROW_AMOUNT_1 + BORROW_AMOUNT_2), "Pool liquidity should be reduced");
-    assertEq(totalBorrows, BORROW_AMOUNT_1 + BORROW_AMOUNT_2, "Total borrows should be updated");
-}
+        // Verify user debt
+        (uint256 borrowedAmount,,, bool isActive) = liquidityPoolFacet.getUserBorrowData(B, DAI_CONTRACT_ADDRESS);
+        assertEq(borrowedAmount, BORROW_AMOUNT_1, "Debt should accumulate");
+        assertTrue(isActive);
 
 
 
-function testProtocolPoolCanAccrueInterest() public {
-    uint256 DEPOSIT_AMOUNT = 100 ether;
-    uint256 BORROW_AMOUNT = 10 ether;
 
-    initializeTokenPool(DAI_CONTRACT_ADDRESS);
-    vm.deal(B, 200000 ether);
+        (uint256 borrowedAmount2,,, bool isActive2) =
+            liquidityPoolFacet.getUserBorrowData(C, DAI_CONTRACT_ADDRESS);
+        assertEq(borrowedAmount2, BORROW_AMOUNT_2, "Debt should accumulate");
+        assertTrue(isActive2);
 
-    liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, DEPOSIT_AMOUNT);
+        // Verify pool state
+        (uint256 totalSupply, uint256 poolLiquidity, uint256 totalBorrows,) =
+            liquidityPoolFacet.getPoolTokenData(DAI_CONTRACT_ADDRESS);
+        assertEq(
+            poolLiquidity, DEPOSIT_AMOUNT - (BORROW_AMOUNT_1 + BORROW_AMOUNT_2), "Pool liquidity should be reduced"
+        );
+        assertEq(totalBorrows, BORROW_AMOUNT_1 + BORROW_AMOUNT_2, "Total borrows should be updated");
+    }
 
-    _depositCollateral(B, ETH_CONTRACT_ADDRESS, 200 ether);
-    liquidityPoolFacet.borrowFromPool(DAI_CONTRACT_ADDRESS, BORROW_AMOUNT);
-
-    (, uint256 borrowIndex,,) = liquidityPoolFacet.getUserBorrowData(B, DAI_CONTRACT_ADDRESS);
-    require(borrowIndex > 0, "Borrow index should be initialized");
+    function testProtocolPoolCanAccrueInterest() public {
+        uint256 DEPOSIT_AMOUNT = 100 ether;
+        uint256 BORROW_AMOUNT = 10 ether;
 
-    uint256 initialDebt = liquidityPoolFacet.getUserDebt(B, DAI_CONTRACT_ADDRESS);
-    assertEq(initialDebt, BORROW_AMOUNT, "Initial debt should match borrowed amount");
+        initializeTokenPool(DAI_CONTRACT_ADDRESS);
+        vm.deal(B, 200000 ether);
 
-    vm.warp(block.timestamp + 365 days);
+        liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, DEPOSIT_AMOUNT);
 
-    uint256 debtAfterOneYear = liquidityPoolFacet.getUserDebt(B, DAI_CONTRACT_ADDRESS);
-    console.log("Debt after one year:", debtAfterOneYear);
+        _depositCollateral(B, ETH_CONTRACT_ADDRESS, 200 ether);
+        liquidityPoolFacet.borrowFromPool(DAI_CONTRACT_ADDRESS, BORROW_AMOUNT);
 
-    // Expect 0.625% interest: 10 ETH * 1.00625 = 10.0625 ETH
-    uint256 expectedDebt = BORROW_AMOUNT * 100625 / 100000; // 0.625% interest
-    uint256 tolerance = 0.01 ether;
-    assertApproxEqAbs(debtAfterOneYear, expectedDebt, tolerance, "Interest after 1 year should accrue correctly");
-    assertGt(debtAfterOneYear, initialDebt, "Debt should increase over time");
-}
+        (, uint256 borrowIndex,,) = liquidityPoolFacet.getUserBorrowData(B, DAI_CONTRACT_ADDRESS);
+        require(borrowIndex > 0, "Borrow index should be initialized");
 
-function testRepayPartial() public {
-    // Initialize the token pool
-    initializeTokenPool(DAI_CONTRACT_ADDRESS);
+        uint256 initialDebt = liquidityPoolFacet.getUserDebt(B, DAI_CONTRACT_ADDRESS);
+        assertEq(initialDebt, BORROW_AMOUNT, "Initial debt should match borrowed amount");
 
-    uint256 DEPOSIT_AMOUNT = 100 ether;
-    uint256 BORROW_AMOUNT = 10 ether;
-    vm.deal(B, 200000 ether);
+        vm.warp(block.timestamp + 365 days);
 
-    // Owner deposits to the pool
-    liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, DEPOSIT_AMOUNT);
-    uint256 poolDeposit = liquidityPoolFacet.getUserPoolDeposit(
-        owner,
-        DAI_CONTRACT_ADDRESS
-    );
-    assertEq(poolDeposit, DEPOSIT_AMOUNT);
+        uint256 debtAfterOneYear = liquidityPoolFacet.getUserDebt(B, DAI_CONTRACT_ADDRESS);
+        console.log("Debt after one year:", debtAfterOneYear);
 
+        // Expect 0.625% interest: 10 ETH * 1.00625 = 10.0625 ETH
+        uint256 expectedDebt = BORROW_AMOUNT * 100625 / 100000; // 0.625% interest
+        uint256 tolerance = 0.01 ether;
+        assertApproxEqAbs(debtAfterOneYear, expectedDebt, tolerance, "Interest after 1 year should accrue correctly");
+        assertGt(debtAfterOneYear, initialDebt, "Debt should increase over time");
+    }
 
-    _depositCollateral(B, ETH_CONTRACT_ADDRESS, 200 ether);
-    
-  
-    liquidityPoolFacet.borrowFromPool(DAI_CONTRACT_ADDRESS, BORROW_AMOUNT);
+    function testRepayPartial() public {
+        // Initialize the token pool
+        initializeTokenPool(DAI_CONTRACT_ADDRESS);
 
-    // Verify borrow state
-    (uint256 borrowedAmount, uint256 borrowIndex, , bool isActive) =
-        liquidityPoolFacet.getUserBorrowData(B, DAI_CONTRACT_ADDRESS);
-    
-    assertTrue(isActive);
-    assertEq(borrowedAmount, BORROW_AMOUNT, "Initial debt should equal borrowed amount");
+        uint256 DEPOSIT_AMOUNT = 100 ether;
+        uint256 BORROW_AMOUNT = 10 ether;
+        vm.deal(B, 200000 ether);
 
-    // Verify pool state
-    (uint256 totalSupply, uint256 poolLiquidity, uint256 totalBorrows, uint256 lastUpdateTimestamp) =
-        liquidityPoolFacet.getPoolTokenData(DAI_CONTRACT_ADDRESS);
+        // Owner deposits to the pool
+        liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, DEPOSIT_AMOUNT);
+        uint256 poolDeposit = liquidityPoolFacet.getUserPoolDeposit(owner, DAI_CONTRACT_ADDRESS);
+        assertEq(poolDeposit, DEPOSIT_AMOUNT);
 
-    assertEq(poolLiquidity, DEPOSIT_AMOUNT - BORROW_AMOUNT, "Pool liquidity should be reduced");
-    assertEq(totalBorrows, BORROW_AMOUNT, "Total borrows should be updated");
-    
-    // Partial repayment
-    uint256 repayAmount = BORROW_AMOUNT / 2; // Repay half
-    // User2 approves and repays
-    IERC20(DAI_CONTRACT_ADDRESS).approve(address(liquidityPoolFacet), repayAmount);
-    
-     liquidityPoolFacet.repay(DAI_CONTRACT_ADDRESS, repayAmount);
-    
+        _depositCollateral(B, ETH_CONTRACT_ADDRESS, 200 ether);
 
-    // Get updated borrow data
-    (borrowedAmount, borrowIndex, , isActive) =
-        liquidityPoolFacet.getUserBorrowData(B, DAI_CONTRACT_ADDRESS);
-    
-    // Verify remaining debt
-    assertEq(borrowedAmount, BORROW_AMOUNT - repayAmount, "Remaining debt should be updated");
-}
+        liquidityPoolFacet.borrowFromPool(DAI_CONTRACT_ADDRESS, BORROW_AMOUNT);
 
+        // Verify borrow state
+        (uint256 borrowedAmount, uint256 borrowIndex,, bool isActive) =
+            liquidityPoolFacet.getUserBorrowData(B, DAI_CONTRACT_ADDRESS);
 
-function testRepayPartialWithInterest() public {
-    initializeTokenPool(DAI_CONTRACT_ADDRESS);
-     // Mint enough DAI to B to cover partial repayment
-    _mintTokenToAddress(DAI_CONTRACT_ADDRESS, B, 1);
+        assertTrue(isActive);
+        assertEq(borrowedAmount, BORROW_AMOUNT, "Initial debt should equal borrowed amount");
 
-    uint256 DEPOSIT_AMOUNT = 100 ether;
-    uint256 BORROW_AMOUNT = 10 ether;
-    vm.deal(B, 200000 ether);
+        // Verify pool state
+        (uint256 totalSupply, uint256 poolLiquidity, uint256 totalBorrows, uint256 lastUpdateTimestamp) =
+            liquidityPoolFacet.getPoolTokenData(DAI_CONTRACT_ADDRESS);
 
-    // Owner deposits to the pool
-    liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, DEPOSIT_AMOUNT);
+        assertEq(poolLiquidity, DEPOSIT_AMOUNT - BORROW_AMOUNT, "Pool liquidity should be reduced");
+        assertEq(totalBorrows, BORROW_AMOUNT, "Total borrows should be updated");
 
-    // Deposit collateral as B
-    _depositCollateral(B, ETH_CONTRACT_ADDRESS, 200 ether);
+        // Partial repayment
+        uint256 repayAmount = BORROW_AMOUNT / 2; // Repay half
+        // User2 approves and repays
+        IERC20(DAI_CONTRACT_ADDRESS).approve(address(liquidityPoolFacet), repayAmount);
 
-    // Borrow as B
+        liquidityPoolFacet.repay(DAI_CONTRACT_ADDRESS, repayAmount);
 
-    liquidityPoolFacet.borrowFromPool(DAI_CONTRACT_ADDRESS, BORROW_AMOUNT);
+        // Get updated borrow data
+        (borrowedAmount, borrowIndex,, isActive) = liquidityPoolFacet.getUserBorrowData(B, DAI_CONTRACT_ADDRESS);
 
-    uint256 balanceAfterBorrow =  IERC20(DAI_CONTRACT_ADDRESS).balanceOf(B);
+        // Verify remaining debt
+        assertEq(borrowedAmount, BORROW_AMOUNT - repayAmount, "Remaining debt should be updated");
+    }
 
-    // Advance time to accrue interest
-    vm.warp(block.timestamp + 30 days);
+    function testRepayPartialWithInterest() public {
+        initializeTokenPool(DAI_CONTRACT_ADDRESS);
+        // Mint enough DAI to B to cover partial repayment
+        _mintTokenToAddress(DAI_CONTRACT_ADDRESS, B, 1);
 
-    // Get current debt
-    uint256 currentDebt = liquidityPoolFacet.getUserDebt(B, DAI_CONTRACT_ADDRESS);
-    assertGt(currentDebt, BORROW_AMOUNT, "Debt should include interest");
+        uint256 DEPOSIT_AMOUNT = 100 ether;
+        uint256 BORROW_AMOUNT = 10 ether;
+        vm.deal(B, 200000 ether);
 
+        // Owner deposits to the pool
+        liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, DEPOSIT_AMOUNT);
 
+        // Deposit collateral as B
+        _depositCollateral(B, ETH_CONTRACT_ADDRESS, 200 ether);
 
-    // Partial repayment (half of current debt)
-    uint256 repayAmount = currentDebt / 2;
+        // Borrow as B
 
-    IERC20(DAI_CONTRACT_ADDRESS).approve(address(liquidityPoolFacet), repayAmount);
-    liquidityPoolFacet.repay(DAI_CONTRACT_ADDRESS, repayAmount);
+        liquidityPoolFacet.borrowFromPool(DAI_CONTRACT_ADDRESS, BORROW_AMOUNT);
 
-    uint256 balanceAfterRepayment =  IERC20(DAI_CONTRACT_ADDRESS).balanceOf(B);
+        uint256 balanceAfterBorrow = IERC20(DAI_CONTRACT_ADDRESS).balanceOf(B);
 
+        // Advance time to accrue interest
+        vm.warp(block.timestamp + 30 days);
 
-    // Verify remaining debt
-    (uint256 borrowedAmount, , , bool isActive) =
-        liquidityPoolFacet.getUserBorrowData(B, DAI_CONTRACT_ADDRESS);
-    assertApproxEqAbs(borrowedAmount, currentDebt - repayAmount, 1e10, "Remaining debt should be updated");
-    assertTrue(isActive, "Borrow position should remain active");
+        // Get current debt
+        uint256 currentDebt = liquidityPoolFacet.getUserDebt(B, DAI_CONTRACT_ADDRESS);
+        assertGt(currentDebt, BORROW_AMOUNT, "Debt should include interest");
 
-    // Verify pool state
-    (uint256 totalSupply, uint256 poolLiquidity, uint256 totalBorrows, ) =
-        liquidityPoolFacet.getPoolTokenData(DAI_CONTRACT_ADDRESS);
-    assertEq(poolLiquidity, DEPOSIT_AMOUNT - BORROW_AMOUNT + repayAmount, "Pool liquidity should increase");
-    assertEq(balanceAfterRepayment,balanceAfterBorrow - repayAmount, "Balance should be unchanged");
+        // Partial repayment (half of current debt)
+        uint256 repayAmount = currentDebt / 2;
 
+        IERC20(DAI_CONTRACT_ADDRESS).approve(address(liquidityPoolFacet), repayAmount);
+        liquidityPoolFacet.repay(DAI_CONTRACT_ADDRESS, repayAmount);
 
+        uint256 balanceAfterRepayment = IERC20(DAI_CONTRACT_ADDRESS).balanceOf(B);
 
-}
+        // Verify remaining debt
+        (uint256 borrowedAmount,,, bool isActive) = liquidityPoolFacet.getUserBorrowData(B, DAI_CONTRACT_ADDRESS);
+        assertApproxEqAbs(borrowedAmount, currentDebt - repayAmount, 1e10, "Remaining debt should be updated");
+        assertTrue(isActive, "Borrow position should remain active");
 
-function testRepayFull() public {
-    // Initialize the token pool
-    initializeTokenPool(DAI_CONTRACT_ADDRESS);
-    _mintTokenToAddress(DAI_CONTRACT_ADDRESS, B, 1 ether);
+        // Verify pool state
+        (uint256 totalSupply, uint256 poolLiquidity, uint256 totalBorrows,) =
+            liquidityPoolFacet.getPoolTokenData(DAI_CONTRACT_ADDRESS);
+        assertEq(poolLiquidity, DEPOSIT_AMOUNT - BORROW_AMOUNT + repayAmount, "Pool liquidity should increase");
+        assertEq(balanceAfterRepayment, balanceAfterBorrow - repayAmount, "Balance should be unchanged");
+    }
 
-    uint256 DEPOSIT_AMOUNT = 100 ether;
-    uint256 BORROW_AMOUNT = 10 ether;
-    // Owner deposits to the pool
-    liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, DEPOSIT_AMOUNT);
+    function testRepayFull() public {
+        // Initialize the token pool
+        initializeTokenPool(DAI_CONTRACT_ADDRESS);
+        _mintTokenToAddress(DAI_CONTRACT_ADDRESS, B, 1 ether);
 
-    uint256 poolDeposit = liquidityPoolFacet.getUserPoolDeposit(
-        owner,
-        DAI_CONTRACT_ADDRESS
-    );
-    assertEq(poolDeposit, DEPOSIT_AMOUNT);
+        uint256 DEPOSIT_AMOUNT = 100 ether;
+        uint256 BORROW_AMOUNT = 10 ether;
+        // Owner deposits to the pool
+        liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, DEPOSIT_AMOUNT);
 
+        uint256 poolDeposit = liquidityPoolFacet.getUserPoolDeposit(owner, DAI_CONTRACT_ADDRESS);
+        assertEq(poolDeposit, DEPOSIT_AMOUNT);
 
-    _depositCollateral(B, ETH_CONTRACT_ADDRESS, 200 ether);
+        _depositCollateral(B, ETH_CONTRACT_ADDRESS, 200 ether);
 
-    liquidityPoolFacet.borrowFromPool(DAI_CONTRACT_ADDRESS, BORROW_AMOUNT);
+        liquidityPoolFacet.borrowFromPool(DAI_CONTRACT_ADDRESS, BORROW_AMOUNT);
 
-    uint256 balanceAfterBorrow =  IERC20(DAI_CONTRACT_ADDRESS).balanceOf(B);
+        uint256 balanceAfterBorrow = IERC20(DAI_CONTRACT_ADDRESS).balanceOf(B);
 
-    // Verify pool state
-    (uint256 totalSupply, uint256 poolLiquidity, uint256 totalBorrows, uint256 lastUpdateTimestamp) =
-        liquidityPoolFacet.getPoolTokenData(DAI_CONTRACT_ADDRESS);
+        // Verify pool state
+        (uint256 totalSupply, uint256 poolLiquidity, uint256 totalBorrows, uint256 lastUpdateTimestamp) =
+            liquidityPoolFacet.getPoolTokenData(DAI_CONTRACT_ADDRESS);
 
-    assertEq(poolLiquidity, DEPOSIT_AMOUNT - BORROW_AMOUNT, "Pool liquidity should be reduced");
-    assertEq(totalBorrows, BORROW_AMOUNT, "Total borrows should be updated");
-    
-    // Advance time to accrue interest
-    vm.warp(block.timestamp + 30 days);
-    
-    // Get current debt with interest
-    uint256 currentDebt = liquidityPoolFacet.getUserDebt(B, DAI_CONTRACT_ADDRESS);
-    assertGt(currentDebt, BORROW_AMOUNT, "Debt should include interest");
-    
+        assertEq(poolLiquidity, DEPOSIT_AMOUNT - BORROW_AMOUNT, "Pool liquidity should be reduced");
+        assertEq(totalBorrows, BORROW_AMOUNT, "Total borrows should be updated");
 
-    IERC20(DAI_CONTRACT_ADDRESS).approve(address(liquidityPoolFacet), currentDebt);
-    
-    // B approves and repays
-    liquidityPoolFacet.repay(DAI_CONTRACT_ADDRESS, type(uint256).max);
-    
-    // Check remaining debt
-    (uint256 borrowedAmount, , ,bool isActive) = liquidityPoolFacet.getUserBorrowData(B, DAI_CONTRACT_ADDRESS);
+        // Advance time to accrue interest
+        vm.warp(block.timestamp + 30 days);
+
+        // Get current debt with interest
+        uint256 currentDebt = liquidityPoolFacet.getUserDebt(B, DAI_CONTRACT_ADDRESS);
+        assertGt(currentDebt, BORROW_AMOUNT, "Debt should include interest");
+
+        IERC20(DAI_CONTRACT_ADDRESS).approve(address(liquidityPoolFacet), currentDebt);
+
+        // B approves and repays
+        liquidityPoolFacet.repay(DAI_CONTRACT_ADDRESS, type(uint256).max);
+
+        // Check remaining debt
+        (uint256 borrowedAmount,,, bool isActive) = liquidityPoolFacet.getUserBorrowData(B, DAI_CONTRACT_ADDRESS);
 
         // check user balance after repayment
-      uint256 balanceAfterRepayment =  IERC20(DAI_CONTRACT_ADDRESS).balanceOf(B);
+        uint256 balanceAfterRepayment = IERC20(DAI_CONTRACT_ADDRESS).balanceOf(B);
 
-      // 
-        assertEq(balanceAfterRepayment,balanceAfterBorrow - currentDebt, "Balance should be unchanged");
-    assertEq(borrowedAmount, 0, "Debt should be fully cleared");
-    assertFalse(isActive, "Borrow position should be inactive");
-}
-
+        //
+        assertEq(balanceAfterRepayment, balanceAfterBorrow - currentDebt, "Balance should be unchanged");
+        assertEq(borrowedAmount, 0, "Debt should be fully cleared");
+        assertFalse(isActive, "Borrow position should be inactive");
+    }
 
     function testWithdrawFromPool() public {
         // Setup: User deposits tokens first
-    initializeTokenPool(DAI_CONTRACT_ADDRESS);
-    _mintTokenToAddress(DAI_CONTRACT_ADDRESS, B, 1000 ether);
+        initializeTokenPool(DAI_CONTRACT_ADDRESS);
+        _mintTokenToAddress(DAI_CONTRACT_ADDRESS, B, 1000 ether);
 
-    uint256 DEPOSIT_AMOUNT = 100 ether;
-    uint256 BORROW_AMOUNT = 10 ether;
-    vm.deal(B, 200000 ether);
+        uint256 DEPOSIT_AMOUNT = 100 ether;
+        uint256 BORROW_AMOUNT = 10 ether;
+        vm.deal(B, 200000 ether);
 
-    liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, 100 ether);
+        liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, 100 ether);
 
-    uint256 poolDeposit = liquidityPoolFacet.getUserPoolDeposit(
-            owner,
-            DAI_CONTRACT_ADDRESS
-        );
-    assertEq(poolDeposit, 100 ether);
-  
+        uint256 poolDeposit = liquidityPoolFacet.getUserPoolDeposit(owner, DAI_CONTRACT_ADDRESS);
+        assertEq(poolDeposit, 100 ether);
 
-    (uint256 totalSupply,uint256 poolLiquidity,uint256 totalBorrows,uint256 lastUpdateTimestamp) = liquidityPoolFacet.getPoolTokenData(DAI_CONTRACT_ADDRESS);
+        (uint256 totalSupply, uint256 poolLiquidity, uint256 totalBorrows, uint256 lastUpdateTimestamp) =
+            liquidityPoolFacet.getPoolTokenData(DAI_CONTRACT_ADDRESS);
 
-    assertEq(poolLiquidity, DEPOSIT_AMOUNT, "Pool liquidity should be 100 dia");
+        assertEq(poolLiquidity, DEPOSIT_AMOUNT, "Pool liquidity should be 100 dia");
 
-    switchSigner(B);
+        switchSigner(B);
         IERC20(DAI_CONTRACT_ADDRESS).approve(address(liquidityPoolFacet), 200 ether);
 
-    liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, 100 ether);
-      
-    uint256 poolDeposit_2 = liquidityPoolFacet.getUserPoolDeposit(
-            B,
-            DAI_CONTRACT_ADDRESS
-        );
+        liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, 100 ether);
 
-    assertEq(poolDeposit_2, 100 ether);
+        uint256 poolDeposit_2 = liquidityPoolFacet.getUserPoolDeposit(B, DAI_CONTRACT_ADDRESS);
 
-    // Get user's shares after deposit
-    uint256 userShares = liquidityPoolFacet.getUserPoolDeposit(B, DAI_CONTRACT_ADDRESS);
-    assertGt(userShares, 0, "User should have shares after deposit");
+        assertEq(poolDeposit_2, 100 ether);
+
+        // Get user's shares after deposit
+        uint256 userShares = liquidityPoolFacet.getUserPoolDeposit(B, DAI_CONTRACT_ADDRESS);
+        assertGt(userShares, 0, "User should have shares after deposit");
 
         // Get initial token balance before withdrawal
-    uint256 initialBalance = IERC20(DAI_CONTRACT_ADDRESS).balanceOf(B);
-        
+        uint256 initialBalance = IERC20(DAI_CONTRACT_ADDRESS).balanceOf(B);
+
         // Withdraw all shares
         liquidityPoolFacet.withdrawn(DAI_CONTRACT_ADDRESS, userShares);
 
         uint256 sharesafterWithdrawn = liquidityPoolFacet.getUserPoolDeposit(B, DAI_CONTRACT_ADDRESS);
-        assertEq(sharesafterWithdrawn, 0, "All shares should be withdrawn");        
+        assertEq(sharesafterWithdrawn, 0, "All shares should be withdrawn");
     }
-    
+
     function testPartialWithdrawFromPool() public {
-           // Setup: User deposits tokens first
-    initializeTokenPool(DAI_CONTRACT_ADDRESS);
-    _mintTokenToAddress(DAI_CONTRACT_ADDRESS, B, 1000 ether);
+        // Setup: User deposits tokens first
+        initializeTokenPool(DAI_CONTRACT_ADDRESS);
+        _mintTokenToAddress(DAI_CONTRACT_ADDRESS, B, 1000 ether);
 
-    uint256 DEPOSIT_AMOUNT = 100 ether;
-    uint256 BORROW_AMOUNT = 10 ether;
-    vm.deal(B, 200000 ether);
+        uint256 DEPOSIT_AMOUNT = 100 ether;
+        uint256 BORROW_AMOUNT = 10 ether;
+        vm.deal(B, 200000 ether);
 
-    liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, 100 ether);
+        liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, 100 ether);
 
-    uint256 poolDeposit = liquidityPoolFacet.getUserPoolDeposit(
-            owner,
-            DAI_CONTRACT_ADDRESS
-        );
-    assertEq(poolDeposit, 100 ether);
-  
+        uint256 poolDeposit = liquidityPoolFacet.getUserPoolDeposit(owner, DAI_CONTRACT_ADDRESS);
+        assertEq(poolDeposit, 100 ether);
 
-    (uint256 totalSupply,uint256 poolLiquidity,uint256 totalBorrows,uint256 lastUpdateTimestamp) = liquidityPoolFacet.getPoolTokenData(DAI_CONTRACT_ADDRESS);
+        (uint256 totalSupply, uint256 poolLiquidity, uint256 totalBorrows, uint256 lastUpdateTimestamp) =
+            liquidityPoolFacet.getPoolTokenData(DAI_CONTRACT_ADDRESS);
 
-    assertEq(poolLiquidity, DEPOSIT_AMOUNT, "Pool liquidity should be 100 dia");
+        assertEq(poolLiquidity, DEPOSIT_AMOUNT, "Pool liquidity should be 100 dia");
 
-    switchSigner(B);
+        switchSigner(B);
         IERC20(DAI_CONTRACT_ADDRESS).approve(address(liquidityPoolFacet), 200 ether);
 
-    liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, DEPOSIT_AMOUNT);
-      
-    uint256 poolDeposit_2 = liquidityPoolFacet.getUserPoolDeposit(
-            B,
-            DAI_CONTRACT_ADDRESS
-        );
+        liquidityPoolFacet.deposit(DAI_CONTRACT_ADDRESS, DEPOSIT_AMOUNT);
 
-    assertEq(poolDeposit_2, 100 ether);
+        uint256 poolDeposit_2 = liquidityPoolFacet.getUserPoolDeposit(B, DAI_CONTRACT_ADDRESS);
 
-    // Get user's shares after deposit
-    uint256 userShares = liquidityPoolFacet.getUserPoolDeposit(B, DAI_CONTRACT_ADDRESS);
-    assertGt(userShares, 0, "User should have shares after deposit");
+        assertEq(poolDeposit_2, 100 ether);
+
+        // Get user's shares after deposit
+        uint256 userShares = liquidityPoolFacet.getUserPoolDeposit(B, DAI_CONTRACT_ADDRESS);
+        assertGt(userShares, 0, "User should have shares after deposit");
 
         // Get initial token balance before withdrawal
-    uint256 initialBalance = IERC20(DAI_CONTRACT_ADDRESS).balanceOf(B);
-        
+        uint256 initialBalance = IERC20(DAI_CONTRACT_ADDRESS).balanceOf(B);
+
         uint256 withdrawnHalfAmount = DEPOSIT_AMOUNT / 2;
         // Withdraw all shares
         liquidityPoolFacet.withdrawn(DAI_CONTRACT_ADDRESS, withdrawnHalfAmount);
 
         uint256 sharesafterWithdrawn = liquidityPoolFacet.getUserPoolDeposit(B, DAI_CONTRACT_ADDRESS);
-        assertEq(sharesafterWithdrawn, DEPOSIT_AMOUNT - withdrawnHalfAmount , "half shares should be withdrawn");        
+        assertEq(sharesafterWithdrawn, DEPOSIT_AMOUNT - withdrawnHalfAmount, "half shares should be withdrawn");
     }
-    
-    
-    // function testWithdrawNativeToken() public {
-    //     // Setup: User deposits ETH first
-    //     vm.startPrank(user1);
-    //     LiquidityPoolFacet(diamondAddress).deposit{value: DEPOSIT_AMOUNT}(
-    //         Constants.NATIVE_TOKEN, 
-    //         DEPOSIT_AMOUNT
-    //     );
-        
-    //     // Get user's shares after deposit
-    //     uint256 userShares = getUserShares(user1, Constants.NATIVE_TOKEN);
-        
-    //     // Get initial ETH balance before withdrawal
-    //     uint256 initialBalance = user1.balance;
-        
-    //     // Withdraw all shares
-    //     uint256 amountWithdrawn = LiquidityPoolFacet(diamondAddress).withdraw(
-    //         Constants.NATIVE_TOKEN,
-    //         userShares
-    //     );
-        
-    //     // Verify ETH was received
-    //     uint256 finalBalance = user1.balance;
-    //     assertEq(finalBalance, initialBalance + amountWithdrawn, "User should receive ETH");
-    //     assertEq(amountWithdrawn, DEPOSIT_AMOUNT, "Should withdraw original deposit amount");
-        
-    //     vm.stopPrank();
-    // }
-    
-    // function testFailWithdrawInsufficientShares() public {
-    //     // Setup: User deposits tokens first
-    //     vm.startPrank(user1);
-    //     mockToken.approve(diamondAddress, DEPOSIT_AMOUNT);
-    //     LiquidityPoolFacet(diamondAddress).deposit(address(mockToken), DEPOSIT_AMOUNT);
-        
-    //     // Get user's shares after deposit
-    //     uint256 userShares = getUserShares(user1, address(mockToken));
-        
-    //     // Try to withdraw more shares than user has
-    //     LiquidityPoolFacet(diamondAddress).withdraw(
-    //         address(mockToken),
-    //         userShares + 1
-    //     );
-    //     // This should fail with InsufficientShares error
-        
-    //     vm.stopPrank();
-    // }
-    
-    // function testWithdrawWithBorrows() public {
-    //     // Setup: User1 deposits tokens
-    //     vm.startPrank(user1);
-    //     mockToken.approve(diamondAddress, DEPOSIT_AMOUNT);
-    //     LiquidityPoolFacet(diamondAddress).deposit(address(mockToken), DEPOSIT_AMOUNT);
-    //     vm.stopPrank();
-        
-    //     // User2 borrows some tokens
-    //     vm.startPrank(user2);
-    //     // Note: This would require collateral setup in a real test
-    //     // For simplicity, we're assuming this works
-    //     uint256 borrowAmount = DEPOSIT_AMOUNT / 4;
-    //     // LiquidityPoolFacet(diamondAddress).borrowFromPool(address(mockToken), borrowAmount);
-    //     vm.stopPrank();
-        
-    //     // User1 tries to withdraw all shares
-    //     vm.startPrank(user1);
-    //     uint256 userShares = getUserShares(user1, address(mockToken));
-        
-    //     // This should succeed but withdraw less than the full deposit amount
-    //     uint256 amountWithdrawn = LiquidityPoolFacet(diamondAddress).withdraw(
-    //         address(mockToken),
-    //         userShares
-    //     );
-        
-    //     // Verify tokens were received, but less than original deposit due to borrows
-    //     assertLt(amountWithdrawn, DEPOSIT_AMOUNT, "Should withdraw less than deposit due to borrows");
-        
-    //     vm.stopPrank();
-    // }
-    
-    // function testWithdrawAfterInterestAccrual() public {
-    //     // Setup: User1 deposits tokens
-    //     vm.startPrank(user1);
-    //     mockToken.approve(diamondAddress, DEPOSIT_AMOUNT);
-    //     LiquidityPoolFacet(diamondAddress).deposit(address(mockToken), DEPOSIT_AMOUNT);
-    //     vm.stopPrank();
-        
-    //     // User2 borrows some tokens
-    //     vm.startPrank(user2);
-    //     // Assuming collateral setup
-    //     uint256 borrowAmount = DEPOSIT_AMOUNT / 4;
-    //     // LiquidityPoolFacet(diamondAddress).borrowFromPool(address(mockToken), borrowAmount);
-    //     vm.stopPrank();
-        
-    //     // Fast forward time to accrue interest
-    //     vm.warp(block.timestamp + 365 days);
-        
-    //     // User1 withdraws shares
-    //     vm.startPrank(user1);
-    //     uint256 userShares = getUserShares(user1, address(mockToken));
-    //     uint256 amountWithdrawn = LiquidityPoolFacet(diamondAddress).withdraw(
-    //         address(mockToken),
-    //         userShares
-    //     );
-        
-    //     // With interest accrual, user should receive more than their deposit
-    //     assertGt(amountWithdrawn, DEPOSIT_AMOUNT, "Should withdraw more than deposit due to interest");
-        
-    //     vm.stopPrank();
-    // }
-    
 
 
-    function _depositCollateral(
-        address user,
-        address token,
-        uint256 amount
-    ) internal {
+
+
+
+
+
+
+
+
+    function _depositCollateral(address user, address token, uint256 amount) internal {
         switchSigner(user);
         if (token == ETH_CONTRACT_ADDRESS) {
             vm.deal(user, amount);
             protocolFacet.depositCollateral{value: amount}(token, amount);
             return;
         }
-        IERC20(token).approve(address(protocolFacet), type(uint).max);
+        IERC20(token).approve(address(protocolFacet), type(uint256).max);
         protocolFacet.depositCollateral(token, amount);
     }
 
-    function deployERC20ContractAndAddPriceFeed(
-        string memory _name,
-        uint8 _decimals,
-        int256 _initialAnswer
-    ) internal returns (address, address) {
+    function deployERC20ContractAndAddPriceFeed(string memory _name, uint8 _decimals, int256 _initialAnswer)
+        internal
+        returns (address, address)
+    {
         ERC20Mock _erc20 = new ERC20Mock();
-        MockV3Aggregator _priceFeed = new MockV3Aggregator(
-            _decimals,
-            _initialAnswer * 1e8
-        );
+        MockV3Aggregator _priceFeed = new MockV3Aggregator(_decimals, _initialAnswer * 1e8);
         vm.label(address(_priceFeed), "Price Feed");
         vm.label(address(_erc20), _name);
         return (address(_erc20), address(_priceFeed));
@@ -911,23 +695,12 @@ function testRepayFull() public {
         uint256 _slopeRate = 2000; // 20%
         // uint256 _initialSupply = 100 ether;
 
-        IERC20(_token).approve(
-            address(protocolFacet),
-            type(uint256).max
-        );
+        IERC20(_token).approve(address(protocolFacet), type(uint256).max);
 
-        liquidityPoolFacet.initializeProtocolPool(
-            _token,
-            _reserveFactor,
-            _optimalUtilization,
-            _baseRate,
-            _slopeRate
-        );
+        liquidityPoolFacet.initializeProtocolPool(_token, _reserveFactor, _optimalUtilization, _baseRate, _slopeRate);
     }
 
-    function generateSelectors(
-        string memory _facetName
-    ) internal returns (bytes4[] memory selectors) {
+    function generateSelectors(string memory _facetName) internal returns (bytes4[] memory selectors) {
         string[] memory cmd = new string[](3);
         cmd[0] = "node";
         cmd[1] = "scripts/genSelectors.js";
@@ -937,9 +710,7 @@ function testRepayFull() public {
     }
 
     function mkaddr(string memory name) public returns (address) {
-        address addr = address(
-            uint160(uint256(keccak256(abi.encodePacked(name))))
-        );
+        address addr = address(uint160(uint256(keccak256(abi.encodePacked(name)))));
         vm.label(addr, name);
         return addr;
     }
@@ -954,9 +725,5 @@ function testRepayFull() public {
         }
     }
 
-    function diamondCut(
-        FacetCut[] calldata _diamondCut,
-        address _init,
-        bytes calldata _calldata
-    ) external override {}
+    function diamondCut(FacetCut[] calldata _diamondCut, address _init, bytes calldata _calldata) external override {}
 }

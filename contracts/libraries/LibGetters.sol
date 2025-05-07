@@ -24,19 +24,14 @@ library LibGettersImpl {
      * to a common precision using `Constants.NEW_PRECISION`, and returns the USD-equivalent
      * value by factoring in the token's decimal precision.
      */
-    function _getUsdValue(
-        LibAppStorage.Layout storage _appStorage,
-        address _token,
-        uint256 _amount,
-        uint8 _decimal
-    ) internal view returns (uint256) {
-        AggregatorV3Interface _priceFeed = AggregatorV3Interface(
-            _appStorage.s_priceFeeds[_token]
-        );
-        (, int256 _price, , , ) = _priceFeed.latestRoundData();
-        return
-            ((uint256(_price) * Constants.NEW_PRECISION) * (_amount)) /
-            ((10 ** _decimal));
+    function _getUsdValue(LibAppStorage.Layout storage _appStorage, address _token, uint256 _amount, uint8 _decimal)
+        internal
+        view
+        returns (uint256)
+    {
+        AggregatorV3Interface _priceFeed = AggregatorV3Interface(_appStorage.s_priceFeeds[_token]);
+        (, int256 _price,,,) = _priceFeed.latestRoundData();
+        return ((uint256(_price) * Constants.NEW_PRECISION) * (_amount)) / ((10 ** _decimal));
     }
 
     /**
@@ -54,23 +49,15 @@ library LibGettersImpl {
      * the USD value of `_amount` in `_from` tokens. It converts this USD value to the
      * equivalent `_to` token amount, adjusting for decimal precision, and returns the result.
      */
-
-    function _getConvertValue(
-        LibAppStorage.Layout storage _appStorage,
-        address _from,
-        address _to,
-        uint256 _amount
-    ) internal view returns (uint256 value) {
+    function _getConvertValue(LibAppStorage.Layout storage _appStorage, address _from, address _to, uint256 _amount)
+        internal
+        view
+        returns (uint256 value)
+    {
         uint8 fromDecimal = _getTokenDecimal(_from);
         uint8 toDecimal = _getTokenDecimal(_to);
-        uint256 fromUsd = _getUsdValue(
-            _appStorage,
-            _from,
-            _amount,
-            fromDecimal
-        );
-        value = (((fromUsd * 10) / _getUsdValue(_appStorage, _to, 10, 0)) *
-            (10 ** toDecimal));
+        uint256 fromUsd = _getUsdValue(_appStorage, _from, _amount, fromDecimal);
+        value = (((fromUsd * 10) / _getUsdValue(_appStorage, _to, 10, 0)) * (10 ** toDecimal));
     }
 
     /**
@@ -81,26 +68,16 @@ library LibGettersImpl {
      *
      * @return _totalCollateralValueInUsd returns the value of the user deposited collateral in USD.
      */
-    function _getAccountCollateralValue(
-        LibAppStorage.Layout storage _appStorage,
-        address _user
-    ) internal view returns (uint256 _totalCollateralValueInUsd) {
-        for (
-            uint256 index = 0;
-            index < _appStorage.s_collateralToken.length;
-            index++
-        ) {
+    function _getAccountCollateralValue(LibAppStorage.Layout storage _appStorage, address _user)
+        internal
+        view
+        returns (uint256 _totalCollateralValueInUsd)
+    {
+        for (uint256 index = 0; index < _appStorage.s_collateralToken.length; index++) {
             address _token = _appStorage.s_collateralToken[index];
-            uint256 _amount = _appStorage.s_addressToCollateralDeposited[_user][
-                _token
-            ];
+            uint256 _amount = _appStorage.s_addressToCollateralDeposited[_user][_token];
             uint8 _tokenDecimal = _getTokenDecimal(_token);
-            _totalCollateralValueInUsd += _getUsdValue(
-                _appStorage,
-                _token,
-                _amount,
-                _tokenDecimal
-            );
+            _totalCollateralValueInUsd += _getUsdValue(_appStorage, _token, _amount, _tokenDecimal);
         }
     }
 
@@ -112,26 +89,16 @@ library LibGettersImpl {
      *
      * @return _totalAvailableValueInUsd returns the value of the user available balance in USD
      */
-    function _getAccountAvailableValue(
-        LibAppStorage.Layout storage _appStorage,
-        address _user
-    ) internal view returns (uint256 _totalAvailableValueInUsd) {
-        for (
-            uint256 index = 0;
-            index < _appStorage.s_collateralToken.length;
-            index++
-        ) {
+    function _getAccountAvailableValue(LibAppStorage.Layout storage _appStorage, address _user)
+        internal
+        view
+        returns (uint256 _totalAvailableValueInUsd)
+    {
+        for (uint256 index = 0; index < _appStorage.s_collateralToken.length; index++) {
             address _token = _appStorage.s_collateralToken[index];
-            uint256 _amount = _appStorage.s_addressToAvailableBalance[_user][
-                _token
-            ];
+            uint256 _amount = _appStorage.s_addressToAvailableBalance[_user][_token];
             uint8 _tokenDecimal = _getTokenDecimal(_token);
-            _totalAvailableValueInUsd += _getUsdValue(
-                _appStorage,
-                _token,
-                _amount,
-                _tokenDecimal
-            );
+            _totalAvailableValueInUsd += _getUsdValue(_appStorage, _token, _amount, _tokenDecimal);
         }
     }
 
@@ -143,10 +110,11 @@ library LibGettersImpl {
      *
      * @return The `LoanListing` struct containing details of the specified listing
      */
-    function _getLoanListing(
-        LibAppStorage.Layout storage _appStorage,
-        uint96 _listingId
-    ) internal view returns (LoanListing memory) {
+    function _getLoanListing(LibAppStorage.Layout storage _appStorage, uint96 _listingId)
+        internal
+        view
+        returns (LoanListing memory)
+    {
         LoanListing memory _listing = _appStorage.loanListings[_listingId];
         if (_listing.author == address(0)) revert Protocol__IdNotExist();
         return _listing;
@@ -160,10 +128,11 @@ library LibGettersImpl {
      *
      * @return _request The `Request` struct containing details of the specified request
      */
-    function _getRequest(
-        LibAppStorage.Layout storage _appStorage,
-        uint96 _requestId
-    ) internal view returns (Request memory) {
+    function _getRequest(LibAppStorage.Layout storage _appStorage, uint96 _requestId)
+        internal
+        view
+        returns (Request memory)
+    {
         Request memory _request = _appStorage.request[_requestId];
         if (_request.author == address(0)) revert Protocol__NotOwner();
         return _request;
@@ -178,10 +147,7 @@ library LibGettersImpl {
      * @return _totalBurrowInUsd returns the total amount of SC the  user has minted.
      * @return _collateralValueInUsd returns the total collateral the user has deposited in USD.
      */
-    function _getAccountInfo(
-        LibAppStorage.Layout storage _appStorage,
-        address _user
-    )
+    function _getAccountInfo(LibAppStorage.Layout storage _appStorage, address _user)
         internal
         view
         returns (uint256 _totalBurrowInUsd, uint256 _collateralValueInUsd)
@@ -199,24 +165,19 @@ library LibGettersImpl {
      *
      * @return uint256 returns the health factor which is supoose to be >= 1
      */
-    function _healthFactor(
-        LibAppStorage.Layout storage _appStorage,
-        address _user,
-        uint256 _borrowValue
-    ) internal view returns (uint256) {
-        (
-            uint256 _totalBurrowInUsd,
-            uint256 _collateralValueInUsd
-        ) = _getAccountInfo(_appStorage, _user);
-        uint256 _collateralAdjustedForThreshold = (_collateralValueInUsd *
-            Constants.LIQUIDATION_THRESHOLD) / 100;
+    function _healthFactor(LibAppStorage.Layout storage _appStorage, address _user, uint256 _borrowValue)
+        internal
+        view
+        returns (uint256)
+    {
+        (uint256 _totalBurrowInUsd, uint256 _collateralValueInUsd) = _getAccountInfo(_appStorage, _user);
+        uint256 _collateralAdjustedForThreshold = (_collateralValueInUsd * Constants.LIQUIDATION_THRESHOLD) / 100;
 
-        if ((_totalBurrowInUsd == 0) && (_borrowValue == 0))
+        if ((_totalBurrowInUsd == 0) && (_borrowValue == 0)) {
             return (_collateralAdjustedForThreshold * Constants.PRECISION);
+        }
 
-        return
-            (_collateralAdjustedForThreshold * Constants.PRECISION) /
-            (_totalBurrowInUsd + _borrowValue);
+        return (_collateralAdjustedForThreshold * Constants.PRECISION) / (_totalBurrowInUsd + _borrowValue);
     }
 
     /**
@@ -226,9 +187,7 @@ library LibGettersImpl {
      *
      * @return _decimal The token decimal.
      */
-    function _getTokenDecimal(
-        address _token
-    ) internal view returns (uint8 _decimal) {
+    function _getTokenDecimal(address _token) internal view returns (uint8 _decimal) {
         if (_token == Constants.NATIVE_TOKEN) {
             _decimal = 18;
         } else {
@@ -245,11 +204,11 @@ library LibGettersImpl {
      *
      * @return _request The request of the user
      */
-    function _getUserRequest(
-        LibAppStorage.Layout storage _appStorage,
-        address _user,
-        uint96 _requestId
-    ) internal view returns (Request memory) {
+    function _getUserRequest(LibAppStorage.Layout storage _appStorage, address _user, uint96 _requestId)
+        internal
+        view
+        returns (Request memory)
+    {
         Request memory _request = _appStorage.request[_requestId];
         if (_request.author != _user) revert Protocol__NotOwner();
         return _request;
@@ -265,10 +224,11 @@ library LibGettersImpl {
      *
      * @return _requests An array of active requests
      */
-    function _getUserActiveRequests(
-        LibAppStorage.Layout storage _appStorage,
-        address _user
-    ) internal view returns (Request[] memory _requests) {
+    function _getUserActiveRequests(LibAppStorage.Layout storage _appStorage, address _user)
+        internal
+        view
+        returns (Request[] memory _requests)
+    {
         uint96 requestId = _appStorage.requestId;
         uint64 count;
 
@@ -303,10 +263,11 @@ library LibGettersImpl {
      *
      * @return _requests An array of all request serviced by the lender
      */
-    function _getServicedRequestByLender(
-        LibAppStorage.Layout storage _appStorage,
-        address _lender
-    ) internal view returns (Request[] memory _requests) {
+    function _getServicedRequestByLender(LibAppStorage.Layout storage _appStorage, address _lender)
+        internal
+        view
+        returns (Request[] memory _requests)
+    {
         uint96 requestId = _appStorage.requestId;
         uint64 count;
 
@@ -344,24 +305,17 @@ library LibGettersImpl {
      * It then iterates over each request, calculates its USD-equivalent value based on its
      * `loanRequestAddr` and `totalRepayment`, and accumulates the total into `_value`.
      */
-    function _getLoanCollectedInUsd(
-        LibAppStorage.Layout storage _appStorage,
-        address _user
-    ) internal view returns (uint256 _value) {
-        Request[] memory userActiveRequest = _getUserActiveRequests(
-            _appStorage,
-            _user
-        );
+    function _getLoanCollectedInUsd(LibAppStorage.Layout storage _appStorage, address _user)
+        internal
+        view
+        returns (uint256 _value)
+    {
+        Request[] memory userActiveRequest = _getUserActiveRequests(_appStorage, _user);
         uint256 loans = 0;
-        for (uint i = 0; i < userActiveRequest.length; i++) {
-            uint8 tokenDecimal = _getTokenDecimal(
-                userActiveRequest[i].loanRequestAddr
-            );
+        for (uint256 i = 0; i < userActiveRequest.length; i++) {
+            uint8 tokenDecimal = _getTokenDecimal(userActiveRequest[i].loanRequestAddr);
             loans += _getUsdValue(
-                _appStorage,
-                userActiveRequest[i].loanRequestAddr,
-                userActiveRequest[i].totalRepayment,
-                tokenDecimal
+                _appStorage, userActiveRequest[i].loanRequestAddr, userActiveRequest[i].totalRepayment, tokenDecimal
             );
         }
         _value = loans;
@@ -382,10 +336,11 @@ library LibGettersImpl {
      * It populates this array in a second loop, storing tokens where the user has
      * a positive collateral deposit.
      */
-    function _getUserCollateralTokens(
-        LibAppStorage.Layout storage _appStorage,
-        address _user
-    ) internal view returns (address[] memory _collaterals) {
+    function _getUserCollateralTokens(LibAppStorage.Layout storage _appStorage, address _user)
+        internal
+        view
+        returns (address[] memory _collaterals)
+    {
         address[] memory tokens = _appStorage.s_collateralToken;
         uint8 userLength = 0;
 
@@ -398,9 +353,7 @@ library LibGettersImpl {
         address[] memory userTokens = new address[](userLength);
 
         for (uint256 i = 0; i < tokens.length; i++) {
-            if (
-                _appStorage.s_addressToCollateralDeposited[_user][tokens[i]] > 0
-            ) {
+            if (_appStorage.s_addressToCollateralDeposited[_user][tokens[i]] > 0) {
                 userTokens[userLength - 1] = tokens[i];
                 userLength--;
             }
@@ -409,9 +362,11 @@ library LibGettersImpl {
         return userTokens;
     }
 
-    function _getAllRequest(
-        LibAppStorage.Layout storage _appStorage
-    ) internal view returns (Request[] memory _requests) {
+    function _getAllRequest(LibAppStorage.Layout storage _appStorage)
+        internal
+        view
+        returns (Request[] memory _requests)
+    {
         uint96 requestId = _appStorage.requestId;
         _requests = new Request[](requestId);
 
@@ -420,10 +375,11 @@ library LibGettersImpl {
         }
     }
 
-    function _getFeesAccrued(
-        LibAppStorage.Layout storage _appStorage,
-        address _token
-    ) internal view returns (uint256) {
+    function _getFeesAccrued(LibAppStorage.Layout storage _appStorage, address _token)
+        internal
+        view
+        returns (uint256)
+    {
         return _appStorage.s_feesAccrued[_token];
     }
 }
