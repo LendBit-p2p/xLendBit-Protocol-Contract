@@ -361,6 +361,8 @@ contract LiquidityPoolFacet is AppStorage {
             IERC20(token).safeTransfer(msg.sender, amount);
         }
 
+        amountWithdrawn = amount;
+
         emit Withdraw(msg.sender, token, amount, shares);
     }
 

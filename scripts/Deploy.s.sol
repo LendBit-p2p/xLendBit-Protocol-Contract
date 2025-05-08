@@ -9,6 +9,7 @@ import "forge-std/Script.sol";
 import "../contracts/Diamond.sol";
 import "../contracts/facets/ProtocolFacet.sol";
 import "../contracts/facets/LiquidityPoolFacet.sol";
+import "../contracts/facets/GettersFacet.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract TestERC20 is ERC20 {
@@ -33,6 +34,7 @@ contract Deployment is Script, IDiamondCut {
     OwnershipFacet ownerF;
     ProtocolFacet protocolFacet;
     LiquidityPoolFacet liqPoolFacet;
+    GettersFacet gettersFacet;
 
     address USDT_USD = 0x3ec8593F930EA45ea58c968260e6e9FF53FC934f;
     address DAI_USD = 0xD1092a65338d049DB68D7Be6bD89d17a0929945e;
@@ -59,6 +61,7 @@ contract Deployment is Script, IDiamondCut {
         ownerF = new OwnershipFacet();
         protocolFacet = new ProtocolFacet();
         liqPoolFacet = new LiquidityPoolFacet();
+        gettersFacet = new GettersFacet();
 
         ERC20 weth = new TestERC20("Wrapped Ether", "WETH");
         ERC20 dai = new TestERC20("DAI", "DAI");
@@ -82,7 +85,7 @@ contract Deployment is Script, IDiamondCut {
         //upgrade diamond with facets
 
         //build cut struct
-        FacetCut[] memory cut = new FacetCut[](4);
+        FacetCut[] memory cut = new FacetCut[](5);
 
         cut[0] = (
             FacetCut({
@@ -113,6 +116,14 @@ contract Deployment is Script, IDiamondCut {
                 facetAddress: address(liqPoolFacet),
                 action: FacetCutAction.Add,
                 functionSelectors: generateSelectors("LiquidityPoolFacet")
+            })
+        );
+
+        cut[4] = (
+            FacetCut({
+                facetAddress: address(gettersFacet),
+                action: FacetCutAction.Add,
+                functionSelectors: generateSelectors("GettersFacet")
             })
         );
 
@@ -154,6 +165,7 @@ contract Deployment is Script, IDiamondCut {
         console.log("OwnershipFacet deployed at: ", address(ownerF));
         console.log("ProtocolFacet deployed at: ", address(protocolFacet));
         console.log("LiquidityPoolFacet deployed at: ", address(liqPoolFacet));
+        console.log("GettersFacet deployed at: ", address(gettersFacet));
         console.log("WETH deployed at: ", address(weth));
         console.log("DAI deployed at: ", address(dai));
         console.log("LINK deployed at: ", address(link));
