@@ -16,12 +16,16 @@ library LibInterestRateModel {
      */
     function calculateInterestRate(ProtocolPool memory pool, uint256 utilization) internal pure returns (uint256) {
         if (utilization <= pool.optimalUtilization) {
-            return (pool.baseRate * utilization * 1e18) / pool.optimalUtilization / 1e18;
+            // Correct formula: baseRate + (slopeRate * utilization / optimalUtilization)
+            return pool.baseRate + ((pool.slopeRate * utilization) / pool.optimalUtilization);
         } else {
+            // For high utilization (above optimal):
+            // baseRate + slopeRate + (slopeRate * 2 * excessUtilization / maxExcessUtilization)
             uint256 excessUtilization = utilization - pool.optimalUtilization;
-            uint256 slopeComponent =
-                (excessUtilization * pool.slopeRate * 1e18) / (10000 - pool.optimalUtilization) / 1e18;
-            return pool.baseRate + slopeComponent;
+            uint256 maxExcessUtilization = 10000 - pool.optimalUtilization;
+            uint256 slopeComponent = (pool.slopeRate * 2 * excessUtilization) / maxExcessUtilization;
+
+            return pool.baseRate + pool.slopeRate + slopeComponent;
         }
     }
 

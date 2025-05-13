@@ -13,7 +13,7 @@ import {console} from "forge-std/console.sol";
 import "../utils/validators/Error.sol";
 import {LibInterestAccure} from "../libraries/LibInterestAccure.sol";
 import {LibInterestRateModel} from "../libraries/LibInterestRateModel.sol";
-
+import {LibRateCalculations} from "../libraries/LibRateCalculation.sol";
 import {Utils} from "../utils/functions/Utils.sol";
 
 /**
@@ -55,10 +55,7 @@ contract LiquidityPoolFacet is AppStorage {
         }
 
         // Validate parameters
-        require(
-            reserveFactor <= Constants.MAX_RESERVE_FACTOR,
-            "Reserve factor too high"
-        );
+        require(reserveFactor <= Constants.MAX_RESERVE_FACTOR, "Reserve factor too high");
         require(optimalUtilization <= 9000, "Optimal utilization too high");
         require(baseRate <= 1000, "Base rate too high");
 
@@ -87,10 +84,7 @@ contract LiquidityPoolFacet is AppStorage {
      * @param amount The amount of tokens to deposit
      * @return shares The number of LP shares minted for the deposit
      */
-    function deposit(
-        address token,
-        uint256 amount
-    ) external payable returns (uint256 shares) {
+    function deposit(address token, uint256 amount) external payable returns (uint256 shares) {
         if (!_appStorage.s_protocolPool[token].initialize) {
             revert ProtocolPool__NotInitialized();
         }
@@ -151,27 +145,17 @@ contract LiquidityPoolFacet is AppStorage {
             revert ProtocolPool__IsNotActive();
         }
 
-        if (tokenData.poolLiquidity < amount)
+        if (tokenData.poolLiquidity < amount) {
             revert ProtocolPool__NotEnoughLiquidity();
+        }
         // Update borrow index to accrue interest
         LibInterestAccure.updateBorrowIndex(tokenData, _protocolPool);
         // Verify user has sufficient collateral
         uint8 tokenDecimals = LibGettersImpl._getTokenDecimal(token);
-        uint256 loanUsdValue = LibGettersImpl._getUsdValue(
-            _appStorage,
-            token,
-            amount,
-            tokenDecimals
-        );
+        uint256 loanUsdValue = LibGettersImpl._getUsdValue(_appStorage, token, amount, tokenDecimals);
 
         // Check health factor after potential borrow
-        if (
-            LibGettersImpl._healthFactor(
-                _appStorage,
-                msg.sender,
-                loanUsdValue
-            ) < 1e18
-        ) {
+        if (LibGettersImpl._healthFactor(_appStorage, msg.sender, loanUsdValue) < 1e18) {
             revert ProtocolPool__InsufficientCollateral();
         }
 
@@ -179,9 +163,7 @@ contract LiquidityPoolFacet is AppStorage {
         _lockCollateral(msg.sender, token, amount);
 
         // Update user borrow data
-        UserBorrowData storage userBorrowData = _appStorage.s_userBorrows[
-            msg.sender
-        ][token];
+        UserBorrowData storage userBorrowData = _appStorage.s_userBorrows[msg.sender][token];
 
         // If user has an existing borrow, update it with accrued interest first
         if (userBorrowData.isActive) {
@@ -202,7 +184,7 @@ contract LiquidityPoolFacet is AppStorage {
 
         // Transfer tokens to the user
         if (token == Constants.NATIVE_TOKEN) {
-            (bool success, ) = payable(msg.sender).call{value: amount}("");
+            (bool success,) = payable(msg.sender).call{value: amount}("");
             require(success, "ETH transfer failed");
         } else {
             IERC20(token).safeTransfer(msg.sender, amount);
@@ -217,10 +199,7 @@ contract LiquidityPoolFacet is AppStorage {
      * @param amount The amount to repay, use type(uint256).max to repay full debt
      * @return amountRepaid The actual amount repaid
      */
-    function repay(
-        address token,
-        uint256 amount
-    ) external payable returns (uint256 amountRepaid) {
+    function repay(address token, uint256 amount) external payable returns (uint256 amountRepaid) {
         // Validate repay
         if (!_appStorage.s_protocolPool[token].initialize) {
             revert ProtocolPool__NotInitialized();
@@ -233,9 +212,7 @@ contract LiquidityPoolFacet is AppStorage {
         // Get storage references
         ProtocolPool storage protocolPool = _appStorage.s_protocolPool[token];
         TokenData storage tokenData = _appStorage.s_tokenData[token];
-        UserBorrowData storage userBorrowData = _appStorage.s_userBorrows[
-            msg.sender
-        ][token];
+        UserBorrowData storage userBorrowData = _appStorage.s_userBorrows[msg.sender][token];
 
         // If no active borrow, revert
         if (!userBorrowData.isActive || userBorrowData.borrowedAmount == 0) {
@@ -262,20 +239,15 @@ contract LiquidityPoolFacet is AppStorage {
 
             // Refund excess ETH if any
             if (msg.value > amountRepaid) {
-                (bool success, ) = payable(msg.sender).call{
-                    value: msg.value - amountRepaid
-                }("");
+                (bool success,) = payable(msg.sender).call{value: msg.value - amountRepaid}("");
                 require(success, "ETH refund failed");
             }
         } else {
             uint256 userBalance = IERC20(token).balanceOf(address(this));
-            if (userBalance < amountRepaid)
+            if (userBalance < amountRepaid) {
                 revert ProtocolPool__InsufficientBalance();
-            IERC20(token).safeTransferFrom(
-                msg.sender,
-                address(this),
-                amountRepaid
-            );
+            }
+            IERC20(token).safeTransferFrom(msg.sender, address(this), amountRepaid);
         }
 
         // Update user data
@@ -305,10 +277,7 @@ contract LiquidityPoolFacet is AppStorage {
      * @param amount The amount of token to withdraw and burn corresponding shares
      * @return amountWithdrawn The actual amount of tokens withdrawn
      */
-    function withdraw(
-        address token,
-        uint256 amount
-    ) external returns (uint256 amountWithdrawn) {
+    function withdraw(address token, uint256 amount) external returns (uint256 amountWithdrawn) {
         // Validate withdraw conditions
         if (!_appStorage.s_protocolPool[token].initialize) {
             revert ProtocolPool__NotInitialized();
@@ -319,13 +288,8 @@ contract LiquidityPoolFacet is AppStorage {
         }
 
         // Check user has sufficient shares
-        uint256 userShares = _appStorage.s_addressToUserPoolShare[msg.sender][
-            token
-        ];
-        uint256 shares = Utils.convertToShares(
-            _appStorage.s_tokenData[token],
-            amount
-        );
+        uint256 userShares = _appStorage.s_addressToUserPoolShare[msg.sender][token];
+        uint256 shares = Utils.convertToShares(_appStorage.s_tokenData[token], amount);
         if (userShares < shares) revert ProtocolPool__InsufficientShares();
 
         // Get storage references
@@ -352,7 +316,7 @@ contract LiquidityPoolFacet is AppStorage {
 
         // Transfer tokens to user
         if (token == Constants.NATIVE_TOKEN) {
-            (bool success, ) = payable(msg.sender).call{value: amount}("");
+            (bool success,) = payable(msg.sender).call{value: amount}("");
             require(success, "ETH transfer failed");
         } else {
             uint256 balance = IERC20(token).balanceOf(msg.sender);
@@ -379,23 +343,12 @@ contract LiquidityPoolFacet is AppStorage {
      * @return lastUpdateTimestamp The last update timestamp for the user's borrow data
      * @return isActive Whether the user's borrow is active
      */
-    function getUserBorrowData(
-        address _user,
-        address _token
-    )
+    function getUserBorrowData(address _user, address _token)
         external
         view
-        returns (
-            uint256 borrowedAmount,
-            uint256 borrowIndex,
-            uint256 lastUpdateTimestamp,
-            bool isActive
-        )
+        returns (uint256 borrowedAmount, uint256 borrowIndex, uint256 lastUpdateTimestamp, bool isActive)
     {
-        borrowedAmount = _calculateUserDebt(
-            _appStorage.s_tokenData[_token],
-            _appStorage.s_userBorrows[_user][_token]
-        );
+        borrowedAmount = _calculateUserDebt(_appStorage.s_tokenData[_token], _appStorage.s_userBorrows[_user][_token]);
 
         return (
             // _appStorage.s_userBorrows[_user][_token].borrowedAmount,
@@ -418,9 +371,7 @@ contract LiquidityPoolFacet is AppStorage {
      * @return isActive Whether the pool is active
      * @return initialize Whether the pool is initialized
      */
-    function getProtocolPoolConfig(
-        address _token
-    )
+    function getProtocolPoolConfig(address _token)
         external
         view
         returns (
@@ -454,10 +405,7 @@ contract LiquidityPoolFacet is AppStorage {
      * @param token The amount of tokens to withdraw
      * @return sharesBurned The number of LP shares burned for the withdrawal
      */
-    function getUserPoolDeposit(
-        address user,
-        address token
-    ) external view returns (uint256) {
+    function getUserPoolDeposit(address user, address token) external view returns (uint256) {
         return maxRedeemable(user, token);
     }
 
@@ -469,17 +417,10 @@ contract LiquidityPoolFacet is AppStorage {
      * @return totalBorrows The total amount borrowed from the pool for the token
      * @return lastUpdateTimestamp The last time the token data was updated
      */
-    function getPoolTokenData(
-        address token
-    )
+    function getPoolTokenData(address token)
         external
         view
-        returns (
-            uint256 totalSupply,
-            uint256 poolLiquidity,
-            uint256 totalBorrows,
-            uint256 lastUpdateTimestamp
-        )
+        returns (uint256 totalSupply, uint256 poolLiquidity, uint256 totalBorrows, uint256 lastUpdateTimestamp)
     {
         return (
             _appStorage.s_tokenData[token].totalSupply,
@@ -490,39 +431,13 @@ contract LiquidityPoolFacet is AppStorage {
     }
 
     /**
-     * @notice Calculates the maximum redeemable amount for a user based on their shares
-     * @param user The address of the user
-     * @param token The address of the token
-     * @return maxRedeemableAmount The maximum redeemable amount for the user
-     */
-    function maxRedeemable(
-        address user,
-        address token
-    ) internal view returns (uint256) {
-        // Check if the user has any shares in the pool
-        uint256 _shares = _appStorage.s_addressToUserPoolShare[user][token];
-        if (_shares == 0) return 0;
-
-        TokenData memory _token = _appStorage.s_tokenData[token];
-        // Calculate the maximum redeemable amount based on shares and pool liquidity
-        uint256 _maxRedeemableAmount = Utils.convertToAmount(_token, _shares);
-
-        return _maxRedeemableAmount;
-    }
-
-    /**
      * @notice Calculates the current debt for a specific user including accrued interest
      * @param user The address of the user
      * @param token The address of the token
      * @return debt The current debt amount including interest
      */
-    function getUserDebt(
-        address user,
-        address token
-    ) external view returns (uint256 debt) {
-        UserBorrowData memory userBorrowData = _appStorage.s_userBorrows[user][
-            token
-        ];
+    function getUserDebt(address user, address token) external view returns (uint256 debt) {
+        UserBorrowData memory userBorrowData = _appStorage.s_userBorrows[user][token];
         TokenData memory tokenData = _appStorage.s_tokenData[token];
         ProtocolPool memory protocolPool = _appStorage.s_protocolPool[token];
 
@@ -530,10 +445,7 @@ contract LiquidityPoolFacet is AppStorage {
             return 0;
         }
 
-        if (
-            block.timestamp == tokenData.lastUpdateTimestamp ||
-            tokenData.totalBorrows == 0
-        ) {
+        if (block.timestamp == tokenData.lastUpdateTimestamp || tokenData.totalBorrows == 0) {
             return userBorrowData.borrowedAmount;
         }
 
@@ -542,23 +454,66 @@ contract LiquidityPoolFacet is AppStorage {
         }
 
         uint256 timeElapsed = block.timestamp - tokenData.lastUpdateTimestamp;
-        uint256 utilization = LibInterestRateModel.calculateUtilization(
-            tokenData.totalBorrows,
-            tokenData.poolLiquidity
-        );
-        uint256 interestRate = LibInterestRateModel.calculateInterestRate(
-            protocolPool,
-            utilization
-        );
-        uint256 factor = ((interestRate * timeElapsed) * 1e18) /
-            (10000 * 31536000);
-        uint256 currentBorrowIndex = tokenData.borrowIndex +
-            ((tokenData.borrowIndex * factor) / 1e18);
-        debt =
-            (userBorrowData.borrowedAmount * currentBorrowIndex) /
-            userBorrowData.borrowIndex;
+        uint256 utilization = LibInterestRateModel.calculateUtilization(tokenData.totalBorrows, tokenData.poolLiquidity);
+        uint256 interestRate = LibInterestRateModel.calculateInterestRate(protocolPool, utilization);
+        uint256 factor = ((interestRate * timeElapsed) * 1e18) / (10000 * 31536000);
+        uint256 currentBorrowIndex = tokenData.borrowIndex + ((tokenData.borrowIndex * factor) / 1e18);
+        debt = (userBorrowData.borrowedAmount * currentBorrowIndex) / userBorrowData.borrowIndex;
 
         return debt;
+    }
+
+    /**
+     * @notice Calculates the APY for a given APR and compounding periods
+     * @param apr The APR in basis points
+     * @param compoundingPeriods The number of compounding periods per year
+     * @return _apy The APY in basis points
+     */
+    function calculatePoolAPY(uint256 apr, uint256 compoundingPeriods) external view returns (uint256 _apy) {
+        _apy = LibRateCalculations.calculateAPY(apr, compoundingPeriods);
+    }
+
+    /**
+     * @notice Calculates the APR for a given pool based on its parameters
+     * @param baseRate The base interest rate in basis points
+     * @param slopeRate The slope of the interest rate curve in basis points
+     * @param optimalUtilization The optimal utilization rate in basis points
+     * @param totalBorrows Total borrowed amount
+     * @param poolLiquidity Total available liquidity
+     * @return _apr Annual Percentage Rate in basis points
+     */
+    function calculatePoolAPR(
+        uint256 baseRate,
+        uint256 slopeRate,
+        uint256 optimalUtilization,
+        uint256 totalBorrows,
+        uint256 poolLiquidity
+    ) external view returns (uint256 _apr) {
+        _apr = LibRateCalculations.calculateAPR(baseRate, slopeRate, optimalUtilization, totalBorrows, poolLiquidity);
+    }
+
+    /**
+     * @notice Retrieves both APR and APY for frontend consumption using direct values
+     * @param baseRate The base interest rate in basis points
+     * @param slopeRate The slope of the interest rate curve in basis points
+     * @param optimalUtilization The optimal utilization rate in basis points
+     * @param totalBorrows Total borrowed amount
+     * @param poolLiquidity Total available liquidity
+     * @return apr Annual Percentage Rate in basis points
+     * @return apy Annual Percentage Yield in basis points
+     */
+    function getRatesFromPool(
+        uint256 baseRate,
+        uint256 slopeRate,
+        uint256 optimalUtilization,
+        uint256 totalBorrows,
+        uint256 poolLiquidity
+    ) external pure returns (uint256 apr, uint256 apy) {
+        apr = LibRateCalculations.calculateAPR(baseRate, slopeRate, optimalUtilization, totalBorrows, poolLiquidity);
+
+        apy = LibRateCalculations.calculateAPY(apr, Constants.DEFAULT_COMPOUNDING_PERIODS);
+
+        return (apr, apy);
     }
 
     /////////////////////////
@@ -580,21 +535,39 @@ contract LiquidityPoolFacet is AppStorage {
     /////////////////////////
 
     /**
+     * @notice Calculates the maximum redeemable amount for a user based on their shares
+     * @param user The address of the user
+     * @param token The address of the token
+     * @return maxRedeemableAmount The maximum redeemable amount for the user
+     */
+    function maxRedeemable(address user, address token) internal view returns (uint256) {
+        // Check if the user has any shares in the pool
+        uint256 _shares = _appStorage.s_addressToUserPoolShare[user][token];
+        if (_shares == 0) return 0;
+
+        TokenData memory _token = _appStorage.s_tokenData[token];
+        // Calculate the maximum redeemable amount based on shares and pool liquidity
+        uint256 _maxRedeemableAmount = Utils.convertToAmount(_token, _shares);
+
+        return _maxRedeemableAmount;
+    }
+
+    /**
      * @notice Calculates the current debt for a specific user including accrued interest
      * @param tokenData The token data with current index
      * @param userBorrowData The user's borrow data
      * @return The current debt amount including interest
      */
-    function _calculateUserDebt(
-        TokenData memory tokenData,
-        UserBorrowData memory userBorrowData
-    ) internal pure returns (uint256) {
+    function _calculateUserDebt(TokenData memory tokenData, UserBorrowData memory userBorrowData)
+        internal
+        pure
+        returns (uint256)
+    {
         if (userBorrowData.borrowedAmount == 0) return 0;
 
         // Calculate the ratio between current index and user's borrow index
         // This represents how much interest has accumulated since user borrowed
-        uint256 currentDebt = (userBorrowData.borrowedAmount *
-            tokenData.borrowIndex) / userBorrowData.borrowIndex;
+        uint256 currentDebt = (userBorrowData.borrowedAmount * tokenData.borrowIndex) / userBorrowData.borrowIndex;
 
         return currentDebt;
     }
@@ -606,66 +579,41 @@ contract LiquidityPoolFacet is AppStorage {
      * @param _amount Amount of loan token being borrrowed, used to calculate how much collateral to lock
      * @dev This function is called internally when a user takes a loan
      */
-    function _lockCollateral(
-        address _user,
-        address _loanToken,
-        uint256 _amount
-    ) internal {
+    function _lockCollateral(address _user, address _loanToken, uint256 _amount) internal {
         // Retrieve the loan currency's decimal precision
         uint8 _decimal = LibGettersImpl._getTokenDecimal(_loanToken);
         // Get the total USD collateral value for the borrower
-        uint256 collateralValueInLoanCurrency = LibGettersImpl
-            ._getAccountCollateralValue(_appStorage, _user);
+        uint256 collateralValueInLoanCurrency = LibGettersImpl._getAccountCollateralValue(_appStorage, _user);
         // Calculate the maximum loanable amount based on the collateral value
-        uint256 maxLoanableAmount = Utils.maxLoanableAmount(
-            collateralValueInLoanCurrency
-        );
+        uint256 maxLoanableAmount = Utils.maxLoanableAmount(collateralValueInLoanCurrency);
 
         // Calculate the USD equivalent of the loan amount
-        uint256 _loanUsdValue = LibGettersImpl._getUsdValue(
-            _appStorage,
-            _loanToken,
-            _amount,
-            _decimal
-        );
+        uint256 _loanUsdValue = LibGettersImpl._getUsdValue(_appStorage, _loanToken, _amount, _decimal);
         // Calculate the amount of collateral to lock based on the loan value
-        uint256 collateralToLock = Utils.calculateColateralToLock(
-            _loanUsdValue,
-            maxLoanableAmount
-        );
+        uint256 collateralToLock = Utils.calculateColateralToLock(_loanUsdValue, maxLoanableAmount);
 
-        address[] memory _collateralTokens = LibGettersImpl
-            ._getUserCollateralTokens(_appStorage, _user);
+        address[] memory _collateralTokens = LibGettersImpl._getUserCollateralTokens(_appStorage, _user);
 
         // For each collateral token, lock an appropriate amount based on its USD value
         for (uint256 i = 0; i < _collateralTokens.length; i++) {
             address token = _collateralTokens[i];
             uint8 _decimalToken = LibGettersImpl._getTokenDecimal(token);
-            uint256 userBalance = _appStorage.s_addressToCollateralDeposited[
-                _user
-            ][token];
+            uint256 userBalance = _appStorage.s_addressToCollateralDeposited[_user][token];
 
             // Calculate the amount to lock in USD for each token based on the proportional collateral
-            uint256 amountToLockUSD = (LibGettersImpl._getUsdValue(
-                _appStorage,
-                token,
-                userBalance,
-                _decimalToken
-            ) * collateralToLock) / 100;
+            uint256 amountToLockUSD =
+                (LibGettersImpl._getUsdValue(_appStorage, token, userBalance, _decimalToken) * collateralToLock) / 100;
 
             // Convert USD amount to token amount and apply the correct decimal scaling
-            uint256 amountToLock = ((((amountToLockUSD) * 10) /
-                LibGettersImpl._getUsdValue(_appStorage, token, 10, 0)) *
-                (10 ** _decimalToken)) / (Constants.PRECISION);
+            uint256 amountToLock = (
+                (((amountToLockUSD) * 10) / LibGettersImpl._getUsdValue(_appStorage, token, 10, 0))
+                    * (10 ** _decimalToken)
+            ) / (Constants.PRECISION);
 
-            _appStorage.s_addressToAvailableBalance[_user][
-                token
-            ] -= amountToLock;
+            _appStorage.s_addressToAvailableBalance[_user][token] -= amountToLock;
 
             // Store the locked amount for each collateral token
-            _appStorage.s_addressToLockedPoolCollateral[_user][
-                token
-            ] += amountToLock;
+            _appStorage.s_addressToLockedPoolCollateral[_user][token] += amountToLock;
         }
     }
 
@@ -676,66 +624,41 @@ contract LiquidityPoolFacet is AppStorage {
      * @param _amount Amount of loan token being repaid, used to calculate how much collateral to unlock
      * @dev This function is called internally when a user repays a loan or when a loan is liquidated
      */
-    function _unlockCollateral(
-        address _user,
-        address _loanToken,
-        uint256 _amount
-    ) internal {
+    function _unlockCollateral(address _user, address _loanToken, uint256 _amount) internal {
         // Retrieve the loan currency's decimal precision
         uint8 _decimal = LibGettersImpl._getTokenDecimal(_loanToken);
         // Get the total USD collateral value for the borrower
-        uint256 collateralValueInLoanCurrency = LibGettersImpl
-            ._getAccountCollateralValue(_appStorage, _user);
+        uint256 collateralValueInLoanCurrency = LibGettersImpl._getAccountCollateralValue(_appStorage, _user);
         // Calculate the maximum loanable amount based on the collateral value
-        uint256 maxLoanableAmount = Utils.maxLoanableAmount(
-            collateralValueInLoanCurrency
-        );
+        uint256 maxLoanableAmount = Utils.maxLoanableAmount(collateralValueInLoanCurrency);
 
         // Calculate the USD equivalent of the loan amount
-        uint256 _loanUsdValue = LibGettersImpl._getUsdValue(
-            _appStorage,
-            _loanToken,
-            _amount,
-            _decimal
-        );
+        uint256 _loanUsdValue = LibGettersImpl._getUsdValue(_appStorage, _loanToken, _amount, _decimal);
         // Calculate the amount of collateral to lock based on the loan value
-        uint256 collateralToLock = Utils.calculateColateralToLock(
-            _loanUsdValue,
-            maxLoanableAmount
-        );
+        uint256 collateralToLock = Utils.calculateColateralToLock(_loanUsdValue, maxLoanableAmount);
 
-        address[] memory _collateralTokens = LibGettersImpl
-            ._getUserCollateralTokens(_appStorage, _user);
+        address[] memory _collateralTokens = LibGettersImpl._getUserCollateralTokens(_appStorage, _user);
 
         // For each collateral token, lock an appropriate amount based on its USD value
         for (uint256 i = 0; i < _collateralTokens.length; i++) {
             address token = _collateralTokens[i];
             uint8 _decimalToken = LibGettersImpl._getTokenDecimal(token);
-            uint256 userBalance = _appStorage.s_addressToCollateralDeposited[
-                _user
-            ][token];
+            uint256 userBalance = _appStorage.s_addressToCollateralDeposited[_user][token];
 
             // Calculate the amount to lock in USD for each token based on the proportional collateral
-            uint256 amountToLockUSD = (LibGettersImpl._getUsdValue(
-                _appStorage,
-                token,
-                userBalance,
-                _decimalToken
-            ) * collateralToLock) / 100;
+            uint256 amountToLockUSD =
+                (LibGettersImpl._getUsdValue(_appStorage, token, userBalance, _decimalToken) * collateralToLock) / 100;
 
             // Convert USD amount to token amount and apply the correct decimal scaling
-            uint256 amountToLock = ((((amountToLockUSD) * 10) /
-                LibGettersImpl._getUsdValue(_appStorage, token, 10, 0)) *
-                (10 ** _decimalToken)) / (Constants.PRECISION);
+            uint256 amountToLock = (
+                (((amountToLockUSD) * 10) / LibGettersImpl._getUsdValue(_appStorage, token, 10, 0))
+                    * (10 ** _decimalToken)
+            ) / (Constants.PRECISION);
 
-            _appStorage.s_addressToAvailableBalance[_user][
-                token
-            ] += amountToLock;
+            _appStorage.s_addressToAvailableBalance[_user][token] += amountToLock;
 
             // Store the
-            _appStorage.s_addressToLockedPoolCollateral[_user][
-                token
-            ] -= amountToLock;
+            _appStorage.s_addressToLockedPoolCollateral[_user][token] -= amountToLock;
         }
     }
 
@@ -745,22 +668,17 @@ contract LiquidityPoolFacet is AppStorage {
      * @dev This function is called when a user has repaid all their loans
      */
     function _unlockAllCollateral(address _user) internal {
-        address[] memory _collateralTokens = LibGettersImpl
-            ._getUserCollateralTokens(_appStorage, _user);
+        address[] memory _collateralTokens = LibGettersImpl._getUserCollateralTokens(_appStorage, _user);
 
         for (uint256 i = 0; i < _collateralTokens.length; i++) {
             address token = _collateralTokens[i];
 
             // Get the locked collateral amount for this token
-            uint256 lockedAmount = _appStorage.s_addressToLockedPoolCollateral[
-                _user
-            ][token];
+            uint256 lockedAmount = _appStorage.s_addressToLockedPoolCollateral[_user][token];
             if (lockedAmount == 0) continue;
 
             // Move locked collateral to available balance
-            _appStorage.s_addressToAvailableBalance[_user][
-                token
-            ] += lockedAmount;
+            _appStorage.s_addressToAvailableBalance[_user][token] += lockedAmount;
 
             // Reset the locked collateral
             _appStorage.s_addressToLockedPoolCollateral[_user][token] = 0;

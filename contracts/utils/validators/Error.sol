@@ -79,3 +79,10 @@ error ProtocolPool__IsNotActive();
 error ProtocolPool__InsufficientCollateral();
 error ProtocolPool__NoBorrow();
 error ProtocolPool__InsufficientShares();
+
+
+  // Error definitions
+    error Protocol__AprTooHigh();
+    error Protocol__InvalidCompoundingPeriods();
+    error Protocol__ZeroLiquidity();
+    error Protocol__InvalidBorrows();
