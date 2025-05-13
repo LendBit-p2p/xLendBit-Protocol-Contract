@@ -43,9 +43,12 @@ contract Deployment is Script, IDiamondCut {
     address ETH_USD = 0x4aDC67696bA383F43DD60A9e78F2C97Fbbfc7cb1;
 
     address USDT_CONTRACT_ADDRESS = 0x00D1C02E008D594ebEFe3F3b7fd175850f96AEa0;
-    address WETH_CONTRACT_ADDRESS = 0x7fEa3ea63433a35e8516777171D7d0e038804716;
-    address DAI_CONTRACT_ADDRESS = 0x5caF98bf477CBE96d5CA56039FE7beec457bA653;
-    address LINK_CONTRACT_ADDRESS = 0xE4aB69C077896252FAFBD49EFD26B5D171A32410;
+    // address WETH_CONTRACT_ADDRESS = 0x7fEa3ea63433a35e8516777171D7d0e038804716;
+    // address DAI_CONTRACT_ADDRESS = 0x5caF98bf477CBE96d5CA56039FE7beec457bA653;
+    // address LINK_CONTRACT_ADDRESS = 0xE4aB69C077896252FAFBD49EFD26B5D171A32410;
+    address WETH_CONTRACT_ADDRESS = 0xAB6015514c40F5B0bb583f28c0819cA79e3B9415;
+    address DAI_CONTRACT_ADDRESS = 0xb0dbA4BDEC9334f4E9663e9b9941E37018BbE81a;
+    address LINK_CONTRACT_ADDRESS = 0x9b76e44C8d3a625D0d5e9a04227dc878B31897C2;
     address ETH_CONTRACT_ADDRESS = address(1);
 
     address[] tokens;
@@ -63,17 +66,17 @@ contract Deployment is Script, IDiamondCut {
         liqPoolFacet = new LiquidityPoolFacet();
         gettersFacet = new GettersFacet();
 
-        ERC20 weth = new TestERC20("Wrapped Ether", "WETH");
-        ERC20 dai = new TestERC20("DAI", "DAI");
-        ERC20 link = new TestERC20("Chainlink", "LINK");
+        // ERC20 weth = new TestERC20("Wrapped Ether", "WETH");
+        // ERC20 dai = new TestERC20("DAI", "DAI");
+        // ERC20 link = new TestERC20("Chainlink", "LINK");
 
         tokens.push(USDT_CONTRACT_ADDRESS);
-        // tokens.push(DAI_CONTRACT_ADDRESS);
-        tokens.push(address(dai));
-        // tokens.push(LINK_CONTRACT_ADDRESS);
-        tokens.push(address(link));
-        // tokens.push(WETH_CONTRACT_ADDRESS);
-        tokens.push(address(weth));
+        tokens.push(DAI_CONTRACT_ADDRESS);
+        // tokens.push(address(dai));
+        tokens.push(LINK_CONTRACT_ADDRESS);
+        // tokens.push(address(link));
+        tokens.push(WETH_CONTRACT_ADDRESS);
+        // tokens.push(address(weth));
         tokens.push(ETH_CONTRACT_ADDRESS);
 
         priceFeed.push(USDT_USD);
@@ -166,9 +169,9 @@ contract Deployment is Script, IDiamondCut {
         console.log("ProtocolFacet deployed at: ", address(protocolFacet));
         console.log("LiquidityPoolFacet deployed at: ", address(liqPoolFacet));
         console.log("GettersFacet deployed at: ", address(gettersFacet));
-        console.log("WETH deployed at: ", address(weth));
-        console.log("DAI deployed at: ", address(dai));
-        console.log("LINK deployed at: ", address(link));
+        // console.log("WETH deployed at: ", address(weth));
+        // console.log("DAI deployed at: ", address(dai));
+        // console.log("LINK deployed at: ", address(link));
     }
     function generateSelectors(
         string memory _facetName
