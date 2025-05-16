@@ -8,6 +8,7 @@ import "../contracts/facets/OwnershipFacet.sol";
 import "forge-std/Test.sol";
 import "../contracts/Diamond.sol";
 import "../contracts/facets/ProtocolFacet.sol";
+import "../contracts/facets/GettersFacet.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../contracts/model/Protocol.sol";
 import "../contracts/model/Event.sol";
@@ -21,6 +22,7 @@ contract ProtocolTest is Test, IDiamondCut {
     DiamondLoupeFacet dLoupe;
     OwnershipFacet ownerF;
     ProtocolFacet protocolFacet;
+    GettersFacet gettersFacet;
 
     address USDTHolders = 0xCEFc1C9af894a9dFBF763A394E6588b0b4D9a5a8;
     address DAIHolders = 0xCEFc1C9af894a9dFBF763A394E6588b0b4D9a5a8;
@@ -56,6 +58,7 @@ contract ProtocolTest is Test, IDiamondCut {
         dLoupe = new DiamondLoupeFacet();
         ownerF = new OwnershipFacet();
         protocolFacet = new ProtocolFacet();
+        gettersFacet = new GettersFacet();
 
         owner = mkaddr("owner");
         B = mkaddr("B address");
@@ -76,7 +79,7 @@ contract ProtocolTest is Test, IDiamondCut {
         //upgrade diamond with facets
 
         //build cut struct
-        FacetCut[] memory cut = new FacetCut[](3);
+        FacetCut[] memory cut = new FacetCut[](4);
 
         cut[0] = (
             FacetCut({
@@ -102,6 +105,14 @@ contract ProtocolTest is Test, IDiamondCut {
             })
         );
 
+        cut[2] = (
+            FacetCut({
+                facetAddress: address(gettersFacet),
+                action: FacetCutAction.Add,
+                functionSelectors: generateSelectors("GettersFacet")
+            })
+        );
+
         //upgrade diamond
         IDiamondCut(address(diamond)).diamondCut(cut, address(0x0), "");
 
@@ -118,18 +129,9 @@ contract ProtocolTest is Test, IDiamondCut {
         // protocolFacet.approveUserToSpendTokens(DIA_CONTRACT_ADDRESS, B, type(uint).max);
 
         switchSigner(owner);
-        IERC20(USDT_CONTRACT_ADDRESS).approve(
-            address(protocolFacet),
-            type(uint).max
-        );
-        IERC20(DIA_CONTRACT_ADDRESS).approve(
-            address(protocolFacet),
-            type(uint).max
-        );
-        IERC20(WETH_CONTRACT_ADDRESS).approve(
-            address(protocolFacet),
-            type(uint).max
-        );
+        IERC20(USDT_CONTRACT_ADDRESS).approve(address(protocolFacet), type(uint256).max);
+        IERC20(DIA_CONTRACT_ADDRESS).approve(address(protocolFacet), type(uint256).max);
+        IERC20(WETH_CONTRACT_ADDRESS).approve(address(protocolFacet), type(uint256).max);
 
         // switchSigner(address(protocolFacet));
         // IERC20(DIA_CONTRACT_ADDRESS).approve(B, type(uint).max);
@@ -142,40 +144,27 @@ contract ProtocolTest is Test, IDiamondCut {
     function testDepositTCollateral() public {
         switchSigner(owner);
         protocolFacet.depositCollateral(USDT_CONTRACT_ADDRESS, 100 * (10 ** 6));
-        uint256 _amountQualaterized = protocolFacet
-            .getAddressToCollateralDeposited(owner, USDT_CONTRACT_ADDRESS);
+        uint256 _amountQualaterized = gettersFacet.getAddressToCollateralDeposited(owner, USDT_CONTRACT_ADDRESS);
         assertEq(_amountQualaterized, (100 * 10 ** 6));
     }
 
     function testDepositNativeCollateral() public {
         switchSigner(owner);
         vm.deal(owner, 500 ether);
-        protocolFacet.depositCollateral{value: 100 ether}(
-            ETH_CONTRACT_ADDRESS,
-            100 ether
-        );
-        uint256 _amountQualaterized = protocolFacet
-            .getAddressToCollateralDeposited(owner, ETH_CONTRACT_ADDRESS);
+        protocolFacet.depositCollateral{value: 100 ether}(ETH_CONTRACT_ADDRESS, 100 ether);
+        uint256 _amountQualaterized = gettersFacet.getAddressToCollateralDeposited(owner, ETH_CONTRACT_ADDRESS);
         assertEq(_amountQualaterized, 100 ether);
     }
 
     function testGetUsdValue() public view {
-        uint256 value = protocolFacet.getUsdValue(
-            ETH_CONTRACT_ADDRESS,
-            0.1 ether,
-            18
-        );
+        uint256 value = gettersFacet.getUsdValue(ETH_CONTRACT_ADDRESS, 0.1 ether, 18);
         assert(value > 0);
     }
 
     function testGetAccountAvailableValue() public {
         testDepositTCollateral();
-        uint256 _avaiable = protocolFacet.getAccountAvailableValue(owner);
-        uint256 value = protocolFacet.getUsdValue(
-            USDT_CONTRACT_ADDRESS,
-            100E6,
-            6
-        );
+        uint256 _avaiable = gettersFacet.getAccountAvailableValue(owner);
+        uint256 value = gettersFacet.getUsdValue(USDT_CONTRACT_ADDRESS, 100e6, 6);
 
         assertEq(_avaiable, value);
     }
@@ -188,29 +177,19 @@ contract ProtocolTest is Test, IDiamondCut {
         uint16 interestRate = 500;
         uint256 returnDate = block.timestamp + 365 days;
 
-        protocolFacet.createLendingRequest(
-            requestAmount,
-            interestRate,
-            returnDate,
-            ETH_CONTRACT_ADDRESS
-        );
+        protocolFacet.createLendingRequest(requestAmount, interestRate, returnDate, ETH_CONTRACT_ADDRESS);
 
         switchSigner(B);
         vm.deal(B, 10 ether);
 
         vm.expectEmit(true, true, true, true);
         emit RequestServiced(1, B, owner, 0.01 ether);
-        protocolFacet.serviceRequest{value: 0.01 ether}(
-            1,
-            ETH_CONTRACT_ADDRESS
-        );
+        protocolFacet.serviceRequest{value: 0.01 ether}(1, ETH_CONTRACT_ADDRESS);
     }
 
     function testGetServicedRequestByLender() public {
         testServiceNativeRequest();
-        Request[] memory _requests = protocolFacet.getServicedRequestByLender(
-            B
-        );
+        Request[] memory _requests = gettersFacet.getServicedRequestByLender(B);
 
         assertEq(_requests.length, 1);
     }
@@ -223,48 +202,31 @@ contract ProtocolTest is Test, IDiamondCut {
         uint16 interestRate = 500;
         uint256 returnDate = block.timestamp + 365 days;
 
-        protocolFacet.createLendingRequest(
-            requestAmount,
-            interestRate,
-            returnDate,
-            ETH_CONTRACT_ADDRESS
-        );
+        protocolFacet.createLendingRequest(requestAmount, interestRate, returnDate, ETH_CONTRACT_ADDRESS);
 
         protocolFacet.closeRequest(1);
 
-        Request[] memory requests = protocolFacet.getUserActiveRequests(owner);
+        Request[] memory requests = gettersFacet.getUserActiveRequests(owner);
 
         assertEq(requests.length, 0);
     }
 
     function testGetConvertValue() external view {
-        uint256 value = protocolFacet.getConvertValue(
-            ETH_CONTRACT_ADDRESS,
-            USDT_CONTRACT_ADDRESS,
-            1 ether
-        );
+        uint256 value = gettersFacet.getConvertValue(ETH_CONTRACT_ADDRESS, USDT_CONTRACT_ADDRESS, 1 ether);
         console.log(value);
-        assert(value > 2200E6);
+        assert(value > 2200e6);
     }
 
     function testWithdrawCollateral() public {
         switchSigner(owner);
         vm.deal(owner, 500 ether);
-        protocolFacet.depositCollateral{value: 100 ether}(
-            ETH_CONTRACT_ADDRESS,
-            100 ether
-        );
+        protocolFacet.depositCollateral{value: 100 ether}(ETH_CONTRACT_ADDRESS, 100 ether);
 
         uint128 requestAmount = 1 ether;
         uint16 interestRate = 1000;
         uint256 returnDate = block.timestamp + 365 days;
 
-        protocolFacet.createLendingRequest(
-            requestAmount,
-            interestRate,
-            returnDate,
-            ETH_CONTRACT_ADDRESS
-        );
+        protocolFacet.createLendingRequest(requestAmount, interestRate, returnDate, ETH_CONTRACT_ADDRESS);
 
         switchSigner(B);
         vm.deal(B, 10 ether);
@@ -273,49 +235,39 @@ contract ProtocolTest is Test, IDiamondCut {
 
         switchSigner(owner);
         protocolFacet.withdrawCollateral(ETH_CONTRACT_ADDRESS, 90 ether);
-        uint256 _amountQualaterized = protocolFacet
-            .getAddressToCollateralDeposited(owner, ETH_CONTRACT_ADDRESS);
+        uint256 _amountQualaterized = gettersFacet.getAddressToCollateralDeposited(owner, ETH_CONTRACT_ADDRESS);
         assertEq(_amountQualaterized, 10 ether);
     }
 
     function testGetUserCollateralToken() external {
         switchSigner(owner);
         vm.deal(owner, 500 ether);
-        protocolFacet.depositCollateral{value: 100 ether}(
-            ETH_CONTRACT_ADDRESS,
-            100 ether
-        );
+        protocolFacet.depositCollateral{value: 100 ether}(ETH_CONTRACT_ADDRESS, 100 ether);
 
-        address[] memory userTokens = protocolFacet.getUserCollateralTokens(
-            owner
-        );
+        address[] memory userTokens = gettersFacet.getUserCollateralTokens(owner);
         assertEq(userTokens.length, 1);
     }
 
     function testWithdrawNativeCollateral() public {
         switchSigner(owner);
         vm.deal(owner, 500 ether);
-        protocolFacet.depositCollateral{value: 400 ether}(
-            ETH_CONTRACT_ADDRESS,
-            1
-        );
+        protocolFacet.depositCollateral{value: 400 ether}(ETH_CONTRACT_ADDRESS, 1);
 
         protocolFacet.withdrawCollateral(ETH_CONTRACT_ADDRESS, 250 ether);
-        uint256 _amountCollaterized = protocolFacet
-            .getAddressToCollateralDeposited(owner, ETH_CONTRACT_ADDRESS);
+        uint256 _amountCollaterized = gettersFacet.getAddressToCollateralDeposited(owner, ETH_CONTRACT_ADDRESS);
         assertEq(_amountCollaterized, 150 ether);
         assertEq(address(owner).balance, 350 ether);
     }
 
     function testGetHealthFactorBeforeDeposit() public view {
-        uint256 value = protocolFacet.getHealthFactor(owner);
+        uint256 value = gettersFacet.getHealthFactor(owner);
         assertEq(value, 0);
     }
 
     function testGetHealthFactorAfterDeposit() public {
         testDepositTCollateral();
         switchSigner(owner);
-        uint256 value = protocolFacet.getHealthFactor(owner);
+        uint256 value = gettersFacet.getHealthFactor(owner);
         assert(value != 0);
     }
 
@@ -327,18 +279,14 @@ contract ProtocolTest is Test, IDiamondCut {
         uint256 _amount = 100 ether;
         uint16 _interestRate = 500;
         uint256 _returnDate = 365 days;
-        uint256 _min_amount = 2E10;
-        uint256 _max_amount = 10E10;
+        uint256 _min_amount = 2e10;
+        uint256 _max_amount = 10e10;
+        address[] memory _whitelist = new address[](0);
         protocolFacet.createLoanListing{value: 100 ether}(
-            _amount,
-            _min_amount,
-            _max_amount,
-            _returnDate,
-            _interestRate,
-            ETH_CONTRACT_ADDRESS
+            _amount, _min_amount, _max_amount, _returnDate, _interestRate, ETH_CONTRACT_ADDRESS, _whitelist
         );
 
-        LoanListing memory _listing = protocolFacet.getLoanListing(1);
+        LoanListing memory _listing = gettersFacet.getLoanListing(1);
         assertEq(_listing.author, owner);
         assertEq(_listing.tokenAddress, ETH_CONTRACT_ADDRESS);
         assertEq(_listing.amount, _amount);
@@ -358,22 +306,12 @@ contract ProtocolTest is Test, IDiamondCut {
         uint16 interestRate = 500;
         uint256 returnDate = block.timestamp + 365 days;
 
-        protocolFacet.createLendingRequest(
-            requestAmount,
-            interestRate,
-            returnDate,
-            DIA_CONTRACT_ADDRESS
-        );
-        protocolFacet.createLendingRequest(
-            requestAmount,
-            interestRate,
-            returnDate,
-            DIA_CONTRACT_ADDRESS
-        );
+        protocolFacet.createLendingRequest(requestAmount, interestRate, returnDate, DIA_CONTRACT_ADDRESS);
+        protocolFacet.createLendingRequest(requestAmount, interestRate, returnDate, DIA_CONTRACT_ADDRESS);
 
         // Verify that the request is correctly added
 
-        Request[] memory requests = protocolFacet.getAllRequest();
+        Request[] memory requests = gettersFacet.getAllRequest();
         assertEq(requests.length, 2);
         assertEq(requests[0].amount, requestAmount);
     }
@@ -386,15 +324,8 @@ contract ProtocolTest is Test, IDiamondCut {
 
         uint16 interestRate = 500;
         uint256 returnDate = block.timestamp + 365 days; // 1 year later
-        vm.expectRevert(
-            abi.encodeWithSelector(Protocol__InsufficientCollateral.selector)
-        );
-        protocolFacet.createLendingRequest(
-            requestAmount,
-            interestRate,
-            returnDate,
-            DIA_CONTRACT_ADDRESS
-        );
+        vm.expectRevert(abi.encodeWithSelector(Protocol__InsufficientCollateral.selector));
+        protocolFacet.createLendingRequest(requestAmount, interestRate, returnDate, DIA_CONTRACT_ADDRESS);
     }
 
     function testServiceRequest() public {
@@ -408,33 +339,18 @@ contract ProtocolTest is Test, IDiamondCut {
         uint16 interestRate = 500;
         uint256 returnDate = block.timestamp + 365 days; // 1 year later
 
-        uint256 borrowerDAIStartBalance = IERC20(LINK_CONTRACT_ADDRESS)
-            .balanceOf(owner);
+        uint256 borrowerDAIStartBalance = IERC20(LINK_CONTRACT_ADDRESS).balanceOf(owner);
         switchSigner(owner);
-        protocolFacet.createLendingRequest(
-            requestAmount,
-            interestRate,
-            returnDate,
-            LINK_CONTRACT_ADDRESS
-        );
+        protocolFacet.createLendingRequest(requestAmount, interestRate, returnDate, LINK_CONTRACT_ADDRESS);
 
-        uint256 bal = protocolFacet.getAddressToAvailableBalance(
-            owner,
-            USDT_CONTRACT_ADDRESS
-        );
+        uint256 bal = gettersFacet.getAddressToAvailableBalance(owner, USDT_CONTRACT_ADDRESS);
         console.log("Available Balance", bal);
 
         switchSigner(B);
-        IERC20(LINK_CONTRACT_ADDRESS).approve(
-            address(protocolFacet),
-            requestAmount
-        );
+        IERC20(LINK_CONTRACT_ADDRESS).approve(address(protocolFacet), requestAmount);
         protocolFacet.serviceRequest(1, LINK_CONTRACT_ADDRESS);
-        assertEq(
-            IERC20(LINK_CONTRACT_ADDRESS).balanceOf(owner),
-            borrowerDAIStartBalance + requestAmount
-        );
-        Request memory _borrowRequest = protocolFacet.getUserRequest(owner, 1);
+        assertEq(IERC20(LINK_CONTRACT_ADDRESS).balanceOf(owner), borrowerDAIStartBalance + requestAmount);
+        Request memory _borrowRequest = gettersFacet.getUserRequest(owner, 1);
 
         assertEq(_borrowRequest.lender, B);
         assertEq(uint8(_borrowRequest.status), uint8(1));
@@ -448,35 +364,19 @@ contract ProtocolTest is Test, IDiamondCut {
         IERC20(LINK_CONTRACT_ADDRESS).approve(address(protocolFacet), 1 ether);
 
         protocolFacet.depositCollateral(LINK_CONTRACT_ADDRESS, 1 ether);
-        uint256 _amountQualaterized = protocolFacet
-            .getAddressToCollateralDeposited(owner, LINK_CONTRACT_ADDRESS);
 
         uint128 requestAmount = 0.5 ether;
         uint16 interestRate = 500;
         uint256 returnDate = block.timestamp + 365 days; // 1 year later
 
-        protocolFacet.createLendingRequest(
-            requestAmount,
-            interestRate,
-            returnDate,
-            LINK_CONTRACT_ADDRESS
-        );
+        protocolFacet.createLendingRequest(requestAmount, interestRate, returnDate, LINK_CONTRACT_ADDRESS);
 
-        uint256 tokenBal = protocolFacet.getRequestToCollateral(
-            1,
-            LINK_CONTRACT_ADDRESS
-        );
+        uint256 tokenBal = gettersFacet.getRequestToCollateral(1, LINK_CONTRACT_ADDRESS);
         switchSigner(B);
 
-        IERC20(LINK_CONTRACT_ADDRESS).approve(
-            address(protocolFacet),
-            requestAmount
-        );
+        IERC20(LINK_CONTRACT_ADDRESS).approve(address(protocolFacet), requestAmount);
         protocolFacet.serviceRequest(1, LINK_CONTRACT_ADDRESS);
-        uint256 bal = protocolFacet.getAddressToAvailableBalance(
-            owner,
-            LINK_CONTRACT_ADDRESS
-        );
+        uint256 bal = gettersFacet.getAddressToAvailableBalance(owner, LINK_CONTRACT_ADDRESS);
 
         console.log("Token Balance", tokenBal);
         console.log("Available Balance", bal);
@@ -493,31 +393,19 @@ contract ProtocolTest is Test, IDiamondCut {
         uint16 interestRate = 500;
         uint256 returnDate = block.timestamp + 365 days; // 1 year later
 
-        protocolFacet.createLendingRequest(
-            requestAmount,
-            interestRate,
-            returnDate,
-            LINK_CONTRACT_ADDRESS
-        );
+        protocolFacet.createLendingRequest(requestAmount, interestRate, returnDate, LINK_CONTRACT_ADDRESS);
 
         switchSigner(B);
-        IERC20(LINK_CONTRACT_ADDRESS).approve(
-            address(protocolFacet),
-            requestAmount
-        );
+        IERC20(LINK_CONTRACT_ADDRESS).approve(address(protocolFacet), requestAmount);
         protocolFacet.serviceRequest(1, LINK_CONTRACT_ADDRESS);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(Protocol__RequestNotOpen.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(Protocol__RequestNotOpen.selector));
 
         protocolFacet.serviceRequest(1, LINK_CONTRACT_ADDRESS);
 
         // NOTE to ensure it is not just the first person to service the request it fails for
         switchSigner(C);
-        vm.expectRevert(
-            abi.encodeWithSelector(Protocol__RequestNotOpen.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(Protocol__RequestNotOpen.selector));
 
         protocolFacet.serviceRequest(1, LINK_CONTRACT_ADDRESS);
     }
@@ -531,25 +419,16 @@ contract ProtocolTest is Test, IDiamondCut {
         uint16 interestRate = 500;
         uint256 returnDate = block.timestamp + 365 days; // 1 year later
 
-        protocolFacet.createLendingRequest(
-            requestAmount,
-            interestRate,
-            returnDate,
-            LINK_CONTRACT_ADDRESS
-        );
+        protocolFacet.createLendingRequest(requestAmount, interestRate, returnDate, LINK_CONTRACT_ADDRESS);
         switchSigner(B);
 
         // daiContract.approve(address(protocol), requestAmount);
-        vm.expectRevert(
-            abi.encodeWithSelector(Protocol__InsufficientAllowance.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(Protocol__InsufficientAllowance.selector));
 
         protocolFacet.serviceRequest(1, LINK_CONTRACT_ADDRESS);
     }
 
-    function testUserCannotRequestLoanFromListingWithoutDepositingCollateral()
-        public
-    {
+    function testUserCannotRequestLoanFromListingWithoutDepositingCollateral() public {
         switchSigner(owner);
 
         IERC20(USDT_CONTRACT_ADDRESS).transfer(B, 1000000);
@@ -557,29 +436,18 @@ contract ProtocolTest is Test, IDiamondCut {
         uint256 requestAmount = 1000;
         uint16 interestRate = 500;
         uint256 returnDate = block.timestamp + 365 days;
+        address[] memory whitelist = new address[](0);
 
         protocolFacet.createLoanListing(
-            requestAmount,
-            0,
-            requestAmount,
-            returnDate,
-            interestRate,
-            DIA_CONTRACT_ADDRESS
+            requestAmount, 0, requestAmount, returnDate, interestRate, DIA_CONTRACT_ADDRESS, whitelist
         );
         protocolFacet.createLoanListing(
-            requestAmount,
-            0,
-            requestAmount,
-            returnDate,
-            interestRate,
-            DIA_CONTRACT_ADDRESS
+            requestAmount, 0, requestAmount, returnDate, interestRate, DIA_CONTRACT_ADDRESS, whitelist
         );
 
         switchSigner(B);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(Protocol__InsufficientCollateral.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(Protocol__InsufficientCollateral.selector));
         protocolFacet.requestLoanFromListing(1, requestAmount);
     }
 
@@ -589,37 +457,23 @@ contract ProtocolTest is Test, IDiamondCut {
         uint128 requestAmount = 10000;
         uint16 interestRate = 500;
         uint256 returnDate = block.timestamp + 365 days;
+        address[] memory whitelist = new address[](0);
 
         protocolFacet.createLoanListing(
-            requestAmount,
-            0,
-            requestAmount,
-            returnDate,
-            interestRate,
-            DIA_CONTRACT_ADDRESS
+            requestAmount, 0, requestAmount, returnDate, interestRate, DIA_CONTRACT_ADDRESS, whitelist
         );
         protocolFacet.createLoanListing(
-            requestAmount,
-            0,
-            requestAmount,
-            returnDate,
-            interestRate,
-            DIA_CONTRACT_ADDRESS
+            requestAmount, 0, requestAmount, returnDate, interestRate, DIA_CONTRACT_ADDRESS, whitelist
         );
 
-        uint256 _balanceBeforeClosingListing = IERC20(DIA_CONTRACT_ADDRESS)
-            .balanceOf(owner);
+        uint256 _balanceBeforeClosingListing = IERC20(DIA_CONTRACT_ADDRESS).balanceOf(owner);
 
         protocolFacet.closeListingAd(1);
 
-        uint256 _balanceAfterClosingListing = IERC20(DIA_CONTRACT_ADDRESS)
-            .balanceOf(owner);
-        LoanListing memory _listing = protocolFacet.getLoanListing(1);
+        uint256 _balanceAfterClosingListing = IERC20(DIA_CONTRACT_ADDRESS).balanceOf(owner);
+        LoanListing memory _listing = gettersFacet.getLoanListing(1);
 
-        assertEq(
-            _balanceAfterClosingListing,
-            _balanceBeforeClosingListing + requestAmount
-        );
+        assertEq(_balanceAfterClosingListing, _balanceBeforeClosingListing + requestAmount);
         assertEq(_listing.amount, 0);
         assertEq(uint8(_listing.listingStatus), uint8(ListingStatus.CLOSED));
     }
@@ -627,16 +481,13 @@ contract ProtocolTest is Test, IDiamondCut {
     function testRepayLoan() public {
         testServiceRequest();
         switchSigner(owner);
-        Request memory _request = protocolFacet.getRequest(1);
+        Request memory _request = gettersFacet.getRequest(1);
 
-        IERC20(_request.loanRequestAddr).approve(
-            address(protocolFacet),
-            _request.totalRepayment
-        );
+        IERC20(_request.loanRequestAddr).approve(address(protocolFacet), _request.totalRepayment);
 
         protocolFacet.repayLoan(1, _request.totalRepayment);
 
-        Request memory _requestAfterRepay = protocolFacet.getRequest(1);
+        Request memory _requestAfterRepay = gettersFacet.getRequest(1);
         assertEq(uint8(_requestAfterRepay.status), uint8(Status.CLOSED));
         assertEq(_requestAfterRepay.totalRepayment, 0);
     }
@@ -645,32 +496,20 @@ contract ProtocolTest is Test, IDiamondCut {
         testServiceRequestAvailable();
         switchSigner(owner);
 
-        Request memory _request = protocolFacet.getRequest(1);
+        Request memory _request = gettersFacet.getRequest(1);
 
-        IERC20(_request.loanRequestAddr).approve(
-            address(protocolFacet),
-            _request.totalRepayment
-        );
+        IERC20(_request.loanRequestAddr).approve(address(protocolFacet), _request.totalRepayment);
         uint256 totalRepayment = _request.totalRepayment;
         protocolFacet.repayLoan(1, totalRepayment);
 
-        Request[] memory _requestAfterRepay = protocolFacet
-            .getUserActiveRequests(owner);
+        Request[] memory _requestAfterRepay = gettersFacet.getUserActiveRequests(owner);
 
-        uint256 loanerCA = protocolFacet.getAddressToCollateralDeposited(
-            _request.lender,
-            _request.loanRequestAddr
-        );
-        uint256 loanerAB = protocolFacet.getAddressToAvailableBalance(
-            _request.lender,
-            _request.loanRequestAddr
-        );
+        uint256 loanerCA = gettersFacet.getAddressToCollateralDeposited(_request.lender, _request.loanRequestAddr);
+        uint256 loanerAB = gettersFacet.getAddressToAvailableBalance(_request.lender, _request.loanRequestAddr);
 
-        Request memory _request1 = protocolFacet.getRequest(1);
+        Request memory _request1 = gettersFacet.getRequest(1);
 
-        uint256 conbal = IERC20(_request.loanRequestAddr).balanceOf(
-            address(protocolFacet)
-        );
+        uint256 conbal = IERC20(_request.loanRequestAddr).balanceOf(address(protocolFacet));
 
         assertEq(uint8(_requestAfterRepay.length), uint8(0));
         assertEq(_request1.totalRepayment, 0);
@@ -683,11 +522,9 @@ contract ProtocolTest is Test, IDiamondCut {
     function testRepayLoanFailsWithoutAllowance() public {
         testServiceRequest();
         switchSigner(owner);
-        Request memory _request = protocolFacet.getRequest(1);
+        Request memory _request = gettersFacet.getRequest(1);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(Protocol__InsufficientAllowance.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(Protocol__InsufficientAllowance.selector));
 
         protocolFacet.repayLoan(1, _request.totalRepayment);
     }
@@ -805,48 +642,35 @@ contract ProtocolTest is Test, IDiamondCut {
     function testProgressiveLoanRepayment() public {
         testServiceRequest();
         switchSigner(owner);
-        Request memory _request = protocolFacet.getRequest(1);
+        Request memory _request = gettersFacet.getRequest(1);
         uint256 firstHalf = _request.totalRepayment / 2;
         uint256 secondHalf = _request.totalRepayment - firstHalf;
 
-        IERC20(_request.loanRequestAddr).approve(
-            address(protocolFacet),
-            _request.totalRepayment
-        );
+        IERC20(_request.loanRequestAddr).approve(address(protocolFacet), _request.totalRepayment);
 
         protocolFacet.repayLoan(1, firstHalf);
-        Request memory _requestAfterRepay = protocolFacet.getRequest(1);
-        assertEq(
-            _requestAfterRepay.totalRepayment,
-            _request.totalRepayment - (_request.totalRepayment / 2)
-        );
+        Request memory _requestAfterRepay = gettersFacet.getRequest(1);
+        assertEq(_requestAfterRepay.totalRepayment, _request.totalRepayment - (_request.totalRepayment / 2));
 
         protocolFacet.repayLoan(1, secondHalf);
-        Request memory _requestAfterRepay2 = protocolFacet.getRequest(1);
+        Request memory _requestAfterRepay2 = gettersFacet.getRequest(1);
         assertEq(_requestAfterRepay2.totalRepayment, 0);
     }
 
     function testCreateLoanListing() public {
         switchSigner(owner);
-        IERC20(DIA_CONTRACT_ADDRESS).approve(
-            address(protocolFacet),
-            type(uint256).max
-        );
-        uint256 _amount = 10E10;
+        IERC20(DIA_CONTRACT_ADDRESS).approve(address(protocolFacet), type(uint256).max);
+        uint256 _amount = 10e10;
         uint16 _interestRate = 500;
         uint256 _returnDate = 365 days;
-        uint256 _min_amount = 2E10;
-        uint256 _max_amount = 10E10;
+        uint256 _min_amount = 2e10;
+        uint256 _max_amount = 10e10;
+        address[] memory _whitelist = new address[](0);
         protocolFacet.createLoanListing(
-            _amount,
-            _min_amount,
-            _max_amount,
-            _returnDate,
-            _interestRate,
-            DIA_CONTRACT_ADDRESS
+            _amount, _min_amount, _max_amount, _returnDate, _interestRate, DIA_CONTRACT_ADDRESS, _whitelist
         );
 
-        LoanListing memory _listing = protocolFacet.getLoanListing(1);
+        LoanListing memory _listing = gettersFacet.getLoanListing(1);
         assertEq(_listing.author, owner);
         assertEq(_listing.tokenAddress, DIA_CONTRACT_ADDRESS);
         assertEq(_listing.amount, _amount);
@@ -862,16 +686,16 @@ contract ProtocolTest is Test, IDiamondCut {
         IERC20(LINK_CONTRACT_ADDRESS).transfer(B, 250 ether);
         _depositCollateral(B, LINK_CONTRACT_ADDRESS, 200 ether);
 
-        protocolFacet.requestLoanFromListing(1, 5E10);
+        protocolFacet.requestLoanFromListing(1, 5e10);
 
-        Request memory _request = protocolFacet.getRequest(1);
-        LoanListing memory _listing = protocolFacet.getLoanListing(1);
+        Request memory _request = gettersFacet.getRequest(1);
+        LoanListing memory _listing = gettersFacet.getLoanListing(1);
 
-        assertEq(_request.amount, 5E10);
+        assertEq(_request.amount, 5e10);
         assertEq(_request.interest, _listing.interest);
         assertEq(_request.returnDate, _listing.returnDate);
         assertEq(uint8(_request.status), uint8(Status.SERVICED));
-        assertEq(_listing.amount, 5E10);
+        assertEq(_listing.amount, 5e10);
     }
 
     // function testLiquidateUser() external {
@@ -886,29 +710,18 @@ contract ProtocolTest is Test, IDiamondCut {
 
     function createLoanListing() public {
         switchSigner(owner);
-        IERC20(DIA_CONTRACT_ADDRESS).approve(
-            address(protocolFacet),
-            type(uint256).max
-        );
+        IERC20(DIA_CONTRACT_ADDRESS).approve(address(protocolFacet), type(uint256).max);
+        address[] memory whitelist = new address[](0);
         protocolFacet.createLoanListing(
-            10E10,
-            2E10,
-            10E10,
-            block.timestamp + 365 days,
-            500,
-            DIA_CONTRACT_ADDRESS
+            10e10, 2e10, 10e10, block.timestamp + 365 days, 500, DIA_CONTRACT_ADDRESS, whitelist
         );
     }
 
     function testGetHealthFactor() public {
-        uint256 _healthfactorBeforeDeposit = protocolFacet.getHealthFactor(
-            owner
-        );
-        _depositCollateral(owner, LINK_CONTRACT_ADDRESS, 5E18);
+        uint256 _healthfactorBeforeDeposit = gettersFacet.getHealthFactor(owner);
+        _depositCollateral(owner, LINK_CONTRACT_ADDRESS, 5e18);
 
-        uint256 _healthfactorAfterDeposit = protocolFacet.getHealthFactor(
-            owner
-        );
+        uint256 _healthfactorAfterDeposit = gettersFacet.getHealthFactor(owner);
 
         assertEq(_healthfactorBeforeDeposit, 0);
         assert(_healthfactorAfterDeposit > 1);
@@ -919,9 +732,7 @@ contract ProtocolTest is Test, IDiamondCut {
         switchSigner(owner);
 
         vm.expectRevert("ProtocolFacet: fallback");
-        (bool _success, ) = payable(address(protocolFacet)).call{
-            value: 100 ether
-        }("");
+        (bool _success,) = payable(address(protocolFacet)).call{value: 100 ether}("");
         assertFalse(_success);
     }
 
@@ -936,19 +747,13 @@ contract ProtocolTest is Test, IDiamondCut {
         IERC20(LINK_CONTRACT_ADDRESS).transfer(owner, 500 ether);
     }
 
-    function _depositCollateral(
-        address user,
-        address token,
-        uint256 amount
-    ) internal {
+    function _depositCollateral(address user, address token, uint256 amount) internal {
         switchSigner(user);
-        IERC20(token).approve(address(protocolFacet), type(uint).max);
+        IERC20(token).approve(address(protocolFacet), type(uint256).max);
         protocolFacet.depositCollateral(token, amount);
     }
 
-    function generateSelectors(
-        string memory _facetName
-    ) internal returns (bytes4[] memory selectors) {
+    function generateSelectors(string memory _facetName) internal returns (bytes4[] memory selectors) {
         string[] memory cmd = new string[](3);
         cmd[0] = "node";
         cmd[1] = "scripts/genSelectors.js";
@@ -958,9 +763,7 @@ contract ProtocolTest is Test, IDiamondCut {
     }
 
     function mkaddr(string memory name) public returns (address) {
-        address addr = address(
-            uint160(uint256(keccak256(abi.encodePacked(name))))
-        );
+        address addr = address(uint160(uint256(keccak256(abi.encodePacked(name)))));
         vm.label(addr, name);
         return addr;
     }
@@ -975,9 +778,5 @@ contract ProtocolTest is Test, IDiamondCut {
         }
     }
 
-    function diamondCut(
-        FacetCut[] calldata _diamondCut,
-        address _init,
-        bytes calldata _calldata
-    ) external override {}
+    function diamondCut(FacetCut[] calldata _diamondCut, address _init, bytes calldata _calldata) external override {}
 }

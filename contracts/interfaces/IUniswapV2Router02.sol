@@ -3,48 +3,44 @@ pragma solidity ^0.8.9;
 
 interface IUniswapV2Router02 {
     function swapTokensForExactTokens(
-        uint amountOut,
-        uint amountInMax,
+        uint256 amountOut,
+        uint256 amountInMax,
         address[] calldata path,
         address to,
-        uint deadline
-    ) external returns (uint[] memory amounts);
+        uint256 deadline
+    ) external returns (uint256[] memory amounts);
 
     function swapTokensForExactETH(
-        uint amountOut,
-        uint amountInMax,
+        uint256 amountOut,
+        uint256 amountInMax,
         address[] calldata path,
         address to,
-        uint deadline
-    ) external returns (uint[] memory amounts);
+        uint256 deadline
+    ) external returns (uint256[] memory amounts);
 
-    function swapETHForExactTokens(
-        uint amountOut,
-        address[] calldata path,
-        address to,
-        uint deadline
-    ) external payable returns (uint[] memory amounts);
+    function swapETHForExactTokens(uint256 amountOut, address[] calldata path, address to, uint256 deadline)
+        external
+        payable
+        returns (uint256[] memory amounts);
 
-    function swapExactETHForTokens(
-        uint amountOutMin,
-        address[] calldata path,
-        address to,
-        uint deadline
-    ) external payable returns (uint[] memory amounts);
+    function swapExactETHForTokens(uint256 amountOutMin, address[] calldata path, address to, uint256 deadline)
+        external
+        payable
+        returns (uint256[] memory amounts);
 
     function swapExactTokensForETH(
-        uint amountIn,
-        uint amountOutMin,
+        uint256 amountIn,
+        uint256 amountOutMin,
         address[] calldata path,
         address to,
-        uint deadline
-    ) external returns (uint[] memory amounts);
+        uint256 deadline
+    ) external returns (uint256[] memory amounts);
 
     function swapExactTokensForTokens(
-        uint amountIn,
-        uint amountOutMin,
+        uint256 amountIn,
+        uint256 amountOutMin,
         address[] calldata path,
         address to,
-        uint deadline
-    ) external returns (uint[] memory amounts);
+        uint256 deadline
+    ) external returns (uint256[] memory amounts);
 }

@@ -8,6 +8,7 @@ import "../contracts/facets/OwnershipFacet.sol";
 import "forge-std/Test.sol";
 import "../contracts/Diamond.sol";
 import "../contracts/facets/ProtocolFacet.sol";
+import "../contracts/facets/GettersFacet.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../contracts/model/Protocol.sol";
 import "../contracts/model/Event.sol";
@@ -25,6 +26,7 @@ contract ProtocolTest is Test, IDiamondCut {
     DiamondLoupeFacet dLoupe;
     OwnershipFacet ownerF;
     ProtocolFacet protocolFacet;
+    GettersFacet gettersFacet;
 
     address USDT_USD;
     address DAI_USD;
@@ -60,28 +62,13 @@ contract ProtocolTest is Test, IDiamondCut {
         dLoupe = new DiamondLoupeFacet();
         ownerF = new OwnershipFacet();
         protocolFacet = new ProtocolFacet();
+        gettersFacet = new GettersFacet();
 
         //deploy mock tokens
-        (USDT_CONTRACT_ADDRESS, USDT_USD) = deployERC20ContractAndAddPriceFeed(
-            "USDT",
-            6,
-            1
-        );
-        (DAI_CONTRACT_ADDRESS, DAI_USD) = deployERC20ContractAndAddPriceFeed(
-            "DAI",
-            18,
-            1
-        );
-        (LINK_CONTRACT_ADDRESS, LINK_USD) = deployERC20ContractAndAddPriceFeed(
-            "LINK",
-            18,
-            10
-        );
-        (WETH_CONTRACT_ADDRESS, WETH_USD) = deployERC20ContractAndAddPriceFeed(
-            "WETH",
-            18,
-            2000
-        );
+        (USDT_CONTRACT_ADDRESS, USDT_USD) = deployERC20ContractAndAddPriceFeed("USDT", 6, 1);
+        (DAI_CONTRACT_ADDRESS, DAI_USD) = deployERC20ContractAndAddPriceFeed("DAI", 18, 1);
+        (LINK_CONTRACT_ADDRESS, LINK_USD) = deployERC20ContractAndAddPriceFeed("LINK", 18, 10);
+        (WETH_CONTRACT_ADDRESS, WETH_USD) = deployERC20ContractAndAddPriceFeed("WETH", 18, 2000);
 
         tokens.push(USDT_CONTRACT_ADDRESS);
         tokens.push(DAI_CONTRACT_ADDRESS);
@@ -98,7 +85,7 @@ contract ProtocolTest is Test, IDiamondCut {
         //upgrade diamond with facets
 
         //build cut struct
-        FacetCut[] memory cut = new FacetCut[](3);
+        FacetCut[] memory cut = new FacetCut[](4);
 
         cut[0] = (
             FacetCut({
@@ -124,6 +111,14 @@ contract ProtocolTest is Test, IDiamondCut {
             })
         );
 
+        cut[3] = (
+            FacetCut({
+                facetAddress: address(gettersFacet),
+                action: FacetCutAction.Add,
+                functionSelectors: generateSelectors("GettersFacet")
+            })
+        );
+
         //upgrade diamond
         IDiamondCut(address(diamond)).diamondCut(cut, address(0x0), "");
 
@@ -134,6 +129,7 @@ contract ProtocolTest is Test, IDiamondCut {
         diamond.initialize(tokens, priceFeed);
 
         protocolFacet = ProtocolFacet(address(diamond));
+        gettersFacet = GettersFacet(address(diamond));
         // protocolFacet.setBotAddress(botAddress);
         // protocolFacet.setSwapRouter(swapRouterAddress);
 
@@ -143,177 +139,134 @@ contract ProtocolTest is Test, IDiamondCut {
     }
 
     function transferTokenToOwner() public {
-        ERC20Mock(USDT_CONTRACT_ADDRESS).mint(owner, 1000E18);
+        ERC20Mock(USDT_CONTRACT_ADDRESS).mint(owner, 1000e18);
         ERC20Mock(DAI_CONTRACT_ADDRESS).mint(owner, 500 ether);
         ERC20Mock(WETH_CONTRACT_ADDRESS).mint(owner, 500 ether);
         ERC20Mock(LINK_CONTRACT_ADDRESS).mint(owner, 500 ether);
     }
 
-    function _mintTokenToAddress(
-        address _token,
-        address _to,
-        uint256 _amount
-    ) internal {
+    function _mintTokenToAddress(address _token, address _to, uint256 _amount) internal {
         ERC20Mock(_token).mint(_to, _amount);
     }
 
     function testGetFeesAccrued() public {
-        _mintTokenToAddress(USDT_CONTRACT_ADDRESS, B, 100000E18);
-        _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 5E18);
+        _mintTokenToAddress(USDT_CONTRACT_ADDRESS, B, 100000e18);
+        _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 5e18);
 
         ProtocolFacet protocol = ProtocolFacet(address(diamond));
-        protocol.createLendingRequest(
-            200E18,
-            500,
-            block.timestamp + (30 days * 3),
-            USDT_CONTRACT_ADDRESS
-        );
+        protocol.createLendingRequest(200e18, 500, block.timestamp + (30 days * 3), USDT_CONTRACT_ADDRESS);
 
         IERC20 usdt = IERC20(USDT_CONTRACT_ADDRESS);
 
         switchSigner(B);
-        usdt.approve(address(diamond), 250E18);
+        usdt.approve(address(diamond), 250e18);
         protocol.serviceRequest(1, USDT_CONTRACT_ADDRESS);
 
         switchSigner(owner);
-        usdt.approve(address(diamond), 250E18);
-        protocol.repayLoan(1, 210E18);
+        usdt.approve(address(diamond), 250e18);
+        protocol.repayLoan(1, 210e18);
 
-        uint256 _feesAccruedUsdt = protocol.getFeesAccrued(
-            USDT_CONTRACT_ADDRESS
-        );
+        uint256 _feesAccruedUsdt = gettersFacet.getFeesAccrued(USDT_CONTRACT_ADDRESS);
         // assuming 1% fee rate
-        assertEq(_feesAccruedUsdt, 210E16);
+        assertEq(_feesAccruedUsdt, 210e16);
     }
 
     function testFeeAccruedOnNativeToken() public {
         vm.deal(owner, 3 ether);
         vm.deal(B, 10 ether);
-        _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 5E18);
+        _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 5e18);
 
         ProtocolFacet protocol = ProtocolFacet(address(diamond));
-        protocol.createLendingRequest(
-            2E18,
-            500,
-            block.timestamp + (30 days * 3),
-            ETH_CONTRACT_ADDRESS
-        );
+        protocol.createLendingRequest(2e18, 500, block.timestamp + (30 days * 3), ETH_CONTRACT_ADDRESS);
 
         switchSigner(B);
-        protocol.serviceRequest{value: 2E18}(1, ETH_CONTRACT_ADDRESS);
+        protocol.serviceRequest{value: 2e18}(1, ETH_CONTRACT_ADDRESS);
 
         switchSigner(owner);
-        protocol.repayLoan{value: 21E17}(1, 21E17);
+        protocol.repayLoan{value: 21e17}(1, 21e17);
 
-        uint256 _feesAccruedUsdt = protocol.getFeesAccrued(
-            ETH_CONTRACT_ADDRESS
-        );
+        uint256 _feesAccruedUsdt = gettersFacet.getFeesAccrued(ETH_CONTRACT_ADDRESS);
         // assuming 1% fee rate
-        assertEq(_feesAccruedUsdt, 21E15);
+        assertEq(_feesAccruedUsdt, 21e15);
     }
 
     function testFeesAccrueWithPeriodicPayments() public {
-        _mintTokenToAddress(DAI_CONTRACT_ADDRESS, B, 10000E18);
-        _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 5E18);
+        _mintTokenToAddress(DAI_CONTRACT_ADDRESS, B, 10000e18);
+        _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 5e18);
 
         ProtocolFacet protocol = ProtocolFacet(address(diamond));
-        protocol.createLendingRequest(
-            200E18,
-            500,
-            block.timestamp + (30 days * 3),
-            DAI_CONTRACT_ADDRESS
-        );
+        protocol.createLendingRequest(200e18, 500, block.timestamp + (30 days * 3), DAI_CONTRACT_ADDRESS);
 
         IERC20 dai = IERC20(DAI_CONTRACT_ADDRESS);
 
         switchSigner(B);
-        dai.approve(address(diamond), 250E18);
+        dai.approve(address(diamond), 250e18);
         protocol.serviceRequest(1, DAI_CONTRACT_ADDRESS);
 
-        protocol.getRequest(1);
+        gettersFacet.getRequest(1);
 
         switchSigner(owner);
-        dai.approve(address(diamond), 250E18);
-        protocol.repayLoan(1, 50E18);
+        dai.approve(address(diamond), 250e18);
+        protocol.repayLoan(1, 50e18);
 
-        uint256 _feesAccruedAfter1 = protocol.getFeesAccrued(
-            DAI_CONTRACT_ADDRESS
-        );
+        uint256 _feesAccruedAfter1 = gettersFacet.getFeesAccrued(DAI_CONTRACT_ADDRESS);
         // assuming 1% fee rate
-        assertEq(_feesAccruedAfter1, 5E17);
+        assertEq(_feesAccruedAfter1, 5e17);
 
-        protocol.repayLoan(1, 120E18);
-        uint256 _feesAccruedAfter2 = protocol.getFeesAccrued(
-            DAI_CONTRACT_ADDRESS
-        );
-        assertEq(_feesAccruedAfter2, 17E17);
+        protocol.repayLoan(1, 120e18);
+        uint256 _feesAccruedAfter2 = gettersFacet.getFeesAccrued(DAI_CONTRACT_ADDRESS);
+        assertEq(_feesAccruedAfter2, 17e17);
 
-        protocol.repayLoan(1, 80E18);
-        uint256 _feesAccruedAfter3 = protocol.getFeesAccrued(
-            DAI_CONTRACT_ADDRESS
-        );
-        assertEq(_feesAccruedAfter3, 21E17);
+        protocol.repayLoan(1, 80e18);
+        uint256 _feesAccruedAfter3 = gettersFacet.getFeesAccrued(DAI_CONTRACT_ADDRESS);
+        assertEq(_feesAccruedAfter3, 21e17);
 
-        protocol.getRequest(1);
+        gettersFacet.getRequest(1);
     }
 
     function testFeeWithdrawalERC20() public {
-        _mintTokenToAddress(DAI_CONTRACT_ADDRESS, B, 100_000_000E18);
-        _mintTokenToAddress(WETH_CONTRACT_ADDRESS, owner, 500_000E18);
-        _mintTokenToAddress(DAI_CONTRACT_ADDRESS, owner, 100_000_000E18);
-        _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 500_000E18);
+        _mintTokenToAddress(DAI_CONTRACT_ADDRESS, B, 100_000_000e18);
+        _mintTokenToAddress(WETH_CONTRACT_ADDRESS, owner, 500_000e18);
+        _mintTokenToAddress(DAI_CONTRACT_ADDRESS, owner, 100_000_000e18);
+        _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 500_000e18);
 
         ProtocolFacet protocol = ProtocolFacet(address(diamond));
-        protocol.createLendingRequest(
-            70_000_000E18,
-            1000,
-            block.timestamp + (30 days * 3),
-            DAI_CONTRACT_ADDRESS
-        );
+        protocol.createLendingRequest(70_000_000e18, 1000, block.timestamp + (30 days * 3), DAI_CONTRACT_ADDRESS);
 
         IERC20 dai = IERC20(DAI_CONTRACT_ADDRESS);
 
         switchSigner(B);
-        dai.approve(address(diamond), 100_000_000E18);
+        dai.approve(address(diamond), 100_000_000e18);
         protocol.serviceRequest(1, DAI_CONTRACT_ADDRESS);
 
         switchSigner(owner);
-        dai.approve(address(diamond), 100_000_000E18);
-        protocol.repayLoan(1, 77_000_000E18);
+        dai.approve(address(diamond), 100_000_000e18);
+        protocol.repayLoan(1, 77_000_000e18);
 
-        uint256 _feesAccruedUsdt = protocol.getFeesAccrued(
-            DAI_CONTRACT_ADDRESS
-        );
+        uint256 _feesAccruedUsdt = gettersFacet.getFeesAccrued(DAI_CONTRACT_ADDRESS);
         // assuming 1% fee rate
-        assertEq(_feesAccruedUsdt, 770_000E18);
+        assertEq(_feesAccruedUsdt, 770_000e18);
 
-        protocol.withdrawFees(DAI_CONTRACT_ADDRESS, C, 500_000E18);
-        uint256 _feesAfterWithdrawal = protocol.getFeesAccrued(
-            DAI_CONTRACT_ADDRESS
-        );
-        assertEq(_feesAfterWithdrawal, 270_000E18);
+        protocol.withdrawFees(DAI_CONTRACT_ADDRESS, C, 500_000e18);
+        uint256 _feesAfterWithdrawal = gettersFacet.getFeesAccrued(DAI_CONTRACT_ADDRESS);
+        assertEq(_feesAfterWithdrawal, 270_000e18);
 
         uint256 _balance = dai.balanceOf(C);
-        assertEq(_balance, 500_000E18);
+        assertEq(_balance, 500_000e18);
     }
 
     function testFeeWithdrawalNative() public {
-        vm.deal(B, 1_000_000E18);
-        vm.deal(owner, 1_000_000E18);
-        _mintTokenToAddress(WETH_CONTRACT_ADDRESS, owner, 500_000E18);
-        _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 500_000E18);
+        vm.deal(B, 1_000_000e18);
+        vm.deal(owner, 1_000_000e18);
+        _mintTokenToAddress(WETH_CONTRACT_ADDRESS, owner, 500_000e18);
+        _depositCollateral(owner, WETH_CONTRACT_ADDRESS, 500_000e18);
 
-        uint128 _amount = 300_000E18;
-        uint256 _repayAmount = 330_000E18;
-        uint256 _feeAccrued = 3300E18;
+        uint128 _amount = 300_000e18;
+        uint256 _repayAmount = 330_000e18;
+        uint256 _feeAccrued = 3300e18;
 
         ProtocolFacet protocol = ProtocolFacet(address(diamond));
-        protocol.createLendingRequest(
-            _amount,
-            1000,
-            block.timestamp + (30 days * 3),
-            ETH_CONTRACT_ADDRESS
-        );
+        protocol.createLendingRequest(_amount, 1000, block.timestamp + (30 days * 3), ETH_CONTRACT_ADDRESS);
 
         switchSigner(B);
         protocol.serviceRequest{value: _amount}(1, ETH_CONTRACT_ADDRESS);
@@ -321,37 +274,35 @@ contract ProtocolTest is Test, IDiamondCut {
         switchSigner(owner);
         protocol.repayLoan{value: _repayAmount}(1, _repayAmount);
 
-        uint256 _feesAccruedEth = protocol.getFeesAccrued(ETH_CONTRACT_ADDRESS);
+        uint256 _feesAccruedEth = gettersFacet.getFeesAccrued(ETH_CONTRACT_ADDRESS);
         // assuming 1% fee rate
         assertEq(_feesAccruedEth, _feeAccrued);
 
-        protocol.withdrawFees(ETH_CONTRACT_ADDRESS, C, 1000E18);
-        uint256 _feesAfterWithdrawal = protocol.getFeesAccrued(
-            ETH_CONTRACT_ADDRESS
-        );
-        assertEq(_feesAfterWithdrawal, 2300E18);
+        protocol.withdrawFees(ETH_CONTRACT_ADDRESS, C, 1000e18);
+        uint256 _feesAfterWithdrawal = gettersFacet.getFeesAccrued(ETH_CONTRACT_ADDRESS);
+        assertEq(_feesAfterWithdrawal, 2300e18);
 
         uint256 _balance = C.balance;
-        assertEq(_balance, 1000E18);
+        assertEq(_balance, 1000e18);
     }
 
     function testWithdrawRevertsIfNotContractOwner() public {
         testFeeWithdrawalERC20();
         vm.startPrank(B);
         vm.expectRevert(LibDiamond.NotDiamondOwner.selector);
-        protocolFacet.withdrawFees(USDT_CONTRACT_ADDRESS, C, 1000E18);
+        protocolFacet.withdrawFees(USDT_CONTRACT_ADDRESS, C, 1000e18);
     }
 
     function testWithdrawRevertsIfZeroAddress() public {
         testFeeWithdrawalERC20();
         vm.expectRevert("invalid address");
-        protocolFacet.withdrawFees(USDT_CONTRACT_ADDRESS, address(0), 1000E18);
+        protocolFacet.withdrawFees(USDT_CONTRACT_ADDRESS, address(0), 1000e18);
     }
 
     function testWithdrawRevertsIfFeesLowerThatWithdrawAmount() public {
         testFeeWithdrawalERC20();
         vm.expectRevert("insufficient fees");
-        protocolFacet.withdrawFees(USDT_CONTRACT_ADDRESS, C, 100_000_000E18);
+        protocolFacet.withdrawFees(USDT_CONTRACT_ADDRESS, C, 100_000_000e18);
     }
 
     function testFeeRateCannotExceedTenPercent() public {
@@ -365,39 +316,29 @@ contract ProtocolTest is Test, IDiamondCut {
         protocolFacet.setFeeRate(1000);
     }
 
-    function _depositCollateral(
-        address user,
-        address token,
-        uint256 amount
-    ) internal {
+    function _depositCollateral(address user, address token, uint256 amount) internal {
         switchSigner(user);
         if (token == ETH_CONTRACT_ADDRESS) {
             vm.deal(user, amount);
             protocolFacet.depositCollateral{value: amount}(token, amount);
             return;
         }
-        IERC20(token).approve(address(protocolFacet), type(uint).max);
+        IERC20(token).approve(address(protocolFacet), type(uint256).max);
         protocolFacet.depositCollateral(token, amount);
     }
 
-    function deployERC20ContractAndAddPriceFeed(
-        string memory _name,
-        uint8 _decimals,
-        int256 _initialAnswer
-    ) internal returns (address, address) {
+    function deployERC20ContractAndAddPriceFeed(string memory _name, uint8 _decimals, int256 _initialAnswer)
+        internal
+        returns (address, address)
+    {
         ERC20Mock _erc20 = new ERC20Mock();
-        MockV3Aggregator _priceFeed = new MockV3Aggregator(
-            _decimals,
-            _initialAnswer * 1e8
-        );
+        MockV3Aggregator _priceFeed = new MockV3Aggregator(_decimals, _initialAnswer * 1e8);
         vm.label(address(_priceFeed), "Price Feed");
         vm.label(address(_erc20), _name);
         return (address(_erc20), address(_priceFeed));
     }
 
-    function generateSelectors(
-        string memory _facetName
-    ) internal returns (bytes4[] memory selectors) {
+    function generateSelectors(string memory _facetName) internal returns (bytes4[] memory selectors) {
         string[] memory cmd = new string[](3);
         cmd[0] = "node";
         cmd[1] = "scripts/genSelectors.js";
@@ -407,9 +348,7 @@ contract ProtocolTest is Test, IDiamondCut {
     }
 
     function mkaddr(string memory name) public returns (address) {
-        address addr = address(
-            uint160(uint256(keccak256(abi.encodePacked(name))))
-        );
+        address addr = address(uint160(uint256(keccak256(abi.encodePacked(name)))));
         vm.label(addr, name);
         return addr;
     }
@@ -424,9 +363,5 @@ contract ProtocolTest is Test, IDiamondCut {
         }
     }
 
-    function diamondCut(
-        FacetCut[] calldata _diamondCut,
-        address _init,
-        bytes calldata _calldata
-    ) external override {}
+    function diamondCut(FacetCut[] calldata _diamondCut, address _init, bytes calldata _calldata) external override {}
 }

@@ -15,6 +15,26 @@ struct User {
 }
 
 /**
+ * @title User Borrow Data
+ * @notice Structure to track individual user borrowing information
+ */
+struct UserBorrowData {
+    uint256 borrowedAmount; // Original amount borrowed
+    uint256 borrowIndex; // Index at time of borrowing (normalized)
+    uint256 lastUpdateTimestamp; // Last time user data was updated
+    bool isActive; // Whether the borrow is active
+}
+
+struct TokenData {
+    uint256 totalSupply;
+    uint256 poolLiquidity;
+    uint256 totalBorrows;
+    uint256 lastUpdateTimestamp;
+    uint256 borrowIndex;
+    uint256 totalReserves;
+}
+
+/**
  * @dev Struct to store information about a loan request.
  * @param requestId Unique identifier for the loan request.
  * @param author Address of the user who created the request.
@@ -56,12 +76,25 @@ struct LoanListing {
     uint96 listingId;
     address author;
     address tokenAddress;
+    address[] whitelist;
     uint256 amount;
     uint256 min_amount;
     uint256 max_amount;
     uint256 returnDate;
     uint16 interest;
     ListingStatus listingStatus;
+}
+
+struct ProtocolPool {
+    address token;
+    bool initialize;
+    uint256 totalSupply;
+    uint256 totalBorrows;
+    uint256 reserveFactor;
+    uint256 optimalUtilization;
+    uint256 baseRate;
+    uint256 slopeRate;
+    bool isActive;
 }
 
 /**

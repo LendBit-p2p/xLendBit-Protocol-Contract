@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
+
 import "../model/Protocol.sol";
 
 library LibAppStorage {
@@ -36,7 +37,15 @@ library LibAppStorage {
         address swapRouter;
         /// @dev fees rate in basis points
         uint16 feeRateBps;
-
-       address s_protocolFeeRecipient;
+        /// @dev maps token address to token data
+        mapping(address token => TokenData) s_tokenData;
+        mapping(address => ProtocolPool) s_protocolPool;
+        mapping(address => mapping(address => uint256)) s_addressToUserPoolShare;
+        mapping(address => mapping(address => uint256)) s_addressToLockedPoolCollateral;
+        ///@dev stora
+        mapping(address => mapping(address => UserBorrowData)) s_userBorrows;
+        ///@dev Liquidity PoolConfig
+        address s_protocolFeeRecipient;
+        bool isProtocolPoolActive;
     }
 }

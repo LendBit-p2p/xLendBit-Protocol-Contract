@@ -47,12 +47,42 @@ error Protocol__OwnerCreatedListing();
 error Protocol__InsufficientAmount();
 error Protocol__OnlyBotCanAccess();
 
-
-
-error  Protocol__OwnerCantLiquidateRequest();
+error Protocol__OwnerCantLiquidateRequest();
 error Protocol__NotLiquidatable();
 error Protocol__HealthFactorNotBroken();
 error Protocol__InsufficientETH();
 error Protocol__RefundFailed();
 error Protocol__ETHTransferFailed();
 error Protocol__ETHFeeTransferFailed();
+error Protocol__NotWhitelisted();
+
+// Custom errors
+// /// @notice Thrown when trying to interact with a protocol pool that is not active
+// error ProtocolPool__IsNotActive();
+/// @notice Thrown when trying to initialize an already initialized protocol pool
+error ProtocolPool__AlreadyInitialized();
+/// @notice Thrown when trying to use a token that is not supported by the protocol
+error ProtocolPool__TokenNotSupported();
+/// @notice Thrown when attempting an operation with zero amount
+error ProtocolPool__ZeroAmount();
+/// @notice Thrown when trying to use a protocol pool that has not been initialized
+error ProtocolPool__NotInitialized();
+/// @notice Thrown when a user tries to withdraw more than their balance
+error ProtocolPool__InsufficientBalance();
+/// @notice Thrown when a withdrawal is not possible due to insufficient liquidity
+error ProtocolPool__InsufficientLiquidity();
+
+/// protocolpool errors
+error ProtocolPool__NoLiquidity();
+error ProtocolPool__NotEnoughLiquidity();
+error ProtocolPool__IsNotActive();
+error ProtocolPool__InsufficientCollateral();
+error ProtocolPool__NoBorrow();
+error ProtocolPool__InsufficientShares();
+
+
+  // Error definitions
+    error Protocol__AprTooHigh();
+    error Protocol__InvalidCompoundingPeriods();
+    error Protocol__ZeroLiquidity();
+    error Protocol__InvalidBorrows();
